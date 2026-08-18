@@ -1,0 +1,2 @@
+/** booking / items / schema — see docs/project-requriment.md */
+export {};
