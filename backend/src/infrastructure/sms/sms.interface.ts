@@ -4,6 +4,6 @@ export type SmsMessage = {
     data: Record<string, string>;
 };
 
-export interface SmsPort {
+export interface ISmsProvider {
     send(message: SmsMessage): Promise<void>;
 }

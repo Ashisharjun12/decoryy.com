@@ -1,0 +1,35 @@
+import { Outlet, useLocation } from "react-router-dom"
+import { motion, useReducedMotion } from "framer-motion"
+import { AppSidebar } from "@/components/blocks/admin/app-sidebar"
+import { SiteHeader } from "@/components/blocks/admin/site-header"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+
+export function Layout() {
+  const { pathname } = useLocation()
+  const reduceMotion = useReducedMotion()
+  const duration = reduceMotion ? 0 : 0.18
+
+  return (
+    <div className="[--header-height:--spacing(14)]">
+      <SidebarProvider className="flex flex-col">
+        <SiteHeader />
+        <div className="flex flex-1">
+          <AppSidebar />
+          <SidebarInset>
+            <motion.div
+              key={pathname}
+              className="flex flex-1 flex-col p-4 md:p-6"
+              initial={reduceMotion ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <Outlet />
+            </motion.div>
+          </SidebarInset>
+        </div>
+      </SidebarProvider>
+    </div>
+  )
+}
+
+export default Layout

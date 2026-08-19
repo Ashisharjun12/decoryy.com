@@ -6,6 +6,9 @@ import { MastraServer } from "@mastra/express";
 import { errorHandler } from "@/shared/errors/apiHandler.js";
 import { httpLogger } from "@/shared/middlewares/logger.middleware.js";
 import mastra from "@/mastra/index.js";
+import { authRouter, userRouter, vendorRouter } from "@/modules/identity/index.js";
+import { geoRouter } from "@/modules/geo/index.js";
+import { adminRouter } from "@/modules/admin/index.js";
 
 class App {
   private app: Application;
@@ -42,6 +45,12 @@ class App {
     this.app.get("/health", (_req, res) => {
       res.status(200).json({ message: "Decoryy is Live" });
     });
+
+    this.app.use("/api/v1/auth", authRouter);
+    this.app.use("/api/v1/vendor", vendorRouter);
+    this.app.use("/api/v1/user", userRouter);
+    this.app.use("/api/v1/geo", geoRouter);
+    this.app.use("/api/v1/admin", adminRouter);
   }
 
   private setupErrorHandling() {

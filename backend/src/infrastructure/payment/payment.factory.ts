@@ -1,10 +1,10 @@
-import type { PaymentPort } from "@/infrastructure/payment/payment.port.js";
-import { RazorpayProvider } from "@/infrastructure/payment/razorpay.provider.js";
+import type { IPaymentProvider } from "@/infrastructure/payment/payment.interface.js";
+import { RazorpayProvider } from "@/infrastructure/payment/provider/razorpay.provider.js";
 
 export class PaymentFactory {
-    private static instance: PaymentPort | null = null;
+    private static instance: IPaymentProvider | null = null;
 
-    static getProvider(): PaymentPort {
+    static getProvider(): IPaymentProvider {
         if (this.instance) return this.instance;
 
         const name = (process.env.PAYMENT_PROVIDER ?? "razorpay").toLowerCase();
@@ -13,7 +13,7 @@ export class PaymentFactory {
                 this.instance = new RazorpayProvider();
                 return this.instance;
             default:
-                throw new Error(`Unknown PAYMENT_PROVIDER="${name}". Add a provider file; do not change PaymentPort.`);
+                throw new Error(`Unknown PAYMENT_PROVIDER="${name}". Add a provider file; do not change IPaymentProvider.`);
         }
     }
 }

@@ -29,7 +29,7 @@ export type RefundInput = {
  * Stable payment API. Razorpay today, Cashfree later — do not delete these methods.
  * COD is NOT a provider; it is an order payment_method + ledger lines.
  */
-export interface PaymentPort {
+export interface IPaymentProvider {
     createIntent(input: CreateIntentInput): Promise<CreateIntentResult>;
     verifyWebhook(headers: Record<string, string | string[] | undefined>, rawBody: Buffer | string): Promise<WebhookEvent>;
     refund(input: RefundInput): Promise<void>;

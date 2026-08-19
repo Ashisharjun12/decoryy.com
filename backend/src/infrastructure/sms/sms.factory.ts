@@ -1,19 +1,24 @@
-import type { SmsPort } from "@/infrastructure/sms/sms.port.js";
-import { Msg91Provider } from "@/infrastructure/sms/msg91.provider.js";
+import { _config } from "@/config/config.js";
+import type { ISmsProvider } from "@/infrastructure/sms/sms.interface.js";
+import { DevSmsProvider } from "@/infrastructure/sms/provider/dev.provider.js";
+import { TwilioSmsProvider } from "@/infrastructure/sms/provider/twilio.provider.js";
 
 export class SmsFactory {
-    private static instance: SmsPort | null = null;
+    private static instance: ISmsProvider | null = null;
 
-    static getProvider(): SmsPort {
+    static getProvider(): ISmsProvider {
         if (this.instance) return this.instance;
 
-        const name = (process.env.SMS_PROVIDER ?? "msg91").toLowerCase();
+        const name = (_config.SMS_PROVIDER || "dev").toLowerCase();
         switch (name) {
-            case "msg91":
-                this.instance = new Msg91Provider();
+            case "dev":
+                this.instance = new DevSmsProvider();
+                return this.instance;
+            case "twilio":
+                this.instance = new TwilioSmsProvider();
                 return this.instance;
             default:
-                throw new Error(`Unknown SMS_PROVIDER="${name}". Add a provider file; do not change SmsPort.`);
+                throw new Error(`Unknown SMS_PROVIDER="${name}". Add a provider file; do not change ISmsProvider.`);
         }
     }
 }

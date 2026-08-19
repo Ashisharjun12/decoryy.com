@@ -1,4 +1,4 @@
 /**
- * Public API: send({ template, to, data }). Never call MSG91 from other modules.
+ * Public API: SmsService.enqueue({ template, to, data }). Never call Twilio from other modules.
  */
-export {};
+export { SmsService, type ISmsService } from "@/modules/notifications/sms/sms.service.js";

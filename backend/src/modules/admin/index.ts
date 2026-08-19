@@ -1,4 +1,4 @@
 /**
  * Surface only: mounts domain admin routes. No tables.
  */
-export {};
+export { adminRouter } from "@/modules/admin/admin.route.js";

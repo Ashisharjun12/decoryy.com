@@ -1,7 +1,10 @@
 import { config } from "dotenv";
 import { defineConfig } from "drizzle-kit";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-config();
+const root = path.dirname(fileURLToPath(import.meta.url));
+config({ path: path.join(root, ".env") });
 
 const databaseUrl = process.env.POSTGRES_DATABASE_URL;
 if (!databaseUrl) {

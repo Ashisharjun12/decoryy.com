@@ -1,2 +1,2 @@
-/** identity / users / dto — see docs/project-requriment.md */
+/** identity / users / dto — auth.dto covers login payloads */
 export {};

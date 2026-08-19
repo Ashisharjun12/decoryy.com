@@ -1,12 +1,12 @@
 import type {
     CreateIntentInput,
     CreateIntentResult,
-    PaymentPort,
+    IPaymentProvider,
     RefundInput,
     WebhookEvent,
-} from "@/infrastructure/payment/payment.port.js";
+} from "@/infrastructure/payment/payment.interface.js";
 
-export class RazorpayProvider implements PaymentPort {
+export class RazorpayProvider implements IPaymentProvider {
     async createIntent(_input: CreateIntentInput): Promise<CreateIntentResult> {
         throw new Error("RazorpayProvider.createIntent is not implemented yet");
     }

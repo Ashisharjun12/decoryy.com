@@ -12,7 +12,10 @@ export function validate(schema: ZodType, target: ZodTarget = "body"): RequestHa
         if (!parsed.success) {
             throw ApiError.badRequest("validation failed", parsed.error.issues);
         }
-        req[target] = parsed.data as typeof req[typeof target];
+        // Express 5: req.query and req.params are getter-only. Body is still writable.
+        if (target === "body") {
+            req.body = parsed.data as typeof req.body;
+        }
         next();
     });
 }

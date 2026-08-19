@@ -1,4 +1,4 @@
 /**
- * Public API: startCheckout via PaymentPort, webhook, ledger.postCompletion, wallet.
+ * Public API: startCheckout via IPaymentProvider, webhook, ledger.postCompletion, wallet.
  */
 export {};

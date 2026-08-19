@@ -1,2 +1,44 @@
-/** identity / users / service — see docs/project-requriment.md */
-export {};
+import type { IUserRepository } from "@/modules/identity/users/user.repository.js";
+import type { NewUser, User } from "@/modules/identity/users/user.schema.js";
+
+export interface IUserService {
+    findById(id: string): Promise<User | undefined>;
+    findByPhone(phone: string): Promise<User | undefined>;
+    findByEmail(email: string): Promise<User | undefined>;
+    findByGoogleId(googleId: string): Promise<User | undefined>;
+    create(data: NewUser): Promise<User>;
+    markPhoneVerified(id: string): Promise<void>;
+    linkGoogleId(id: string, googleId: string): Promise<User>;
+}
+
+export class UserService implements IUserService {
+    constructor(private readonly users: IUserRepository) {}
+
+    findById(id: string) {
+        return this.users.findById(id);
+    }
+
+    findByPhone(phone: string) {
+        return this.users.findByPhone(phone);
+    }
+
+    findByEmail(email: string) {
+        return this.users.findByEmail(email);
+    }
+
+    findByGoogleId(googleId: string) {
+        return this.users.findByGoogleId(googleId);
+    }
+
+    create(data: NewUser) {
+        return this.users.create(data);
+    }
+
+    markPhoneVerified(id: string) {
+        return this.users.markPhoneVerified(id);
+    }
+
+    linkGoogleId(id: string, googleId: string) {
+        return this.users.linkGoogleId(id, googleId);
+    }
+}

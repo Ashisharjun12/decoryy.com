@@ -1,2 +1,2 @@
-/** identity / users / controller — see docs/project-requriment.md */
+/** identity / users / controller — GET /me lives on auth.controller */
 export {};
