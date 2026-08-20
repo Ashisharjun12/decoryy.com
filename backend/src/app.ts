@@ -8,6 +8,7 @@ import { httpLogger } from "@/shared/middlewares/logger.middleware.js";
 import mastra from "@/mastra/index.js";
 import { authRouter, userRouter, vendorRouter } from "@/modules/identity/index.js";
 import { geoRouter } from "@/modules/geo/index.js";
+import { catalogRouter } from "@/modules/catalog/index.js";
 import { adminRouter } from "@/modules/admin/index.js";
 
 class App {
@@ -50,6 +51,7 @@ class App {
     this.app.use("/api/v1/vendor", vendorRouter);
     this.app.use("/api/v1/user", userRouter);
     this.app.use("/api/v1/geo", geoRouter);
+    this.app.use("/api/v1/catalog", catalogRouter);
     this.app.use("/api/v1/admin", adminRouter);
   }
 

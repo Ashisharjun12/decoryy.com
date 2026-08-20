@@ -3,3 +3,8 @@ export * from "../modules/identity/vendors/vendor.schema.js";
 export * from "../modules/identity/sessions/session.schema.js";
 export * from "../modules/geo/cities/city.schema.js";
 export * from "../modules/geo/pincodes/pincode.schema.js";
+export * from "../modules/upload/media/media.schema.js";
+export * from "../modules/catalog/categories/category.schema.js";
+export * from "../modules/catalog/products/product.schema.js";
+export * from "../modules/catalog/addons/addon.schema.js";
+export * from "../modules/catalog/pricing/city-price.schema.js";

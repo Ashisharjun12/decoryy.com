@@ -20,6 +20,7 @@ export const users = pgTable(
         passwordHash: text("password_hash"),
         googleId: text("google_id").unique(),
         name: text("name").notNull(),
+        avatar: text("avatar"),
         role: userRoleEnum("role").notNull().default("user"),
         status: userStatusEnum("status").notNull().default("active"),
         phoneVerifiedAt: timestamp("phone_verified_at", { withTimezone: true }),

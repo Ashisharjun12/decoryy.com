@@ -32,6 +32,7 @@ export type PublicUser = {
     phone: string | null;
     email: string | null;
     name: string;
+    avatar: string | null;
     role: User["role"];
     status: User["status"];
     vendor?: {
@@ -79,6 +80,7 @@ function publicUser(user: User, vendor?: Vendor): PublicUser {
         phone: user.phone,
         email: user.email,
         name: user.name,
+        avatar: user.avatar,
         role: user.role,
         status: user.status,
         ...(vendor
@@ -252,7 +254,10 @@ export class AuthService implements IAuthService {
                 email: payload.email ?? null,
                 name: payload.name || "User",
                 role: "user",
+                avatar: payload.picture ?? null,
             });
+        } else if (!user.avatar && payload.picture) {
+            user = await this.users.setAvatar(user.id, payload.picture);
         }
 
         const tokens = await this.sessions.issue(user, resolveDevice(input.clientType, input.device));

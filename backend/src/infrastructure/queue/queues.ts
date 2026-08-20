@@ -9,4 +9,5 @@ export const QUEUE_NAMES = {
     assignmentReminder: "assignment.reminder",
     paymentsWebhookRetry: "payments.webhook-retry",
     ledgerPostOnComplete: "ledger.post-on-complete",
+    imageOptimize: "image.optimize",
 } as const;

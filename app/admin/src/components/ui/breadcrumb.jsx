@@ -53,7 +53,7 @@ function BreadcrumbLink({
   return useRender({
     defaultTagName: "a",
     props: mergeProps({
-      className: cn("transition-colors hover:text-foreground", className),
+      className: cn("cursor-pointer transition-colors hover:text-foreground", className),
     }, props),
     render,
     state: {

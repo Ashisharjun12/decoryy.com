@@ -12,6 +12,7 @@ export function getQueues() {
         assignmentReminder: new Queue(QUEUE_NAMES.assignmentReminder, { connection }),
         paymentsWebhookRetry: new Queue(QUEUE_NAMES.paymentsWebhookRetry, { connection }),
         ledgerPostOnComplete: new Queue(QUEUE_NAMES.ledgerPostOnComplete, { connection }),
+        imageOptimize: new Queue(QUEUE_NAMES.imageOptimize, { connection }),
     };
     return queues;
 }

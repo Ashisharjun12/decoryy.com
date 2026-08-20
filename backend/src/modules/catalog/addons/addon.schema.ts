@@ -1,2 +1,32 @@
-/** catalog / addons / schema — see docs/project-requriment.md */
-export {};
+import { boolean, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { products } from "@/modules/catalog/products/product.schema.js";
+import { uploads } from "@/modules/upload/media/media.schema.js";
+
+export const addons = pgTable("addons", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    slug: text("slug").notNull().unique(),
+    imageUploadId: uuid("image_upload_id").references(() => uploads.id, { onDelete: "set null" }),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const productAddons = pgTable(
+    "product_addons",
+    {
+        productId: uuid("product_id")
+            .notNull()
+            .references(() => products.id, { onDelete: "cascade" }),
+        addonId: uuid("addon_id")
+            .notNull()
+            .references(() => addons.id, { onDelete: "cascade" }),
+        createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    },
+    (table) => [primaryKey({ columns: [table.productId, table.addonId] })],
+);
+
+export type Addon = typeof addons.$inferSelect;
+export type NewAddon = typeof addons.$inferInsert;
+export type ProductAddon = typeof productAddons.$inferSelect;
+export type NewProductAddon = typeof productAddons.$inferInsert;

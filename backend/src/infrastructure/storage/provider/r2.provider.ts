@@ -3,6 +3,7 @@ import {
     PutObjectCommand,
     GetObjectCommand,
     DeleteObjectCommand,
+    HeadObjectCommand,
     CreateMultipartUploadCommand,
     UploadPartCommand,
     CompleteMultipartUploadCommand
@@ -38,6 +39,48 @@ export class R2Provider implements IStorageProvider {
         await this.client.send(command);
     }
 
+    async getObjectBuffer(key: string): Promise<Buffer> {
+        const response = await this.client.send(
+            new GetObjectCommand({
+                Bucket: this.bucket,
+                Key: key,
+            }),
+        );
+        const bytes = await response.Body?.transformToByteArray();
+        if (!bytes) {
+            throw new Error(`empty object: ${key}`);
+        }
+        return Buffer.from(bytes);
+    }
+
+    async putObject(key: string, body: Buffer, contentType: string): Promise<void> {
+        await this.client.send(
+            new PutObjectCommand({
+                Bucket: this.bucket,
+                Key: key,
+                Body: body,
+                ContentType: contentType,
+            }),
+        );
+    }
+
+    async headObject(key: string): Promise<{ size: number; contentType?: string } | null> {
+        try {
+            const response = await this.client.send(
+                new HeadObjectCommand({
+                    Bucket: this.bucket,
+                    Key: key,
+                }),
+            );
+            return {
+                size: Number(response.ContentLength ?? 0),
+                contentType: response.ContentType,
+            };
+        } catch {
+            return null;
+        }
+    }
+
  
 // generate signed url for upload
     async getPresignedUploadUrl(filename: string, contentType: string): Promise<PresignedUrlResult> {
@@ -54,6 +97,16 @@ export class R2Provider implements IStorageProvider {
         const uploadUrl = await getSignedUrl(this.client, command, { expiresIn: 3600 });
         const publicUrl = this.getPublicUrl(key);
         return { uploadUrl, key, publicUrl };
+    }
+
+    async getPresignedUploadUrlForKey(key: string, contentType: string): Promise<PresignedUrlResult> {
+        const command = new PutObjectCommand({
+            Bucket: this.bucket,
+            Key: key,
+            ContentType: contentType,
+        });
+        const uploadUrl = await getSignedUrl(this.client, command, { expiresIn: 3600 });
+        return { uploadUrl, key, publicUrl: this.getPublicUrl(key) };
     }
 
     // generate signed url for download

@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom"
-import { LayoutDashboardIcon, MapPinIcon } from "lucide-react"
+import { LayoutDashboardIcon, MapPinIcon, ImagesIcon } from "lucide-react"
 import { NavMain } from "@/components/blocks/admin/nav-main"
 import { NavUser } from "@/components/blocks/admin/nav-user"
 import {
@@ -22,6 +22,11 @@ const navItems = [
     title: "Operational locations",
     url: "/locations",
     icon: <MapPinIcon />,
+  },
+  {
+    title: "Media",
+    url: "/media",
+    icon: <ImagesIcon />,
   },
 ]
 

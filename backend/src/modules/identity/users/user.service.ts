@@ -9,6 +9,7 @@ export interface IUserService {
     create(data: NewUser): Promise<User>;
     markPhoneVerified(id: string): Promise<void>;
     linkGoogleId(id: string, googleId: string): Promise<User>;
+    setAvatar(id: string, avatar: string): Promise<User>;
 }
 
 export class UserService implements IUserService {
@@ -40,5 +41,9 @@ export class UserService implements IUserService {
 
     linkGoogleId(id: string, googleId: string) {
         return this.users.linkGoogleId(id, googleId);
+    }
+
+    setAvatar(id: string, avatar: string) {
+        return this.users.setAvatar(id, avatar);
     }
 }

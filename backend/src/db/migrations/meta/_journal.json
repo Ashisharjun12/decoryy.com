@@ -15,6 +15,27 @@
       "when": 1787164772888,
       "tag": "0001_lumpy_kat_farrell",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787177620315,
+      "tag": "0002_magical_mariko_yashida",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787179409856,
+      "tag": "0003_famous_doorman",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1787183000000,
+      "tag": "0004_drop_catalog",
+      "breakpoints": true
     }
   ]
 }

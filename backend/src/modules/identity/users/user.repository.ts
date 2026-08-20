@@ -10,6 +10,7 @@ export interface IUserRepository {
     create(data: NewUser): Promise<User>;
     markPhoneVerified(id: string): Promise<void>;
     linkGoogleId(id: string, googleId: string): Promise<User>;
+    setAvatar(id: string, avatar: string): Promise<User>;
 }
 
 export class UserRepository implements IUserRepository {
@@ -53,6 +54,18 @@ export class UserRepository implements IUserRepository {
             .returning();
         if (!row) {
             throw new Error("failed to link google id");
+        }
+        return row;
+    }
+
+    async setAvatar(id: string, avatar: string): Promise<User> {
+        const [row] = await db
+            .update(users)
+            .set({ avatar, updatedAt: new Date() })
+            .where(eq(users.id, id))
+            .returning();
+        if (!row) {
+            throw new Error("failed to set avatar");
         }
         return row;
     }

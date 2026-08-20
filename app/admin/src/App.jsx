@@ -7,6 +7,7 @@ import { LoginPage } from "@/module/auth/pages/LoginPage"
 import { Layout } from "@/module/layout/Layout"
 import { DashboardPage } from "@/module/geo/pages/DashboardPage"
 import { LocationsPage } from "@/module/geo/pages/LocationsPage"
+import { MediaPage } from "@/module/media/pages/MediaPage"
 
 export default function App() {
   useEffect(() => {
@@ -25,6 +26,7 @@ export default function App() {
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/locations" element={<LocationsPage />} />
+              <Route path="/media" element={<MediaPage />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
