@@ -14,6 +14,7 @@ export const cityPrices = pgTable(
             .notNull()
             .references(() => cities.id, { onDelete: "restrict" }),
         pricePaise: integer("price_paise").notNull(),
+        compareAtPaise: integer("compare_at_paise"),
         createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
         updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
     },
@@ -31,6 +32,7 @@ export const addonCityPrices = pgTable(
             .notNull()
             .references(() => cities.id, { onDelete: "restrict" }),
         pricePaise: integer("price_paise").notNull(),
+        compareAtPaise: integer("compare_at_paise"),
         createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
         updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
     },

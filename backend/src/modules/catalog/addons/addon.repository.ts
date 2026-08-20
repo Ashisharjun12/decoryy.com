@@ -3,7 +3,9 @@ import { db } from "@/db/postgres-client.js";
 import { paginationOffset, type PaginationQuery } from "@/shared/http/pagination.js";
 import { addons, productAddons, type Addon, type NewAddon } from "@/modules/catalog/addons/addon.schema.js";
 
-export type AddonPatch = Partial<Pick<Addon, "name" | "slug" | "imageUploadId" | "isActive">>;
+export type AddonPatch = Partial<
+    Pick<Addon, "name" | "slug" | "description" | "imageUploadId" | "isActive" | "pricePaise" | "compareAtPaise">
+>;
 
 export type AddonListFilter = {
     q?: string;

@@ -38,6 +38,12 @@ export class ProductController {
         res.status(200).json(new ApiResponse(200, data, "product updated"));
     });
 
+    delete = asyncHandler(async (req, res) => {
+        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+        await this.products.delete(id);
+        res.status(200).json(new ApiResponse(200, { id }, "product deleted"));
+    });
+
     listPrices = asyncHandler(async (req, res) => {
         const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
         const data = await this.prices.listProductPrices(id);
@@ -46,8 +52,19 @@ export class ProductController {
 
     setPrice = asyncHandler(async (req, res) => {
         const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-        const data = await this.prices.setProductPrice(id, req.body.cityId, req.body.pricePaise);
+        const data = await this.prices.setProductPrice(id, {
+            cityId: req.body.cityId,
+            pricePaise: req.body.pricePaise,
+            compareAtPaise: req.body.compareAtPaise,
+        });
         res.status(200).json(new ApiResponse(200, data, "price saved"));
+    });
+
+    deletePrice = asyncHandler(async (req, res) => {
+        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+        const cityId = Array.isArray(req.params.cityId) ? req.params.cityId[0] : req.params.cityId;
+        await this.prices.deleteProductPrice(id, cityId);
+        res.status(200).json(new ApiResponse(200, { id, cityId }, "price removed"));
     });
 
     mapAddon = asyncHandler(async (req, res) => {

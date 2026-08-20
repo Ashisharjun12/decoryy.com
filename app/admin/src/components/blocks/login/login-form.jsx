@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/input-group"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
+import { DecoryLogo } from "@/components/decory-logo"
 
 export function LoginForm({
   className,
@@ -67,11 +68,14 @@ export function LoginForm({
       {...props}
     >
       <FieldGroup>
-        <div className="flex flex-col gap-1">
-          <h1 className="font-heading text-2xl font-medium tracking-tight">Sign in</h1>
-          <p className="text-sm text-muted-foreground">
-            Use your admin email and password.
-          </p>
+        <div className="flex flex-col items-center gap-3 text-center">
+          <DecoryLogo className="size-16" />
+          <div className="flex flex-col gap-1">
+            <h1 className="font-heading text-3xl font-medium tracking-tight">Decory</h1>
+            <p className="text-sm text-muted-foreground">
+              Use your admin email and password.
+            </p>
+          </div>
         </div>
 
         {apiError ? (

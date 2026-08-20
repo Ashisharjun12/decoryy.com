@@ -42,7 +42,7 @@ export function LocationsPage() {
       <LocationsMapDialog open={mapOpen} onOpenChange={setMapOpen} />
 
       <Tabs value={tab} onValueChange={onTabChange}>
-        <TabsList>
+        <TabsList variant="line">
           <TabsTrigger value="cities">Cities</TabsTrigger>
           <TabsTrigger value="pincodes">Pincodes</TabsTrigger>
         </TabsList>

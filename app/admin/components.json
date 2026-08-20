@@ -23,6 +23,7 @@
   "menuAccent": "subtle",
   "registries": {
     "@shadcn-map": "http://shadcn-map.vercel.app/r/{name}.json",
-    "@reui": "https://reui.io/r/{style}/{name}.json"
+    "@reui": "https://reui.io/r/{style}/{name}.json",
+    "@shadcnuikit": "https://shadcnuikit.com/r/{name}.json"
   }
 }

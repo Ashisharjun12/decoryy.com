@@ -7,7 +7,9 @@ import { displayUrl, getCompletedUpload, toPublicMedia, type PublicMedia } from 
 import type { IMediaRepository } from "@/modules/upload/media/media.repository.js";
 import type { ICategoryRepository } from "@/modules/catalog/categories/category.repository.js";
 import type { IAddonRepository } from "@/modules/catalog/addons/addon.repository.js";
+import type { Category } from "@/modules/catalog/categories/category.schema.js";
 import type { ICityPriceRepository } from "@/modules/catalog/pricing/city-price.repository.js";
+import { normalizeDefaultPaisePair, resolvedSellPaise } from "@/modules/catalog/pricing/paise-pair.js";
 import type { IProductRepository } from "@/modules/catalog/products/product.repository.js";
 import type { Product } from "@/modules/catalog/products/product.schema.js";
 import type { CityPrice } from "@/modules/catalog/pricing/city-price.schema.js";
@@ -22,10 +24,13 @@ export type ProductImagePublic = PublicMedia & {
 export type ProductAdmin = Product & {
     images: ProductImagePublic[];
     addonIds: string[];
+    categoryName?: string;
+    canPublish?: boolean;
 };
 
 export type ProductAdminDetail = ProductAdmin & {
     prices: CityPrice[];
+    category: Category | null;
 };
 
 export type ProductForCity = Product & {
@@ -40,7 +45,11 @@ export type CreateProductInput = {
     description?: string | null;
     categoryId: string;
     isActive?: boolean;
+    scheduledEnabled?: boolean;
+    instantEnabled?: boolean;
     imageUploadIds?: string[];
+    pricePaise?: number | null;
+    compareAtPaise?: number | null;
 };
 
 export type PatchProductInput = {
@@ -49,7 +58,11 @@ export type PatchProductInput = {
     description?: string | null;
     categoryId?: string;
     isActive?: boolean;
+    scheduledEnabled?: boolean;
+    instantEnabled?: boolean;
     imageUploadIds?: string[];
+    pricePaise?: number | null;
+    compareAtPaise?: number | null;
 };
 
 export type ProductAdminListQuery = {
@@ -75,8 +88,15 @@ export interface IProductService {
     getAdmin(id: string): Promise<ProductAdminDetail>;
     create(input: CreateProductInput): Promise<ProductAdminDetail>;
     patch(id: string, input: PatchProductInput): Promise<ProductAdminDetail>;
+    delete(id: string): Promise<void>;
     listByPincode(query: PublicProductListQuery): Promise<{ city: PublicCity; items: ProductForCity[] }>;
     getForCity(productId: string, cityId: string): Promise<ProductForCity>;
+}
+
+function assertFulfillment(scheduledEnabled: boolean, instantEnabled: boolean) {
+    if (!scheduledEnabled && !instantEnabled) {
+        throw ApiError.badRequest("product needs scheduled or instant booking");
+    }
 }
 
 export class ProductService implements IProductService {
@@ -99,17 +119,24 @@ export class ProductService implements IProductService {
             isActive,
             categoryId,
         });
-        const withMedia = await Promise.all(items.map((item) => this.toAdmin(item)));
+        const withMedia = await Promise.all(
+            items.map(async (item) => {
+                const admin = await this.toAdmin(item);
+                const canPublish = await this.isPublishable(item, admin.images);
+                return { ...admin, categoryName: item.categoryName, canPublish };
+            }),
+        );
         return { items: withMedia, page: pagination.page, limit: pagination.limit, total };
     }
 
     async getAdmin(id: string): Promise<ProductAdminDetail> {
         const product = await this.requireProduct(id);
-        const [admin, prices] = await Promise.all([
+        const [admin, prices, category] = await Promise.all([
             this.toAdmin(product),
             this.prices.listProductPrices(id),
+            this.categories.findById(product.categoryId),
         ]);
-        return { ...admin, prices };
+        return { ...admin, prices, category: category ?? null };
     }
 
     async create(input: CreateProductInput): Promise<ProductAdminDetail> {
@@ -119,16 +146,28 @@ export class ProductService implements IProductService {
         if (!slug) {
             throw ApiError.badRequest("invalid product slug");
         }
+        const scheduledEnabled = input.scheduledEnabled ?? true;
+        const instantEnabled = input.instantEnabled ?? false;
+        assertFulfillment(scheduledEnabled, instantEnabled);
+        const defaults = normalizeDefaultPaisePair(input.pricePaise, input.compareAtPaise);
         try {
             const row = await this.products.insert({
                 name,
                 slug,
                 description: input.description?.trim() || null,
                 categoryId: input.categoryId,
-                isActive: input.isActive ?? true,
+                isActive: false,
+                scheduledEnabled,
+                instantEnabled,
+                pricePaise: defaults.pricePaise,
+                compareAtPaise: defaults.compareAtPaise,
             });
             if (input.imageUploadIds) {
                 await this.setImages(row.id, input.imageUploadIds);
+            }
+            if (input.isActive) {
+                await this.assertPublishable(row.id);
+                await this.products.update(row.id, { isActive: true });
             }
             return this.getAdmin(row.id);
         } catch (err) {
@@ -160,14 +199,38 @@ export class ProductService implements IProductService {
             data.description = input.description?.trim() || null;
         }
         if (input.categoryId !== undefined) data.categoryId = input.categoryId;
-        if (input.isActive !== undefined) data.isActive = input.isActive;
+        if (input.isActive === false) data.isActive = false;
+        if (input.scheduledEnabled !== undefined) data.scheduledEnabled = input.scheduledEnabled;
+        if (input.instantEnabled !== undefined) data.instantEnabled = input.instantEnabled;
+        if (input.pricePaise !== undefined || input.compareAtPaise !== undefined) {
+            const defaults = normalizeDefaultPaisePair(
+                input.pricePaise !== undefined ? input.pricePaise : existing.pricePaise,
+                input.compareAtPaise !== undefined ? input.compareAtPaise : existing.compareAtPaise,
+            );
+            data.pricePaise = defaults.pricePaise;
+            data.compareAtPaise = defaults.compareAtPaise;
+        }
+        const nextScheduled = input.scheduledEnabled ?? existing.scheduledEnabled;
+        const nextInstant = input.instantEnabled ?? existing.instantEnabled;
+        assertFulfillment(nextScheduled, nextInstant);
+        const nextActive = input.isActive ?? existing.isActive;
+        const nextPricePaise =
+            input.pricePaise !== undefined ? input.pricePaise : existing.pricePaise;
         try {
-            const row = await this.products.update(id, data);
-            if (!row) {
-                throw ApiError.notFound("product not found");
+            if (Object.keys(data).length > 0) {
+                const row = await this.products.update(id, data);
+                if (!row) {
+                    throw ApiError.notFound("product not found");
+                }
             }
             if (input.imageUploadIds) {
                 await this.setImages(id, input.imageUploadIds);
+            }
+            if (nextActive) {
+                await this.assertPublishable(id, input.imageUploadIds, nextPricePaise);
+            }
+            if (input.isActive === true && !existing.isActive) {
+                await this.products.update(id, { isActive: true });
             }
             return this.getAdmin(existing.id);
         } catch (err) {
@@ -178,6 +241,14 @@ export class ProductService implements IProductService {
                 throw ApiError.badRequest("category not found");
             }
             throw err;
+        }
+    }
+
+    async delete(id: string): Promise<void> {
+        await this.requireProduct(id);
+        const deleted = await this.products.delete(id);
+        if (!deleted) {
+            throw ApiError.notFound("product not found");
         }
     }
 
@@ -196,18 +267,19 @@ export class ProductService implements IProductService {
         if (!product.isActive) {
             throw ApiError.notFound("product not found");
         }
-        const price = await this.prices.getProductPrice(productId, cityId);
-        if (!price) {
+        const override = await this.prices.getProductPrice(productId, cityId);
+        const pricePaise = resolvedSellPaise(override?.pricePaise, product.pricePaise);
+        if (pricePaise == null) {
             throw ApiError.badRequest("product is not priced for this city");
         }
-        return this.toCityProduct(product, price.pricePaise);
+        return this.toCityProduct(product, pricePaise);
     }
 
     private async setImages(productId: string, uploadIds: string[]): Promise<void> {
         for (const uploadId of uploadIds) {
             const upload = await getCompletedUpload(uploadId);
-            if (upload.kind !== "image") {
-                throw ApiError.badRequest("product image must be an image upload");
+            if (upload.kind !== "image" && upload.kind !== "video") {
+                throw ApiError.badRequest("product media must be an image or video upload");
             }
         }
         await this.products.replaceImages(productId, uploadIds);
@@ -254,6 +326,41 @@ export class ProductService implements IProductService {
         const category = await this.categories.findById(categoryId);
         if (!category) {
             throw ApiError.notFound("category not found");
+        }
+        if (!category.parentId) {
+            throw ApiError.badRequest("product category must be a subcategory");
+        }
+    }
+
+    private async isPublishable(product: Product, images: ProductImagePublic[]): Promise<boolean> {
+        if (!images.some((item) => item.kind === "image")) return false;
+        if (product.pricePaise != null && product.pricePaise > 0) return true;
+        const prices = await this.prices.listProductPrices(product.id);
+        return prices.length > 0;
+    }
+
+    private async assertPublishable(
+        productId: string,
+        uploadIds?: string[],
+        pricePaise?: number | null,
+    ): Promise<void> {
+        if (uploadIds) {
+            const uploads = await Promise.all(uploadIds.map((uploadId) => getCompletedUpload(uploadId)));
+            if (!uploads.some((upload) => upload.kind === "image")) {
+                throw ApiError.badRequest("product needs at least one image to publish");
+            }
+        } else {
+            const images = await this.imagesFor(productId);
+            if (!images.some((item) => item.kind === "image")) {
+                throw ApiError.badRequest("product needs at least one image to publish");
+            }
+        }
+        const product = await this.requireProduct(productId);
+        const defaultPaise = pricePaise !== undefined ? pricePaise : product.pricePaise;
+        if (defaultPaise != null && defaultPaise > 0) return;
+        const prices = await this.prices.listProductPrices(productId);
+        if (prices.length === 0) {
+            throw ApiError.badRequest("product needs a default price to publish");
         }
     }
 }

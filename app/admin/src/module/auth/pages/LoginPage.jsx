@@ -1,7 +1,17 @@
 import { motion, useReducedMotion } from "framer-motion"
 import { LoginHero } from "@/assets/silhouettes/login-hero"
 import { LoginForm } from "@/components/blocks/login/login-form"
+import { DecoryLogo } from "@/components/decory-logo"
 import { ModeToggle } from "@/components/ui/mode-toggle"
+
+function BrandLockup() {
+  return (
+    <div className="flex items-center gap-3">
+      <DecoryLogo className="size-12" />
+      <p className="font-heading text-2xl font-medium tracking-tight">Decory</p>
+    </div>
+  )
+}
 
 export function LoginPage() {
   const reduceMotion = useReducedMotion()
@@ -9,15 +19,11 @@ export function LoginPage() {
 
   return (
     <div className="grid min-h-[100dvh] lg:grid-cols-2">
-      <div className="relative hidden overflow-hidden bg-muted lg:flex lg:flex-col lg:justify-between lg:p-12">
-        <div>
-          <p className="font-heading text-lg font-medium tracking-tight">Decory</p>
-          <p className="text-sm text-muted-foreground">Admin</p>
+      <div className="relative hidden overflow-hidden bg-muted lg:flex lg:flex-col lg:p-12">
+        <BrandLockup />
+        <div className="flex flex-1 items-center justify-center">
+          <LoginHero className="mx-auto h-auto w-auto max-w-md" />
         </div>
-        <LoginHero className="mx-auto h-auto w-auto max-w-md" />
-        <p className="max-w-[28ch] text-sm text-muted-foreground">
-          Manage the cities and pincodes Decory serves.
-        </p>
       </div>
 
       <div className="relative flex items-center justify-center p-6 sm:p-10">
@@ -30,10 +36,6 @@ export function LoginPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className="mb-8 lg:hidden">
-            <p className="font-heading text-lg font-medium tracking-tight">Decory</p>
-            <p className="text-sm text-muted-foreground">Admin</p>
-          </div>
           <LoginForm />
         </motion.div>
       </div>

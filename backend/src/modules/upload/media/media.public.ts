@@ -16,6 +16,8 @@ export type PublicMedia = {
     optimizedKey: string | null;
     optimizedUrl: string | null;
     optimizeStatus: Upload["optimizeStatus"];
+    thumbnailKey: string | null;
+    thumbnailUrl: string | null;
     createdAt: Date;
 };
 
@@ -35,6 +37,8 @@ export function toPublicMedia(row: Upload): PublicMedia {
         optimizedKey: row.optimizedKey,
         optimizedUrl: row.optimizedKey ? storageProvider.getPublicUrl(row.optimizedKey) : null,
         optimizeStatus: row.optimizeStatus,
+        thumbnailKey: row.thumbnailKey,
+        thumbnailUrl: row.thumbnailKey ? storageProvider.getPublicUrl(row.thumbnailKey) : null,
         createdAt: row.createdAt,
     };
 }

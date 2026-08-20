@@ -8,6 +8,9 @@ import { Layout } from "@/module/layout/Layout"
 import { DashboardPage } from "@/module/geo/pages/DashboardPage"
 import { LocationsPage } from "@/module/geo/pages/LocationsPage"
 import { MediaPage } from "@/module/media/pages/MediaPage"
+import { CatalogPage } from "@/module/catalog/pages/CatalogPage"
+import { ProductFormPage } from "@/module/catalog/pages/ProductFormPage"
+import { AddonFormPage } from "@/module/catalog/pages/AddonFormPage"
 
 export default function App() {
   useEffect(() => {
@@ -27,6 +30,11 @@ export default function App() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/locations" element={<LocationsPage />} />
               <Route path="/media" element={<MediaPage />} />
+              <Route path="/catalog" element={<CatalogPage />} />
+              <Route path="/catalog/products/new" element={<ProductFormPage />} />
+              <Route path="/catalog/products/:id" element={<ProductFormPage />} />
+              <Route path="/catalog/addons/new" element={<AddonFormPage />} />
+              <Route path="/catalog/addons/:id" element={<AddonFormPage />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

@@ -19,6 +19,13 @@ export class AddonController {
         res.status(200).json(new ApiResponse(200, data, "addon created"));
     });
 
+    getAdmin = asyncHandler(async (req, res) => {
+        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+        const addon = await this.addons.getAdmin(id);
+        const prices = await this.prices.listAddonPrices(id);
+        res.status(200).json(new ApiResponse(200, { ...addon, prices }, "ok"));
+    });
+
     patch = asyncHandler(async (req, res) => {
         const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
         const data = await this.addons.patch(id, req.body);
@@ -33,7 +40,18 @@ export class AddonController {
 
     setPrice = asyncHandler(async (req, res) => {
         const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-        const data = await this.prices.setAddonPrice(id, req.body.cityId, req.body.pricePaise);
+        const data = await this.prices.setAddonPrice(id, {
+            cityId: req.body.cityId,
+            pricePaise: req.body.pricePaise,
+            compareAtPaise: req.body.compareAtPaise,
+        });
         res.status(200).json(new ApiResponse(200, data, "price saved"));
+    });
+
+    deletePrice = asyncHandler(async (req, res) => {
+        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+        const cityId = Array.isArray(req.params.cityId) ? req.params.cityId[0] : req.params.cityId;
+        await this.prices.deleteAddonPrice(id, cityId);
+        res.status(200).json(new ApiResponse(200, { id, cityId }, "price removed"));
     });
 }

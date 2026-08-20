@@ -13,6 +13,8 @@ import { PanelLeftIcon } from "lucide-react"
 
 function pageLabel(pathname) {
   if (pathname.startsWith("/locations")) return "Operational locations"
+  if (pathname.startsWith("/catalog")) return "Catalog"
+  if (pathname.startsWith("/media")) return "Media"
   return "Dashboard"
 }
 

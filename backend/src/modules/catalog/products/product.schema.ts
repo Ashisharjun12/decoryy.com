@@ -11,6 +11,10 @@ export const products = pgTable("products", {
         .notNull()
         .references(() => categories.id, { onDelete: "restrict" }),
     isActive: boolean("is_active").notNull().default(true),
+    scheduledEnabled: boolean("scheduled_enabled").notNull().default(true),
+    instantEnabled: boolean("instant_enabled").notNull().default(false),
+    pricePaise: integer("price_paise"),
+    compareAtPaise: integer("compare_at_paise"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });

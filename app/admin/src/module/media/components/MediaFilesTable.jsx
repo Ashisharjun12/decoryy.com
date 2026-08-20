@@ -1,5 +1,5 @@
 import { format } from "date-fns"
-import { DownloadIcon, ExternalLinkIcon, MoreVerticalIcon, Trash2Icon } from "lucide-react"
+import { DownloadIcon, ExternalLinkIcon, MoreHorizontalIcon, PencilIcon, Trash2Icon } from "lucide-react"
 import { mediaDisplayUrl } from "@/api/uploads.api"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -46,7 +46,7 @@ function StatusBadge({ item }) {
   return <span className="text-muted-foreground">—</span>
 }
 
-function MediaRowActions({ item, onOptimize, onDelete }) {
+function MediaRowActions({ item, onOptimize, onDelete, onRename }) {
   const queued = item.optimizeStatus === "queued"
   const canOptimize =
     item.kind === "image" && item.status === "completed" && item.optimizeStatus === "none" && !queued
@@ -69,12 +69,16 @@ function MediaRowActions({ item, onOptimize, onDelete }) {
             />
           }
         >
-          <MoreVerticalIcon />
+          <MoreHorizontalIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => viewMediaInNewTab(item)}>
             <ExternalLinkIcon />
             View
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onRename(item)}>
+            <PencilIcon />
+            Edit filename
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => downloadMedia(item)}>
             <DownloadIcon />
@@ -90,7 +94,7 @@ function MediaRowActions({ item, onOptimize, onDelete }) {
   )
 }
 
-export function MediaFilesTable({ items, loading, onOptimize, onDelete }) {
+export function MediaFilesTable({ items, loading, onOptimize, onDelete, onRename }) {
   if (loading) {
     return (
       <div className="space-y-2">
@@ -148,7 +152,7 @@ export function MediaFilesTable({ items, loading, onOptimize, onDelete }) {
                 {item.createdAt ? format(new Date(item.createdAt), "d MMM yyyy") : "—"}
               </TableCell>
               <TableCell>
-                <MediaRowActions item={item} onOptimize={onOptimize} onDelete={onDelete} />
+                <MediaRowActions item={item} onOptimize={onOptimize} onDelete={onDelete} onRename={onRename} />
               </TableCell>
             </TableRow>
           )

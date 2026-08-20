@@ -1,4 +1,4 @@
-import { DownloadIcon, ExternalLinkIcon, MoreVerticalIcon, Trash2Icon } from "lucide-react"
+import { DownloadIcon, ExternalLinkIcon, MoreHorizontalIcon, PencilIcon, Trash2Icon } from "lucide-react"
 import { mediaDisplayUrl } from "@/api/uploads.api"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { downloadMedia, viewMediaInNewTab } from "@/lib/media"
 
-function MediaCard({ item, onOptimize, onDelete }) {
+function MediaCard({ item, onOptimize, onDelete, onRename }) {
   const optimized = item.optimizeStatus === "completed"
   const queued = item.optimizeStatus === "queued"
   const src = mediaDisplayUrl(item)
@@ -60,12 +60,16 @@ function MediaCard({ item, onOptimize, onDelete }) {
             />
           }
         >
-          <MoreVerticalIcon />
+          <MoreHorizontalIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => viewMediaInNewTab(item)}>
             <ExternalLinkIcon />
             View
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onRename(item)}>
+            <PencilIcon />
+            Edit filename
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => downloadMedia(item)}>
             <DownloadIcon />
@@ -112,7 +116,7 @@ export function MediaGridSkeleton() {
   )
 }
 
-export function MediaGrid({ items, loading, onOptimize, onDelete }) {
+export function MediaGrid({ items, loading, onOptimize, onDelete, onRename }) {
   if (loading) {
     return <MediaGridSkeleton />
   }
@@ -120,7 +124,13 @@ export function MediaGrid({ items, loading, onOptimize, onDelete }) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       {items.map((item) => (
-        <MediaCard key={item.id} item={item} onOptimize={onOptimize} onDelete={onDelete} />
+        <MediaCard
+          key={item.id}
+          item={item}
+          onOptimize={onOptimize}
+          onDelete={onDelete}
+          onRename={onRename}
+        />
       ))}
     </div>
   )

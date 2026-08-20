@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom"
 import {
   FolderPlusIcon,
   LayoutGridIcon,
-  MoreVerticalIcon,
+  MoreHorizontalIcon,
   PencilIcon,
   TableIcon,
   Trash2Icon,
@@ -13,6 +13,7 @@ import { createFolder, deleteFolder, listFolders, patchFolder } from "@/api/fold
 import {
   deleteUpload,
   listUploads,
+  patchUpload,
   uploadMediaFile,
   waitForOptimize,
 } from "@/api/uploads.api"
@@ -64,6 +65,7 @@ import { OPEN_FOLDER_IMAGE_URL } from "@/lib/media"
 import { ListPagination } from "@/module/geo/components/ListPagination"
 import { MediaCropDialog } from "@/module/media/components/MediaCropDialog"
 import { FolderFormDialog } from "@/module/media/components/FolderFormDialog"
+import { FilenameFormDialog } from "@/module/media/components/FilenameFormDialog"
 import { MediaFilesTable } from "@/module/media/components/MediaFilesTable"
 import { MediaGrid } from "@/module/media/components/MediaGrid"
 import { UploadProgressList } from "@/module/media/components/UploadProgressList"
@@ -102,6 +104,9 @@ export function MediaPage() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [cropItem, setCropItem] = useState(null)
   const [cropSubmitting, setCropSubmitting] = useState(false)
+  const [renameItem, setRenameItem] = useState(null)
+  const [renameSubmitting, setRenameSubmitting] = useState(false)
+  const [renameError, setRenameError] = useState("")
   const fileInputRef = useRef(null)
 
   const uploading = uploadQueue.some((row) => row.status === "uploading")
@@ -224,6 +229,23 @@ export function MediaPage() {
     }
   }
 
+  async function onRenameSubmit(values) {
+    if (!renameItem) return
+    setRenameSubmitting(true)
+    setRenameError("")
+    try {
+      const next = await patchUpload(renameItem.id, { filename: values.filename })
+      setItems((prev) => prev.map((row) => (row.id === renameItem.id ? { ...row, ...next } : row)))
+      toast.add({ title: "Filename updated", type: "success" })
+      setRenameItem(null)
+      setRenameError("")
+    } catch (err) {
+      setRenameError(getApiError(err))
+    } finally {
+      setRenameSubmitting(false)
+    }
+  }
+
   async function confirmDelete() {
     if (!deleteTarget) return
     try {
@@ -320,7 +342,7 @@ export function MediaPage() {
         ) : (
           <div className="flex flex-wrap items-center gap-2">
             <Tabs value={view} onValueChange={setView}>
-              <TabsList>
+              <TabsList variant="line">
                 <TabsTrigger value="grid">
                   <LayoutGridIcon />
                   Grid
@@ -477,6 +499,7 @@ export function MediaPage() {
                   items={items}
                   loading={loading}
                   onOptimize={setCropItem}
+                  onRename={(file) => { setRenameError(""); setRenameItem(file) }}
                   onDelete={(file) => setDeleteTarget({ type: "file", id: file.id, name: file.filename })}
                 />
               ) : (
@@ -484,6 +507,7 @@ export function MediaPage() {
                   items={items}
                   loading={loading}
                   onOptimize={setCropItem}
+                  onRename={(file) => { setRenameError(""); setRenameItem(file) }}
                   onDelete={(file) => setDeleteTarget({ type: "file", id: file.id, name: file.filename })}
                 />
               )
@@ -519,6 +543,15 @@ export function MediaPage() {
         onSubmit={onFolderSubmit}
         submitting={folderSubmitting}
         error={folderError}
+      />
+
+      <FilenameFormDialog
+        open={Boolean(renameItem)}
+        onOpenChange={(open) => { if (!open) { setRenameItem(null); setRenameError("") } }}
+        item={renameItem}
+        onSubmit={onRenameSubmit}
+        submitting={renameSubmitting}
+        error={renameError}
       />
 
       <MediaCropDialog
@@ -577,7 +610,7 @@ function FolderCard({ folder, onOpen, onEdit, onDelete }) {
             />
           }
         >
-          <MoreVerticalIcon />
+          <MoreHorizontalIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={onEdit}>

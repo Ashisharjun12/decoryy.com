@@ -36,6 +36,41 @@
       "when": 1787183000000,
       "tag": "0004_drop_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787190000000,
+      "tag": "0005_recreate_catalog",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787195000000,
+      "tag": "0006_product_fulfillment",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787200000000,
+      "tag": "0007_compare_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1787205000000,
+      "tag": "0008_addon_description",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1787210000000,
+      "tag": "0009_default_price",
+      "breakpoints": true
     }
   ]
 }

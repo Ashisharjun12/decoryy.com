@@ -1,6 +1,12 @@
 import { format } from "date-fns"
-import { PencilIcon } from "lucide-react"
+import { MoreHorizontalIcon, PencilIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Switch } from "@/components/ui/switch"
 import {
   Table,
@@ -32,7 +38,7 @@ export function CitiesTable({ items, loading, onEdit, onToggleActive }) {
           <TableHead>State</TableHead>
           <TableHead>Active</TableHead>
           <TableHead>Updated</TableHead>
-          <TableHead className="w-16" />
+          <TableHead className="w-12" />
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -52,9 +58,26 @@ export function CitiesTable({ items, loading, onEdit, onToggleActive }) {
               {city.updatedAt ? format(new Date(city.updatedAt), "d MMM yyyy") : "—"}
             </TableCell>
             <TableCell>
-              <Button variant="ghost" size="icon-sm" onClick={() => onEdit(city)} aria-label={`Edit ${city.name}`}>
-                <PencilIcon />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Actions for ${city.name}`}
+                    />
+                  }
+                >
+                  <MoreHorizontalIcon />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => onEdit(city)}>
+                    <PencilIcon />
+                    Edit
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </TableCell>
           </TableRow>
         ))}

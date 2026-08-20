@@ -1,4 +1,4 @@
-import { boolean, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, integer, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { products } from "@/modules/catalog/products/product.schema.js";
 import { uploads } from "@/modules/upload/media/media.schema.js";
 
@@ -6,8 +6,11 @@ export const addons = pgTable("addons", {
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
     slug: text("slug").notNull().unique(),
+    description: text("description"),
     imageUploadId: uuid("image_upload_id").references(() => uploads.id, { onDelete: "set null" }),
     isActive: boolean("is_active").notNull().default(true),
+    pricePaise: integer("price_paise"),
+    compareAtPaise: integer("compare_at_paise"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });

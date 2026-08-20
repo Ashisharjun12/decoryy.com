@@ -18,7 +18,7 @@ export function Layout() {
           <SidebarInset>
             <motion.div
               key={pathname}
-              className="flex flex-1 flex-col p-4 md:p-6"
+              className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4 md:p-6"
               initial={reduceMotion ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration, ease: [0.22, 1, 0.36, 1] }}

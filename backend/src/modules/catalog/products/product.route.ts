@@ -7,6 +7,7 @@ import {
     mapAddonDto,
     patchProductDto,
     productAddonParamsDto,
+    productCityPriceParamsDto,
     productIdParamsDto,
     publicProductListQueryDto,
 } from "@/modules/catalog/products/product.dto.js";
@@ -29,12 +30,18 @@ export function createProductAdminRouter(productController: ProductController) {
         validate(patchProductDto),
         productController.patch,
     );
+    router.delete("/:id", validate(productIdParamsDto, "params"), productController.delete);
     router.get("/:id/city-prices", validate(productIdParamsDto, "params"), productController.listPrices);
     router.put(
         "/:id/city-prices",
         validate(productIdParamsDto, "params"),
         validate(cityPriceDto),
         productController.setPrice,
+    );
+    router.delete(
+        "/:id/city-prices/:cityId",
+        validate(productCityPriceParamsDto, "params"),
+        productController.deletePrice,
     );
     router.post(
         "/:id/addons",

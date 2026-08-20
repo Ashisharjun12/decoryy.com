@@ -12,9 +12,14 @@ export const uploadIdParamsDto = z.object({
     id: z.string().uuid(),
 });
 
-export const patchUploadDto = z.object({
-    folderId: z.string().uuid().nullable(),
-});
+export const patchUploadDto = z
+    .object({
+        folderId: z.string().uuid().nullable().optional(),
+        filename: z.string().min(1).max(255).optional(),
+    })
+    .refine((value) => value.folderId !== undefined || value.filename !== undefined, {
+        message: "folderId or filename is required",
+    });
 
 export const adminUploadListQueryDto = z.object({
     page: z.string().optional(),

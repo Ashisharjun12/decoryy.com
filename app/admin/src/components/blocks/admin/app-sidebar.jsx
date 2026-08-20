@@ -1,7 +1,8 @@
 import { NavLink, useLocation } from "react-router-dom"
-import { LayoutDashboardIcon, MapPinIcon, ImagesIcon } from "lucide-react"
+import { LayoutDashboardIcon, MapPinIcon, ImagesIcon, TagsIcon } from "lucide-react"
 import { NavMain } from "@/components/blocks/admin/nav-main"
 import { NavUser } from "@/components/blocks/admin/nav-user"
+import { DecoryLogo } from "@/components/decory-logo"
 import {
   Sidebar,
   SidebarContent,
@@ -28,6 +29,11 @@ const navItems = [
     url: "/media",
     icon: <ImagesIcon />,
   },
+  {
+    title: "Catalog",
+    url: "/catalog",
+    icon: <TagsIcon />,
+  },
 ]
 
 export function AppSidebar(props) {
@@ -42,9 +48,7 @@ export function AppSidebar(props) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" render={<NavLink to="/dashboard" />}>
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                <MapPinIcon className="size-4" />
-              </div>
+              <DecoryLogo />
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">Decory</span>
                 <span className="truncate text-xs">Admin</span>

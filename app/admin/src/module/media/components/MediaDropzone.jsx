@@ -3,7 +3,12 @@ import { CloudUploadIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-export function MediaDropzone({ accept, disabled, onFiles }) {
+export function MediaDropzone({
+  accept,
+  disabled,
+  onFiles,
+  description = "or drag a file to upload to this folder",
+}) {
   const inputRef = useRef(null)
   const [over, setOver] = useState(false)
 
@@ -35,9 +40,7 @@ export function MediaDropzone({ accept, disabled, onFiles }) {
       <Button type="button" disabled={disabled} onClick={() => inputRef.current?.click()}>
         Browse
       </Button>
-      <p className="text-sm text-muted-foreground">
-        or drag a file to upload to this folder
-      </p>
+      <p className="text-sm text-muted-foreground">{description}</p>
       <input
         ref={inputRef}
         type="file"

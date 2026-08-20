@@ -51,12 +51,18 @@ export interface IMediaService {
     }): Promise<{ items: PublicMedia[]; page: number; limit: number; total: number }>;
     get(id: string): Promise<PublicMedia>;
     getCompleted(id: string): Promise<Upload>;
-    patch(id: string, input: { folderId: string | null }): Promise<PublicMedia>;
+    patch(id: string, input: { folderId?: string | null; filename?: string }): Promise<PublicMedia>;
     queueOptimize(
         id: string,
         input?: { crop?: ImageCropInput; output?: { width?: number; height?: number } },
     ): Promise<PublicMedia>;
     remove(id: string): Promise<void>;
+}
+
+function keepExtension(next: string, current: string): string {
+    if (/\.[a-z0-9]+$/i.test(next)) return next;
+    const ext = current.match(/\.[a-z0-9]+$/i)?.[0] ?? "";
+    return `${next}${ext}`;
 }
 
 function assertMime(kind: MediaKind, mimeType: string) {
@@ -234,11 +240,17 @@ export class MediaService implements IMediaService {
         return row;
     }
 
-    async patch(id: string, input: { folderId: string | null }): Promise<PublicMedia> {
+    async patch(id: string, input: { folderId?: string | null; filename?: string }): Promise<PublicMedia> {
         const existing = await this.media.findById(id);
         if (!existing) throw ApiError.notFound("upload not found");
-        const folderId = await this.assertFolder(input.folderId);
-        const row = await this.media.update(id, { folderId });
+        const data: { folderId?: string | null; filename?: string } = {};
+        if (input.folderId !== undefined) {
+            data.folderId = await this.assertFolder(input.folderId);
+        }
+        if (input.filename !== undefined) {
+            data.filename = keepExtension(safeFilename(input.filename), existing.filename);
+        }
+        const row = await this.media.update(id, data);
         if (!row) throw ApiError.notFound("upload not found");
         return toPublicMedia(row);
     }
