@@ -7,6 +7,7 @@ import {
   createAddon,
   deleteAddonCityPrice,
   getAdmin,
+  listAddonColors,
   patchAddon,
   setAddonCityPrice,
 } from "@/api/addons.api"
@@ -14,6 +15,7 @@ import { listAdmin as listCities } from "@/api/cities.api"
 import { getApiError } from "@/api/api"
 import { toSellAndCompare } from "@/lib/money"
 import { addonFormSchema } from "@/module/catalog/schema"
+import { AddonColorField } from "@/module/catalog/components/AddonColorField"
 import { toGalleryItem } from "@/module/catalog/components/ProductMediaGallery"
 import { ProductMediaPickerDialog } from "@/module/catalog/components/ProductMediaPickerDialog"
 import {
@@ -32,7 +34,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Empty,
   EmptyDescription,
@@ -46,6 +48,7 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field"
+import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
 import { InputGroup, InputGroupTextarea } from "@/components/ui/input-group"
 import {
@@ -84,6 +87,9 @@ export function AddonFormPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
   const [addonName, setAddonName] = useState("")
+  const [colors, setColors] = useState([])
+  const [colorIds, setColorIds] = useState([])
+  const [paid, setPaid] = useState(false)
   const nameValue = form.watch("name")
   const createReady = !isNew || (nameValue ?? "").trim().length >= 2
 
@@ -92,11 +98,16 @@ export function AddonFormPage() {
 
     async function load() {
       try {
-        const cityData = await listCities({ page: 1, limit: 100 })
+        const [cityData, colorData] = await Promise.all([
+          listCities({ page: 1, limit: 100 }),
+          listAddonColors(),
+        ])
         if (cancelled) return
         setCities(cityData.items ?? [])
+        setColors(colorData.items ?? [])
 
         if (isNew) {
+          setPaid(false)
           setLoading(false)
           return
         }
@@ -110,6 +121,7 @@ export function AddonFormPage() {
           description: addon.description ?? "",
           isActive: addon.isActive !== false,
         })
+        setColorIds(addon.color?.id ? [addon.color.id] : [])
         if (addon.image) setImage(toGalleryItem(addon.image))
         if (addon.pricePaise) {
           setTemplate(pairFromCityPrice({ pricePaise: addon.pricePaise, compareAtPaise: addon.compareAtPaise }))
@@ -122,6 +134,7 @@ export function AddonFormPage() {
         }
         setOffers(nextOffers)
         setSavedPriceCityIds((addon.prices ?? []).map((price) => price.cityId))
+        setPaid(Boolean(addon.pricePaise) || (addon.prices ?? []).length > 0)
       } catch (err) {
         if (!cancelled) setError(getApiError(err))
       } finally {
@@ -162,6 +175,13 @@ export function AddonFormPage() {
   }
 
   async function syncPrices(addonId) {
+    if (!paid) {
+      for (const cityId of savedPriceCityIds) {
+        await deleteAddonCityPrice(addonId, cityId)
+      }
+      setSavedPriceCityIds([])
+      return
+    }
     const selected = selectedOffers()
     const selectedIds = new Set(selected.map(({ city }) => city.id))
     for (const { city, pair } of selected) {
@@ -181,14 +201,21 @@ export function AddonFormPage() {
   }
 
   async function persist(values) {
-    const message = validateOffers()
-    if (message) {
-      setError(message)
-      return
+    if (paid) {
+      const message = validateOffers()
+      if (message) {
+        setError(message)
+        return
+      }
     }
     setSubmitting(true)
     setError("")
-    const defaults = defaultPricePayload()
+    const defaults = paid ? defaultPricePayload() : { pricePaise: null, compareAtPaise: null }
+    if (defaults.error) {
+      setError(defaults.error)
+      setSubmitting(false)
+      return
+    }
     const body = {
       name: values.name,
       description: values.description.trim() || null,
@@ -196,18 +223,39 @@ export function AddonFormPage() {
       isActive: values.isActive,
       pricePaise: defaults.pricePaise,
       compareAtPaise: defaults.compareAtPaise,
-      ...(values.slug ? { slug: values.slug } : {}),
     }
+    const selectedColors = colorIds
+      .map((colorId) => colors.find((row) => row.id === colorId))
+      .filter(Boolean)
     try {
-      let addonId = id
-      if (!addonId) {
-        const created = await createAddon(body)
-        addonId = created.id
-      } else {
-        await patchAddon(addonId, body)
+      if (!isNew) {
+        await patchAddon(id, {
+          ...body,
+          colorId: selectedColors[0]?.id || null,
+          ...(values.slug ? { slug: values.slug } : {}),
+        })
+        await syncPrices(id)
+        toast.add({ title: "Add-on saved", type: "success" })
+        navigate(CATALOG_ADDONS)
+        return
       }
-      await syncPrices(addonId)
-      toast.add({ title: isNew ? "Add-on created" : "Add-on saved", type: "success" })
+
+      const variants = selectedColors.length ? selectedColors : [null]
+      for (const color of variants) {
+        const created = await createAddon({
+          ...body,
+          colorId: color?.id || null,
+          slug:
+            color && variants.length > 1
+              ? `${values.slug?.trim() || values.name} ${color.name}`
+              : values.slug?.trim() || undefined,
+        })
+        await syncPrices(created.id)
+      }
+      toast.add({
+        title: variants.length > 1 ? `${variants.length} add-ons created` : "Add-on created",
+        type: "success",
+      })
       navigate(CATALOG_ADDONS)
     } catch (err) {
       setError(getApiError(err))
@@ -273,6 +321,19 @@ export function AddonFormPage() {
                       {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
                     </Field>
                   )}
+                />
+                <AddonColorField
+                  colors={colors}
+                  colorIds={colorIds}
+                  onColorIdsChange={setColorIds}
+                  multiple={isNew}
+                  onCreated={(created) => setColors((rows) => [...rows, created].sort((a, b) => a.name.localeCompare(b.name)))}
+                  onUpdated={(updated) =>
+                    setColors((rows) =>
+                      rows.map((row) => (row.id === updated.id ? updated : row)).sort((a, b) => a.name.localeCompare(b.name)),
+                    )
+                  }
+                  disabled={submitting}
                 />
                 <Controller
                   name="slug"
@@ -367,15 +428,30 @@ export function AddonFormPage() {
           <Card>
             <CardHeader>
               <CardTitle>Pricing</CardTitle>
+              <CardAction>
+                <div className="flex items-center gap-2">
+                  <FieldLabel htmlFor="addon-paid">Paid</FieldLabel>
+                  <Switch
+                    id="addon-paid"
+                    checked={paid}
+                    onCheckedChange={setPaid}
+                    disabled={submitting}
+                  />
+                </div>
+              </CardAction>
             </CardHeader>
             <CardContent>
-              <ProductCityPrices
-                cities={cities}
-                template={template}
-                onTemplateChange={setTemplate}
-                offers={offers}
-                onOffersChange={setOffers}
-              />
+              {paid ? (
+                <ProductCityPrices
+                  cities={cities}
+                  template={template}
+                  onTemplateChange={setTemplate}
+                  offers={offers}
+                  onOffersChange={setOffers}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">Free add-on. No charge in any city.</p>
+              )}
             </CardContent>
           </Card>
 

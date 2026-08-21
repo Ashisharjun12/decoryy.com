@@ -1,5 +1,6 @@
 import { IStorageProvider } from "./storage.interface.js";
 import { _config } from "../../config/config.js";
+import { CircuitBreakerStorage } from "./circuit-breaker-storage.js";
 import { R2Provider } from "./provider/r2.provider.js";
 // Future: import { S3Provider } from "./provider/s3.provider.js";
 
@@ -13,7 +14,7 @@ class StorageFactory {
 
     switch (name) {
       case "r2":
-        this.provider = new R2Provider();
+        this.provider = new CircuitBreakerStorage(new R2Provider());
         break;
       default:
         throw new Error(`Unknown storage provider: ${name}`);

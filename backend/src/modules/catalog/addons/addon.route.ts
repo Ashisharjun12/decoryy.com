@@ -3,9 +3,12 @@ import type { AddonController } from "@/modules/catalog/addons/addon.controller.
 import {
     addonCityPriceDto,
     addonCityPriceParamsDto,
+    addonColorIdParamsDto,
     addonIdParamsDto,
     adminAddonListQueryDto,
+    createAddonColorDto,
     createAddonDto,
+    patchAddonColorDto,
     patchAddonDto,
 } from "@/modules/catalog/addons/addon.dto.js";
 import { validate } from "@/shared/middlewares/validate.middleware.js";
@@ -14,6 +17,14 @@ export function createAddonAdminRouter(addonController: AddonController) {
     const router = Router();
     router.get("/", validate(adminAddonListQueryDto, "query"), addonController.listAdmin);
     router.post("/", validate(createAddonDto), addonController.create);
+    router.get("/colors", addonController.listColors);
+    router.post("/colors", validate(createAddonColorDto), addonController.createColor);
+    router.patch(
+        "/colors/:id",
+        validate(addonColorIdParamsDto, "params"),
+        validate(patchAddonColorDto),
+        addonController.patchColor,
+    );
     router.get("/:id/city-prices", validate(addonIdParamsDto, "params"), addonController.listPrices);
     router.put(
         "/:id/city-prices",

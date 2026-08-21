@@ -10,6 +10,17 @@ function defaultPriceOk(value: { pricePaise?: number | null; compareAtPaise?: nu
     return value.compareAtPaise >= value.pricePaise;
 }
 
+const copyPointsDto = z.array(z.string()).max(20).optional();
+const copyFaqsDto = z
+    .array(
+        z.object({
+            question: z.string(),
+            answer: z.string(),
+        }),
+    )
+    .max(20)
+    .optional();
+
 export const createProductDto = z
     .object({
         name: z.string().min(2),
@@ -20,6 +31,10 @@ export const createProductDto = z
         scheduledEnabled: z.boolean().optional(),
         instantEnabled: z.boolean().optional(),
         imageUploadIds: z.array(z.string().uuid()).optional(),
+        includes: copyPointsDto,
+        deliverySetup: copyPointsDto,
+        careInstructions: copyPointsDto,
+        faqs: copyFaqsDto,
         ...defaultPriceFields,
     })
     .refine(defaultPriceOk, {
@@ -37,6 +52,10 @@ export const patchProductDto = z
         scheduledEnabled: z.boolean().optional(),
         instantEnabled: z.boolean().optional(),
         imageUploadIds: z.array(z.string().uuid()).optional(),
+        includes: copyPointsDto,
+        deliverySetup: copyPointsDto,
+        careInstructions: copyPointsDto,
+        faqs: copyFaqsDto,
         ...defaultPriceFields,
     })
     .refine(defaultPriceOk, {

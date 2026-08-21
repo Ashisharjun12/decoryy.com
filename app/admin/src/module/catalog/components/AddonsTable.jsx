@@ -1,6 +1,9 @@
 import { format } from "date-fns"
 import { MoreHorizontalIcon, PencilIcon } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { formatPaise } from "@/lib/money"
+import { AddonThumb } from "@/module/catalog/components/AddonThumb"
+import { ColorSwatch } from "@/module/catalog/components/AddonColorField"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -19,6 +22,16 @@ import {
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 
+function priceLabel(addon) {
+  if (addon.pricePaise == null) return "Free"
+  const sell = `₹${formatPaise(addon.pricePaise)}`
+  if (addon.compareAtPaise && addon.compareAtPaise > addon.pricePaise) {
+    const off = Math.round((1 - addon.pricePaise / addon.compareAtPaise) * 100)
+    return `${sell} · ${off}% off`
+  }
+  return sell
+}
+
 export function AddonsTable({ items, loading, onToggleVisible }) {
   const navigate = useNavigate()
 
@@ -36,7 +49,10 @@ export function AddonsTable({ items, loading, onToggleVisible }) {
     <Table>
       <TableHeader>
         <TableRow>
+          <TableHead className="w-14">Image</TableHead>
           <TableHead>Name</TableHead>
+          <TableHead>Color</TableHead>
+          <TableHead>Price</TableHead>
           <TableHead>Slug</TableHead>
           <TableHead>Visibility</TableHead>
           <TableHead>Updated</TableHead>
@@ -50,7 +66,21 @@ export function AddonsTable({ items, loading, onToggleVisible }) {
             className="cursor-pointer"
             onClick={() => navigate(`/catalog/addons/${addon.id}`)}
           >
+            <TableCell>
+              <AddonThumb addon={addon} className="rounded-full" />
+            </TableCell>
             <TableCell className="font-medium">{addon.name}</TableCell>
+            <TableCell className="text-muted-foreground">
+              {addon.color?.name ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <ColorSwatch hex={addon.color.hex} />
+                  {addon.color.name}
+                </span>
+              ) : (
+                "—"
+              )}
+            </TableCell>
+            <TableCell className="text-muted-foreground">{priceLabel(addon)}</TableCell>
             <TableCell className="text-muted-foreground">{addon.slug}</TableCell>
             <TableCell>
               <Switch

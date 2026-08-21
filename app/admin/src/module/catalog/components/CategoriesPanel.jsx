@@ -145,6 +145,7 @@ export function CategoriesPanel() {
     const body = {
       name: values.name,
       isActive: values.isActive,
+      imageUploadId: values.image?.uploadId || null,
       ...(values.slug ? { slug: values.slug } : {}),
     }
     if (dialogKind === "subcategory") {

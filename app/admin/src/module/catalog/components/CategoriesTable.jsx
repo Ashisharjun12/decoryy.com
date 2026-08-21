@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
+import { AddonThumb } from "@/module/catalog/components/AddonThumb"
 
 export function CategoriesTable({ items, loading, onOpen, onEdit, onToggleActive }) {
   if (loading) {
@@ -47,7 +48,12 @@ export function CategoriesTable({ items, loading, onOpen, onEdit, onToggleActive
             className={onOpen ? "cursor-pointer" : undefined}
             onClick={onOpen ? () => onOpen(category) : undefined}
           >
-            <TableCell className="font-medium">{category.name}</TableCell>
+            <TableCell>
+              <div className="flex items-center gap-2">
+                <AddonThumb addon={category} className="rounded-full" />
+                <span className="font-medium">{category.name}</span>
+              </div>
+            </TableCell>
             <TableCell className="text-muted-foreground">{category.slug}</TableCell>
             <TableCell>
               <Switch

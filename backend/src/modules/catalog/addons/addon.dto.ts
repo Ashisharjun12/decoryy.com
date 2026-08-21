@@ -16,6 +16,7 @@ export const createAddonDto = z
         slug: z.string().min(2).optional(),
         description: z.string().optional().nullable(),
         imageUploadId: z.string().uuid().nullable().optional(),
+        colorId: z.string().uuid().nullable().optional(),
         isActive: z.boolean().optional(),
         ...defaultPriceFields,
     })
@@ -30,6 +31,7 @@ export const patchAddonDto = z
         slug: z.string().min(2).optional(),
         description: z.string().optional().nullable(),
         imageUploadId: z.string().uuid().nullable().optional(),
+        colorId: z.string().uuid().nullable().optional(),
         isActive: z.boolean().optional(),
         ...defaultPriceFields,
     })
@@ -37,6 +39,26 @@ export const patchAddonDto = z
         message: "compareAtPaise must be greater than or equal to pricePaise",
         path: ["compareAtPaise"],
     });
+
+const addonColorHex = z.string().trim().regex(/^#([0-9a-fA-F]{6})$/);
+
+export const createAddonColorDto = z.object({
+    name: z.string().trim().min(2).max(40),
+    hex: addonColorHex,
+});
+
+export const patchAddonColorDto = z
+    .object({
+        name: z.string().trim().min(2).max(40).optional(),
+        hex: addonColorHex.optional(),
+    })
+    .refine((value) => value.name !== undefined || value.hex !== undefined, {
+        message: "name or hex is required",
+    });
+
+export const addonColorIdParamsDto = z.object({
+    id: z.string().uuid(),
+});
 
 export const addonIdParamsDto = z.object({
     id: z.string().uuid(),

@@ -23,6 +23,10 @@ export type ProductPatch = Partial<
         | "instantEnabled"
         | "pricePaise"
         | "compareAtPaise"
+        | "includes"
+        | "deliverySetup"
+        | "careInstructions"
+        | "faqs"
     >
 >;
 

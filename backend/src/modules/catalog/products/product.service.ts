@@ -11,7 +11,7 @@ import type { Category } from "@/modules/catalog/categories/category.schema.js";
 import type { ICityPriceRepository } from "@/modules/catalog/pricing/city-price.repository.js";
 import { normalizeDefaultPaisePair, resolvedSellPaise } from "@/modules/catalog/pricing/paise-pair.js";
 import type { IProductRepository } from "@/modules/catalog/products/product.repository.js";
-import type { Product } from "@/modules/catalog/products/product.schema.js";
+import type { Product, ProductFaq } from "@/modules/catalog/products/product.schema.js";
 import type { CityPrice } from "@/modules/catalog/pricing/city-price.schema.js";
 import type { PublicCity } from "@/modules/geo/cities/city.public.js";
 
@@ -50,6 +50,10 @@ export type CreateProductInput = {
     imageUploadIds?: string[];
     pricePaise?: number | null;
     compareAtPaise?: number | null;
+    includes?: string[];
+    deliverySetup?: string[];
+    careInstructions?: string[];
+    faqs?: ProductFaq[];
 };
 
 export type PatchProductInput = {
@@ -63,6 +67,10 @@ export type PatchProductInput = {
     imageUploadIds?: string[];
     pricePaise?: number | null;
     compareAtPaise?: number | null;
+    includes?: string[];
+    deliverySetup?: string[];
+    careInstructions?: string[];
+    faqs?: ProductFaq[];
 };
 
 export type ProductAdminListQuery = {
@@ -77,6 +85,27 @@ export type PublicProductListQuery = {
     pincode?: unknown;
     categoryId?: unknown;
 };
+
+const COPY_MAX = 20;
+
+function sanitizePoints(value: string[] | undefined): string[] {
+    if (!value) return [];
+    return value
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .slice(0, COPY_MAX);
+}
+
+function sanitizeFaqs(value: ProductFaq[] | undefined): ProductFaq[] {
+    if (!value) return [];
+    return value
+        .map((item) => ({
+            question: item.question.trim(),
+            answer: item.answer.trim(),
+        }))
+        .filter((item) => item.question)
+        .slice(0, COPY_MAX);
+}
 
 export interface IProductService {
     listAdmin(query: ProductAdminListQuery): Promise<{
@@ -161,6 +190,10 @@ export class ProductService implements IProductService {
                 instantEnabled,
                 pricePaise: defaults.pricePaise,
                 compareAtPaise: defaults.compareAtPaise,
+                includes: sanitizePoints(input.includes),
+                deliverySetup: sanitizePoints(input.deliverySetup),
+                careInstructions: sanitizePoints(input.careInstructions),
+                faqs: sanitizeFaqs(input.faqs),
             });
             if (input.imageUploadIds) {
                 await this.setImages(row.id, input.imageUploadIds);
@@ -210,6 +243,12 @@ export class ProductService implements IProductService {
             data.pricePaise = defaults.pricePaise;
             data.compareAtPaise = defaults.compareAtPaise;
         }
+        if (input.includes !== undefined) data.includes = sanitizePoints(input.includes);
+        if (input.deliverySetup !== undefined) data.deliverySetup = sanitizePoints(input.deliverySetup);
+        if (input.careInstructions !== undefined) {
+            data.careInstructions = sanitizePoints(input.careInstructions);
+        }
+        if (input.faqs !== undefined) data.faqs = sanitizeFaqs(input.faqs);
         const nextScheduled = input.scheduledEnabled ?? existing.scheduledEnabled;
         const nextInstant = input.instantEnabled ?? existing.instantEnabled;
         assertFulfillment(nextScheduled, nextInstant);

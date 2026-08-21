@@ -1,11 +1,21 @@
-import { and, count, desc, eq, ilike, or, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, or, type SQL } from "drizzle-orm";
 import { db } from "@/db/postgres-client.js";
 import { paginationOffset, type PaginationQuery } from "@/shared/http/pagination.js";
-import { addons, productAddons, type Addon, type NewAddon } from "@/modules/catalog/addons/addon.schema.js";
+import {
+    addonColors,
+    addons,
+    productAddons,
+    type Addon,
+    type AddonColor,
+    type NewAddon,
+    type NewAddonColor,
+} from "@/modules/catalog/addons/addon.schema.js";
 
 export type AddonPatch = Partial<
-    Pick<Addon, "name" | "slug" | "description" | "imageUploadId" | "isActive" | "pricePaise" | "compareAtPaise">
+    Pick<Addon, "name" | "slug" | "description" | "imageUploadId" | "colorId" | "isActive" | "pricePaise" | "compareAtPaise">
 >;
+
+export type AddonColorPatch = Partial<Pick<AddonColor, "name" | "slug" | "hex">>;
 
 export type AddonListFilter = {
     q?: string;
@@ -24,6 +34,10 @@ export interface IAddonRepository {
     isMapped(productId: string, addonId: string): Promise<boolean>;
     map(productId: string, addonId: string): Promise<void>;
     unmap(productId: string, addonId: string): Promise<void>;
+    findColorById(id: string): Promise<AddonColor | undefined>;
+    listColors(): Promise<AddonColor[]>;
+    insertColor(data: NewAddonColor): Promise<AddonColor>;
+    updateColor(id: string, data: AddonColorPatch): Promise<AddonColor | undefined>;
 }
 
 function addonListWhere(filter: AddonListFilter = {}): SQL | undefined {
@@ -104,5 +118,31 @@ export class AddonRepository implements IAddonRepository {
         await db
             .delete(productAddons)
             .where(and(eq(productAddons.productId, productId), eq(productAddons.addonId, addonId)));
+    }
+
+    async findColorById(id: string): Promise<AddonColor | undefined> {
+        const [row] = await db.select().from(addonColors).where(eq(addonColors.id, id)).limit(1);
+        return row;
+    }
+
+    async listColors(): Promise<AddonColor[]> {
+        return db.select().from(addonColors).orderBy(asc(addonColors.name));
+    }
+
+    async insertColor(data: NewAddonColor): Promise<AddonColor> {
+        const [row] = await db.insert(addonColors).values(data).returning();
+        if (!row) {
+            throw new Error("failed to create color");
+        }
+        return row;
+    }
+
+    async updateColor(id: string, data: AddonColorPatch): Promise<AddonColor | undefined> {
+        const [row] = await db
+            .update(addonColors)
+            .set({ ...data, updatedAt: new Date() })
+            .where(eq(addonColors.id, id))
+            .returning();
+        return row;
     }
 }

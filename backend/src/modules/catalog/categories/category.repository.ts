@@ -3,7 +3,7 @@ import { db } from "@/db/postgres-client.js";
 import { paginationOffset, type PaginationQuery } from "@/shared/http/pagination.js";
 import { categories, type Category, type NewCategory } from "@/modules/catalog/categories/category.schema.js";
 
-export type CategoryPatch = Partial<Pick<Category, "name" | "slug" | "parentId" | "isActive">>;
+export type CategoryPatch = Partial<Pick<Category, "name" | "slug" | "parentId" | "imageUploadId" | "isActive">>;
 
 export type CategoryListFilter = {
     q?: string;

@@ -15,7 +15,7 @@ import { ProductService } from "@/modules/catalog/products/product.service.js";
 import { AddonController } from "@/modules/catalog/addons/addon.controller.js";
 import { AddonRepository } from "@/modules/catalog/addons/addon.repository.js";
 import { createAddonAdminRouter } from "@/modules/catalog/addons/addon.route.js";
-import { addons, productAddons } from "@/modules/catalog/addons/addon.schema.js";
+import { addons, addonColors, productAddons } from "@/modules/catalog/addons/addon.schema.js";
 import { AddonService } from "@/modules/catalog/addons/addon.service.js";
 import { CityPriceRepository } from "@/modules/catalog/pricing/city-price.repository.js";
 import { addonCityPrices, cityPrices } from "@/modules/catalog/pricing/city-price.schema.js";
@@ -59,4 +59,4 @@ export function priceQuote(productId: string, cityId: string, addonIds: string[]
     return cityPriceService.quote(productId, cityId, addonIds);
 }
 
-export { categories, products, productImages, addons, productAddons, cityPrices, addonCityPrices };
+export { categories, products, productImages, addons, addonColors, productAddons, cityPrices, addonCityPrices };

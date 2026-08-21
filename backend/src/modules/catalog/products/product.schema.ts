@@ -1,6 +1,12 @@
-import { boolean, integer, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { boolean, integer, jsonb, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import { categories } from "@/modules/catalog/categories/category.schema.js";
 import { uploads } from "@/modules/upload/media/media.schema.js";
+
+export type ProductFaq = {
+    question: string;
+    answer: string;
+};
 
 export const products = pgTable("products", {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -15,6 +21,10 @@ export const products = pgTable("products", {
     instantEnabled: boolean("instant_enabled").notNull().default(false),
     pricePaise: integer("price_paise"),
     compareAtPaise: integer("compare_at_paise"),
+    includes: jsonb("includes").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    deliverySetup: jsonb("delivery_setup").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    careInstructions: jsonb("care_instructions").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    faqs: jsonb("faqs").$type<ProductFaq[]>().notNull().default(sql`'[]'::jsonb`),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });

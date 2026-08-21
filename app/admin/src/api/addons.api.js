@@ -34,3 +34,15 @@ export function setAddonCityPrice(id, { cityId, pricePaise, compareAtPaise = nul
 export function deleteAddonCityPrice(id, cityId) {
   return api.delete(`/admin/addons/${id}/city-prices/${cityId}`).then(unwrap);
 }
+
+export function listAddonColors() {
+  return api.get("/admin/addons/colors").then(unwrap);
+}
+
+export function createAddonColor({ name, hex }) {
+  return api.post("/admin/addons/colors", { name, hex }).then(unwrap);
+}
+
+export function patchAddonColor(id, body) {
+  return api.patch(`/admin/addons/colors/${id}`, body).then(unwrap);
+}

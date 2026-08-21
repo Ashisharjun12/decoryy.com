@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom"
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom"
+import { ArrowLeftIcon, EyeIcon } from "lucide-react"
 import { createProduct, deleteCityPrice, getAdmin, patchProduct, setCityPrice } from "@/api/products.api"
 import { listAdmin as listCategories } from "@/api/categories.api"
 import { listAdmin as listCities } from "@/api/cities.api"
@@ -10,6 +11,9 @@ import { toSellAndCompare } from "@/lib/money"
 import { productFormSchema } from "@/module/catalog/schema"
 import { ProductMediaGallery, toGalleryItem } from "@/module/catalog/components/ProductMediaGallery"
 import { ProductAddonsCard } from "@/module/catalog/components/ProductAddonsCard"
+import { ProductAdditionalInfo } from "@/module/catalog/components/ProductAdditionalInfo"
+import { ProductPdpPreview } from "@/module/catalog/components/ProductPdpPreview"
+import { fromFaqRows, toFaqRows } from "@/module/catalog/components/FaqListEditor"
 import {
   emptyPricePair,
   pairFromCityPrice,
@@ -26,6 +30,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Field,
@@ -54,6 +59,8 @@ export function ProductFormPage() {
   const isNew = !id
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
+  const isPreview = searchParams.has("preview")
   const form = useForm({
     resolver: zodResolver(productFormSchema),
     defaultValues: {
@@ -70,6 +77,7 @@ export function ProductFormPage() {
   const parentCategoryId = form.watch("parentCategoryId")
   const categoryId = form.watch("categoryId")
   const nameValue = form.watch("name")
+  const descriptionValue = form.watch("description")
   const createReady =
     !isNew ||
     ((nameValue ?? "").trim().length >= 2 && Boolean(parentCategoryId) && Boolean(categoryId))
@@ -78,6 +86,10 @@ export function ProductFormPage() {
   const [children, setChildren] = useState([])
   const [cities, setCities] = useState([])
   const [gallery, setGallery] = useState([])
+  const [includes, setIncludes] = useState([])
+  const [deliverySetup, setDeliverySetup] = useState([])
+  const [careInstructions, setCareInstructions] = useState([])
+  const [faqs, setFaqs] = useState([])
   const [mappedAddonIds, setMappedAddonIds] = useState([])
   const [template, setTemplate] = useState(emptyPricePair())
   const [offers, setOffers] = useState({})
@@ -151,6 +163,10 @@ export function ProductFormPage() {
           instantEnabled: Boolean(product.instantEnabled),
         })
         setGallery((product.images ?? []).map(toGalleryItem))
+        setIncludes(product.includes ?? [])
+        setDeliverySetup(product.deliverySetup ?? [])
+        setCareInstructions(product.careInstructions ?? [])
+        setFaqs(toFaqRows(product.faqs))
         setMappedAddonIds(product.addonIds ?? [])
         if (product.pricePaise) {
           setTemplate(pairFromCityPrice({ pricePaise: product.pricePaise, compareAtPaise: product.compareAtPaise }))
@@ -255,6 +271,10 @@ export function ProductFormPage() {
       description: values.description.trim() || null,
       categoryId: values.categoryId,
       imageUploadIds: gallery.map((item) => item.uploadId),
+      includes,
+      deliverySetup,
+      careInstructions,
+      faqs: fromFaqRows(faqs),
       scheduledEnabled: values.scheduledEnabled,
       instantEnabled: values.instantEnabled,
       pricePaise: defaults.pricePaise,
@@ -301,6 +321,41 @@ export function ProductFormPage() {
     )
   }
 
+  if (isPreview) {
+    const fromCatalog = Boolean(location.state?.fromCatalog)
+    return (
+      <div className="flex min-h-0 flex-1 flex-col gap-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              fromCatalog
+                ? navigate(CATALOG_PRODUCTS)
+                : navigate({ pathname: location.pathname, search: "" })
+            }
+          >
+            <ArrowLeftIcon />
+            {fromCatalog ? "Back to products" : "Back to edit"}
+          </Button>
+          <Badge>Preview only</Badge>
+        </div>
+        <ProductPdpPreview
+          name={nameValue}
+          description={descriptionValue}
+          gallery={gallery}
+          template={template}
+          includes={includes}
+          deliverySetup={deliverySetup}
+          careInstructions={careInstructions}
+          faqs={faqs}
+          cityName={cities[0]?.name}
+          mappedAddonIds={mappedAddonIds}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -324,6 +379,14 @@ export function ProductFormPage() {
             {isNew ? "New product" : productName || "Edit product"}
           </h1>
         </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => navigate({ pathname: location.pathname, search: "?preview" })}
+        >
+          <EyeIcon />
+          Preview
+        </Button>
       </div>
 
       {error ? (
@@ -486,6 +549,25 @@ export function ProductFormPage() {
                 productId={isNew ? "" : id}
                 mappedIds={mappedAddonIds}
                 onMappedIdsChange={setMappedAddonIds}
+                disabled={submitting}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Additional info</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ProductAdditionalInfo
+                includes={includes}
+                onIncludesChange={setIncludes}
+                deliverySetup={deliverySetup}
+                onDeliverySetupChange={setDeliverySetup}
+                careInstructions={careInstructions}
+                onCareInstructionsChange={setCareInstructions}
+                faqs={faqs}
+                onFaqsChange={setFaqs}
                 disabled={submitting}
               />
             </CardContent>

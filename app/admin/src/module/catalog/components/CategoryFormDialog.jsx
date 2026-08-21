@@ -1,7 +1,10 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { categorySchema } from "@/module/catalog/schema"
+import { toGalleryItem } from "@/module/catalog/components/ProductMediaGallery"
+import { ProductMediaPickerDialog } from "@/module/catalog/components/ProductMediaPickerDialog"
+import { CategoryImageField } from "@/module/catalog/components/CategoryImageField"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -34,6 +37,8 @@ export function CategoryFormDialog({
 }) {
   const isEdit = Boolean(category)
   const isSub = kind === "subcategory"
+  const [image, setImage] = useState(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const form = useForm({
     resolver: zodResolver(categorySchema),
     defaultValues: {
@@ -50,6 +55,8 @@ export function CategoryFormDialog({
       slug: category?.slug ?? "",
       isActive: category?.isActive ?? true,
     })
+    setImage(category?.image ? toGalleryItem(category.image) : null)
+    setPickerOpen(false)
   }, [open, category, form])
 
   const title = isEdit
@@ -67,15 +74,16 @@ export function CategoryFormDialog({
       : "Top-level group for the customer catalog."
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <form
           id="category-form"
-          onSubmit={form.handleSubmit(onSubmit)}
+          onSubmit={form.handleSubmit((values) => onSubmit({ ...values, image }))}
           className="grid gap-4"
           noValidate
         >
@@ -112,6 +120,15 @@ export function CategoryFormDialog({
                 </Field>
               )}
             />
+            <Field>
+              <FieldLabel>Image</FieldLabel>
+              <CategoryImageField
+                image={image}
+                onImageChange={setImage}
+                onSelect={() => setPickerOpen(true)}
+                disabled={submitting}
+              />
+            </Field>
             <Controller
               name="isActive"
               control={form.control}
@@ -139,5 +156,18 @@ export function CategoryFormDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <ProductMediaPickerDialog
+      open={pickerOpen}
+      onOpenChange={setPickerOpen}
+      attached={image ? [image] : []}
+      max={1}
+      kinds={["image"]}
+      onAdd={(picked) => {
+        const row = picked[0] ? toGalleryItem(picked[0]) : null
+        setImage(row)
+      }}
+      disabled={submitting}
+    />
+    </>
   )
 }

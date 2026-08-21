@@ -1,19 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { PackagePlusIcon, XIcon } from "lucide-react"
+import { MoreHorizontalIcon, PackagePlusIcon, Trash2Icon } from "lucide-react"
 import { listAdmin as listAddons } from "@/api/addons.api"
 import { mapProductAddon, unmapProductAddon } from "@/api/products.api"
 import { getApiError } from "@/api/api"
 import { toast } from "@/components/ui/toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty"
-import { DecoryImageFallback } from "@/module/catalog/components/DecoryImageFallback"
 import {
   Combobox,
   ComboboxContent,
@@ -22,25 +14,31 @@ import {
   ComboboxItem,
   ComboboxList,
 } from "@/components/ui/combobox"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
-
-function addonImageSrc(addon) {
-  const image = addon?.image
-  return image?.thumbnailUrl || image?.url || image?.publicUrl || image?.optimizedUrl || ""
-}
-
-function AddonAvatar({ addon, className = "size-7" }) {
-  const src = addonImageSrc(addon)
-  return (
-    <span className={`relative shrink-0 overflow-hidden rounded-full ${className}`}>
-      {src ? (
-        <img src={src} alt="" className="size-full object-cover" />
-      ) : (
-        <DecoryImageFallback className="rounded-full" />
-      )}
-    </span>
-  )
-}
+import { AddonThumb } from "@/module/catalog/components/AddonThumb"
+import { ColorSwatch } from "@/module/catalog/components/AddonColorField"
 
 export function ProductAddonsCard({ productId, mappedIds, onMappedIdsChange, disabled }) {
   const [items, setItems] = useState([])
@@ -73,7 +71,7 @@ export function ProductAddonsCard({ productId, mappedIds, onMappedIdsChange, dis
     [items, mapped],
   )
   const available = useMemo(
-    () => items.filter((row) => !mapped.has(row.id)),
+    () => items.filter((row) => row.isActive && !mapped.has(row.id)),
     [items, mapped],
   )
 
@@ -127,78 +125,117 @@ export function ProductAddonsCard({ productId, mappedIds, onMappedIdsChange, dis
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
+
       {loading ? (
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Spinner />
-          Loading add-ons…
-        </p>
-      ) : items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No add-ons in the library yet.</p>
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </div>
       ) : (
         <>
-          {available.length === 0 ? (
-            <p className="text-sm text-muted-foreground">All library add-ons are mapped.</p>
-          ) : (
-            <Combobox
-              key={comboKey}
-              items={available}
-              itemToStringLabel={(addon) => addon?.name ?? ""}
-              itemToStringValue={(addon) => addon?.id ?? ""}
-              isItemEqualToValue={(a, b) => a?.id === b?.id}
-              onValueChange={(addon) => {
-                if (addon) add(addon)
-              }}
-            >
-              <ComboboxInput
-                placeholder="Search and select an add-on"
-                className="w-full"
-                showClear
-                disabled={disabled || Boolean(busyId)}
-              />
-              <ComboboxContent className="w-(--anchor-width)">
-                <ComboboxEmpty>No matching add-on</ComboboxEmpty>
-                <ComboboxList>
-                  {(addon) => (
-                    <ComboboxItem key={addon.id} value={addon}>
-                      <AddonAvatar addon={addon} />
+          <Combobox
+            key={comboKey}
+            items={available}
+            itemToStringLabel={(addon) =>
+              addon?.color?.name ? `${addon.name} · ${addon.color.name}` : addon?.name ?? ""
+            }
+            itemToStringValue={(addon) => addon?.id ?? ""}
+            isItemEqualToValue={(a, b) => a?.id === b?.id}
+            onValueChange={(addon) => {
+              if (addon) add(addon)
+            }}
+          >
+            <ComboboxInput
+              placeholder="Search and select an add-on"
+              className="w-full"
+              showClear
+              disabled={disabled || Boolean(busyId) || available.length === 0}
+            />
+            <ComboboxContent className="w-(--anchor-width)">
+              <ComboboxEmpty>No matching add-on</ComboboxEmpty>
+              <ComboboxList>
+                {(addon) => (
+                  <ComboboxItem key={addon.id} value={addon}>
+                    <AddonThumb addon={addon} className="size-7 rounded-full" />
+                    {addon.color?.name ? (
+                      <span className="inline-flex min-w-0 items-center gap-1.5">
+                        <ColorSwatch hex={addon.color.hex} />
+                        <span className="min-w-0 truncate">
+                          {addon.name} · {addon.color.name}
+                        </span>
+                      </span>
+                    ) : (
                       <span className="min-w-0 truncate">{addon.name}</span>
-                    </ComboboxItem>
-                  )}
-                </ComboboxList>
-              </ComboboxContent>
-            </Combobox>
-          )}
+                    )}
+                  </ComboboxItem>
+                )}
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
 
-          {mappedRows.length ? (
-            <div className="flex flex-col gap-2">
-              {mappedRows.map((addon) => (
-                <div
-                  key={addon.id}
-                  className="flex items-center gap-3 rounded-2xl border px-3 py-2"
-                >
-                  <AddonAvatar addon={addon} className="size-8" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">{addon.name}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{addon.slug}</span>
-                  </span>
-                  {addon.isActive ? null : (
-                    <span className="text-xs text-muted-foreground">Inactive</span>
-                  )}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    disabled={disabled || busyId === addon.id}
-                    onClick={() => remove(addon)}
-                    aria-label={`Remove ${addon.name}`}
-                  >
-                    {busyId === addon.id ? <Spinner /> : <XIcon />}
-                  </Button>
-                </div>
-              ))}
-            </div>
+          {mappedRows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No add-ons yet. Search and select to add.</p>
           ) : (
-            <p className="text-sm text-muted-foreground">No add-ons mapped yet.</p>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-14">Image</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Slug</TableHead>
+                  <TableHead className="w-12" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {mappedRows.map((addon) => (
+                  <TableRow key={addon.id}>
+                    <TableCell>
+                      <AddonThumb addon={addon} className="rounded-full" />
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {addon.color?.name ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <ColorSwatch hex={addon.color.hex} />
+                          {addon.name} · {addon.color.name}
+                        </span>
+                      ) : (
+                        addon.name
+                      )}
+                      {addon.isActive === false ? (
+                        <span className="ml-2 text-xs font-normal text-muted-foreground">Hidden</span>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{addon.slug}</TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              disabled={disabled || busyId === addon.id}
+                              aria-label={`Actions for ${addon.name}`}
+                            />
+                          }
+                        >
+                          {busyId === addon.id ? <Spinner /> : <MoreHorizontalIcon />}
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => remove(addon)}
+                          >
+                            <Trash2Icon />
+                            Remove
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </>
       )}

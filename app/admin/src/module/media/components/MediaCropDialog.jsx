@@ -88,78 +88,80 @@ export function MediaCropDialog({ open, onOpenChange, item, onConfirm, submittin
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[85vh] flex-col gap-4 overflow-hidden sm:max-w-2xl">
+        <DialogHeader className="shrink-0 pr-10">
           <DialogTitle>Optimize image</DialogTitle>
           <DialogDescription>
-            Crop the image, then convert to WebP and optimize for the library.
+            {item?.filename
+              ? `Crop ${item.filename}, then convert to WebP.`
+              : "Crop the image, then convert to WebP."}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-wrap gap-2">
-          {CROP_PRESETS.map((preset) => (
-            <Button
-              key={preset.id}
-              type="button"
-              size="sm"
-              variant={presetId === preset.id ? "default" : "outline"}
-              className={cn("rounded-full cursor-pointer", presetId === preset.id && "pointer-events-none")}
-              onClick={() => selectPreset(preset.id)}
-            >
-              {preset.label}
-            </Button>
-          ))}
+        <div className="flex shrink-0 flex-col gap-3">
+          <div className="flex flex-wrap gap-2">
+            {CROP_PRESETS.map((preset) => (
+              <Button
+                key={preset.id}
+                type="button"
+                size="sm"
+                variant={presetId === preset.id ? "default" : "outline"}
+                className={cn("rounded-full cursor-pointer", presetId === preset.id && "pointer-events-none")}
+                onClick={() => selectPreset(preset.id)}
+              >
+                {preset.label}
+              </Button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="crop-output-width">Width</Label>
+              <Input
+                id="crop-output-width"
+                type="number"
+                min={1}
+                max={4096}
+                placeholder="Auto"
+                value={outputWidth}
+                onChange={(event) => setOutputWidth(event.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="crop-output-height">Height</Label>
+              <Input
+                id="crop-output-height"
+                type="number"
+                min={1}
+                max={4096}
+                placeholder="Auto"
+                value={outputHeight}
+                onChange={(event) => setOutputHeight(event.target.value)}
+              />
+            </div>
+          </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="crop-output-width">Output width</Label>
-            <Input
-              id="crop-output-width"
-              type="number"
-              min={1}
-              max={4096}
-              placeholder="Optional"
-              value={outputWidth}
-              onChange={(event) => setOutputWidth(event.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="crop-output-height">Output height</Label>
-            <Input
-              id="crop-output-height"
-              type="number"
-              min={1}
-              max={4096}
-              placeholder="Optional"
-              value={outputHeight}
-              onChange={(event) => setOutputHeight(event.target.value)}
-            />
-          </div>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Output is resized to fit within W×H without upscaling.
-        </p>
-
-        <div className="max-h-[60vh] overflow-auto rounded-2xl bg-muted p-2">
+        <div className="min-h-0 max-h-[min(28rem,50vh)] flex-1 overflow-auto rounded-xl bg-muted p-3">
           {item?.publicUrl ? (
             <ReactCrop
               crop={crop}
               onChange={setCrop}
               aspect={cropAspect}
-              className="max-w-full"
+              className="mx-auto block max-w-full"
             >
               <img
                 ref={imgRef}
                 src={item.publicUrl}
                 alt={item.filename}
                 onLoad={onImageLoad}
-                className="max-h-[50vh] w-full object-contain"
+                className="block h-auto max-w-full"
               />
             </ReactCrop>
           ) : null}
         </div>
-        <DialogFooter>
+
+        <DialogFooter className="shrink-0">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
             Cancel
           </Button>
