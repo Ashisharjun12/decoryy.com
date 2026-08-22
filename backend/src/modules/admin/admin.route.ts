@@ -5,6 +5,7 @@ import {
     catalogAddonAdminRouter,
     catalogCategoryAdminRouter,
     catalogProductAdminRouter,
+    catalogSectionAdminRouter,
 } from "@/modules/catalog/index.js";
 import { authRequired } from "@/shared/middlewares/auth.middleware.js";
 import { requireRole } from "@/shared/middlewares/requireRole.middleware.js";
@@ -18,3 +19,4 @@ adminRouter.use("/media-folders", mediaFolderAdminRouter);
 adminRouter.use("/categories", catalogCategoryAdminRouter);
 adminRouter.use("/products", catalogProductAdminRouter);
 adminRouter.use("/addons", catalogAddonAdminRouter);
+adminRouter.use("/sections", catalogSectionAdminRouter);

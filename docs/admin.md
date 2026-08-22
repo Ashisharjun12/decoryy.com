@@ -2,7 +2,7 @@
 
 Admin is a **surface**, not a domain. It has no tables. [`backend/src/modules/admin/admin.route.ts`](../backend/src/modules/admin/admin.route.ts) mounts geo, upload, and catalog admin routers.
 
-**Base:** `http://localhost:8080/api/v1/admin`
+**Base:** `http://localhost:3000/api/v1/admin`
 
 **Auth:** `Authorization: Bearer {{accessToken}}` **and** user `role` must be `admin`.
 
@@ -47,7 +47,7 @@ Errors: `401` `missing authorization header` / `user not found`; `403` `account 
 | PATCH | `/api/v1/admin/media-folders/:id` |
 | DELETE | `/api/v1/admin/media-folders/:id` |
 
-### Catalog — [category.md](category.md), [products.md](products.md), [addons.md](addons.md)
+### Catalog — [category.md](category.md), [products.md](products.md), [addons.md](addons.md), [sections.md](sections.md)
 
 | Method | Path |
 |---|---|
@@ -74,8 +74,16 @@ Errors: `401` `missing authorization header` / `user not found`; `403` `account 
 | DELETE | `/api/v1/admin/addons/:id/city-prices/:cityId` |
 | GET | `/api/v1/admin/addons/:id` |
 | PATCH | `/api/v1/admin/addons/:id` |
+| GET | `/api/v1/admin/sections` |
+| POST | `/api/v1/admin/sections` |
+| PATCH | `/api/v1/admin/sections/:id` |
+| DELETE | `/api/v1/admin/sections/:id` |
+| GET | `/api/v1/admin/sections/:id/products` |
+| PUT | `/api/v1/admin/sections/:id/products` |
+| DELETE | `/api/v1/admin/sections/:id/city-overrides/:cityId` |
 
-Register `/colors` **before** `/:id` in Postman so `GET /addons/colors` is not parsed as an addon id.
+Register `/colors` **before** `/:id` in Postman so `GET /addons/colors` is not parsed as an addon id. Register `/sections/:id/products` and `/city-overrides` before treating the rest as a bare section id.
+
 
 ## Envelope
 

@@ -2,15 +2,16 @@
 
 **Module:** `backend/src/modules/catalog`  
 **Public mount:** `/api/v1/catalog`  
-**Admin mount:** `/api/v1/admin/categories`, `/products`, `/addons`
+**Admin mount:** `/api/v1/admin/categories`, `/products`, `/addons`, `/sections`
 
 Catalog is a city-gated service menu: pincode → city → products that have a sell price in that city. Size, color, cake, extra balloons are **mapped add-ons**, not SKU variants.
 
 | File | Endpoints |
 |---|---|
 | [category.md](category.md) | Public tree + admin CRUD |
-| [products.md](products.md) | Public list by pincode + admin CRUD, city prices, add-on map |
+| [products.md](products.md) | Public list + PDP get by pincode; admin CRUD, city prices, add-on map |
 | [addons.md](addons.md) | Admin library, colors, city prices (no public addon routes) |
+| [sections.md](sections.md) | Sections: global list + per-city replace override |
 | [admin.md](admin.md) | Gateway index |
 
 Envelope: [README.md](README.md). Admin auth: [admin.md](admin.md). Geo: [geo.md](geo.md). Images come from [media.md](media.md).
@@ -37,10 +38,8 @@ Admin upload APIs return `publicUrl` + `optimizedUrl` separately (no `url`). See
 
 ## Not HTTP
 
-These are TypeScript exports for booking later. There is no REST route:
-
-- `getProductForCity(productId, cityId)`
-- `priceQuote(productId, cityId, addonIds)` → `{ productId, cityId, addonIds, productPaise, addonsPaise, totalPaise }`
+- `getProductForCity(productId, cityId)` — TypeScript helper. Customer PDP uses `GET /catalog/products/:id?pincode=` instead.
+- `priceQuote(productId, cityId, addonIds)` → `{ productId, cityId, addonIds, productPaise, addonsPaise, totalPaise }` (for booking later)
 
 Coupons, GST, cart, and slots are not catalog.
 
@@ -104,3 +103,47 @@ Each item is a product with resolved `pricePaise`, `images` (with `url`), and `a
 ### Errors
 
 - `400` `pincode not serviceable` / invalid pincode
+
+---
+
+## GET `/api/v1/catalog/products/:id`
+
+**Auth:** public  
+**Clients:** customer web/mobile (PDP)
+
+### Query
+
+`pincode` required (min 6). Example: `GET /api/v1/catalog/products/:id?pincode=302001`
+
+### Response `data`
+
+City product (same as a list item) plus `city` and mapped `addons` (`id`, `name`, `slug`, `image`, `color`, `pricePaise`). Inactive add-ons are omitted. `pricePaise: null` = Free.
+
+Full example: [products.md](products.md).
+
+### Errors
+
+- `400` `pincode not serviceable` / `product is not priced for this city`
+- `404` `product not found`
+
+---
+
+## GET `/api/v1/catalog/sections`
+
+**Auth:** public  
+**Clients:** customer web/mobile
+
+Active sections for a pincode’s city. City override replaces the global product list; otherwise global. Unpriced / inactive products and empty sections are omitted.
+
+### Query
+
+`pincode` required (min 6). Example: `GET /api/v1/catalog/sections?pincode=302001`
+
+### Response `data`
+
+`{ city, sections[] }`. Each section includes `source` (`"city"` \| `"global"`) and `items` (same city product as the list above). Full contract: [sections.md](sections.md).
+
+### Errors
+
+- `400` `pincode not serviceable` / invalid pincode
+

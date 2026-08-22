@@ -8,6 +8,8 @@ Envelope: [README.md](README.md). Overview: [catalog.md](catalog.md). Admin auth
 
 Two levels: `parentId` null = category; set = subcategory (parent must be top-level). Optional `imageUploadId` → one media image (not a gallery).
 
+Top-level categories may include optional `iconKey` and `iconTone` for the customer header bar (Lucide icon + chip color). Subcategories always return `iconKey` / `iconTone` as `null`. The bar `image` field is separate (banner/card photo).
+
 Public and admin category payloads both include resolved `image` with display `url`.
 
 **Clients:** public → customer web/mobile; admin → admin web. Payloads are the same for web and mobile.
@@ -20,6 +22,8 @@ Public and admin category payloads both include resolved `image` with display `u
   "name": "Birthdays",
   "slug": "birthdays",
   "parentId": null,
+  "iconKey": "cake",
+  "iconTone": "amber",
   "imageUploadId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
   "isActive": true,
   "createdAt": "2026-08-21T18:00:00.000Z",
@@ -140,6 +144,8 @@ Each item is `CategoryAdmin` (no `children`). Message `"ok"`.
   "name": "Birthdays",
   "slug": "birthdays",
   "parentId": null,
+  "iconKey": "cake",
+  "iconTone": "amber",
   "imageUploadId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
   "isActive": true
 }
@@ -152,6 +158,8 @@ Subcategory: set `parentId` to a top-level category uuid.
 | `name` | yes | min 2 |
 | `slug` | no | min 2; slugified from name if omitted |
 | `parentId` | no | uuid or `null` |
+| `iconKey` | no | top-level only: `cake`, `heart`, `baby`, `gem`, `party`, `sparkles`, `building`, `heart-handshake`, `gift`, `flower`; default `sparkles` on create |
+| `iconTone` | no | top-level only: `amber`, `rose`, `sky`, `violet`, `orange`, `emerald`, `slate`, `pink`; default `amber` on create |
 | `imageUploadId` | no | uuid of a completed **image** upload, or `null` |
 | `isActive` | no | boolean |
 
@@ -184,12 +192,14 @@ All optional:
   "name": "Birthday decor",
   "slug": "birthday-decor",
   "parentId": null,
+  "iconKey": "cake",
+  "iconTone": "amber",
   "imageUploadId": null,
   "isActive": false
 }
 ```
 
-Set `imageUploadId` to `null` to clear the image.
+Set `imageUploadId` to `null` to clear the image. `iconKey` / `iconTone` apply to top-level categories only; patch clears them when the row is a subcategory.
 
 ### Response `data`
 

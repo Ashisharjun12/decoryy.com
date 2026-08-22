@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { PlusIcon, PackageIcon } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { deleteProduct, listAdmin as listProducts, patchProduct } from "@/api/products.api"
 import { listAdmin as listCategories } from "@/api/categories.api"
+import { listAdmin as listCities } from "@/api/cities.api"
 import { getApiError } from "@/api/api"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -25,14 +25,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { toast } from "@/components/ui/toast"
+import { ProductFilters } from "@/module/catalog/filters/ProductFilters"
+import { buildProductFilterFields } from "@/module/catalog/filters/product-filter-fields"
+import { productFiltersActive, queryToProductListParams } from "@/module/catalog/filters/product-filter-query"
+import { createFilterQuery } from "@/components/reui/filters/filters-query"
 import { ProductsTable } from "@/module/catalog/components/ProductsTable"
 import { ListPagination } from "@/module/geo/components/ListPagination"
 
@@ -41,17 +38,18 @@ const LIMIT = 20
 export function ProductsPanel() {
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
-  const [q, setQ] = useState("")
-  const [isActive, setIsActive] = useState("")
-  const [categoryId, setCategoryId] = useState("")
+  const [filterQuery, setFilterQuery] = useState(() => createFilterQuery())
   const [leaves, setLeaves] = useState([])
+  const [cities, setCities] = useState([])
   const [items, setItems] = useState([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [deleting, setDeleting] = useState(null)
 
-  const filtered = Boolean(q.trim()) || isActive !== "" || categoryId !== ""
+  const listParams = useMemo(() => queryToProductListParams(filterQuery), [filterQuery])
+  const filtered = productFiltersActive(filterQuery)
+  const fields = useMemo(() => buildProductFilterFields({ leaves, cities }), [leaves, cities])
 
   const loadLeaves = useCallback(async () => {
     const parents = await listCategories({ parentId: null, limit: 100 })
@@ -71,13 +69,11 @@ export function ProductsPanel() {
     if (!silent) setLoading(true)
     setError("")
     try {
-      const data = await listProducts({
-        page,
-        limit: LIMIT,
-        q: q.trim() || undefined,
-        isActive: isActive || undefined,
-        categoryId: categoryId || undefined,
-      })
+        const data = await listProducts({
+          page,
+          limit: LIMIT,
+          ...listParams,
+        })
       setItems(data.items ?? [])
       setTotal(data.total ?? 0)
     } catch (err) {
@@ -85,10 +81,13 @@ export function ProductsPanel() {
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [page, q, isActive, categoryId])
+  }, [page, listParams])
 
   useEffect(() => {
     loadLeaves().catch((err) => setError(getApiError(err)))
+    listCities({ page: 1, limit: 100, isActive: "true" })
+      .then((data) => setCities(data.items ?? []))
+      .catch((err) => setError(getApiError(err)))
   }, [loadLeaves])
 
   useEffect(() => {
@@ -133,57 +132,16 @@ export function ProductsPanel() {
 
   return (
     <div className="flex flex-col gap-4 pt-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <Input
-            className="w-56"
-            value={q}
-            onChange={(event) => {
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <ProductFilters
+            fields={fields}
+            query={filterQuery}
+            onQueryChange={(next) => {
               setPage(1)
-              setQ(event.target.value)
+              setFilterQuery(next)
             }}
-            placeholder="Search by name"
-            aria-label="Search products"
           />
-          <Select
-            value={isActive || "all"}
-            onValueChange={(value) => {
-              setPage(1)
-              setIsActive(value === "all" ? "" : value)
-            }}
-          >
-            <SelectTrigger className="w-36">
-              <SelectValue placeholder="All">
-                {isActive === "true" ? "Published" : isActive === "false" ? "Draft" : "All"}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="true">Published</SelectItem>
-              <SelectItem value="false">Draft</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
-            value={categoryId || "all"}
-            onValueChange={(value) => {
-              setPage(1)
-              setCategoryId(value === "all" ? "" : value)
-            }}
-          >
-            <SelectTrigger className="w-56">
-              <SelectValue placeholder="All categories">
-                {leaves.find((row) => row.id === categoryId)?.label || "All categories"}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All categories</SelectItem>
-              {leaves.map((row) => (
-                <SelectItem key={row.id} value={row.id}>
-                  {row.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
         <Button type="button" onClick={() => navigate("/catalog/products/new")}>
           <PlusIcon />
@@ -206,7 +164,7 @@ export function ProductsPanel() {
             <EmptyTitle>{filtered ? "No products match" : "No products yet"}</EmptyTitle>
             <EmptyDescription>
               {filtered
-                ? "Try a different name, status, or category."
+                ? "Try a different name, status, category, city, or price."
                 : "Create a decoration with media, a subcategory, and city prices."}
             </EmptyDescription>
           </EmptyHeader>

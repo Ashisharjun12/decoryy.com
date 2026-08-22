@@ -150,8 +150,12 @@ export function CategoriesPanel() {
     }
     if (dialogKind === "subcategory") {
       body.parentId = selected?.id ?? null
-    } else if (!editing) {
-      body.parentId = null
+    } else {
+      if (!editing) {
+        body.parentId = null
+      }
+      body.iconKey = values.iconKey
+      body.iconTone = values.iconTone
     }
     try {
       if (editing) {

@@ -17,6 +17,8 @@ export type CreateCategoryInput = {
     slug?: string;
     parentId?: string | null;
     imageUploadId?: string | null;
+    iconKey?: string | null;
+    iconTone?: string | null;
     isActive?: boolean;
 };
 
@@ -25,6 +27,8 @@ export type PatchCategoryInput = {
     slug?: string;
     parentId?: string | null;
     imageUploadId?: string | null;
+    iconKey?: string | null;
+    iconTone?: string | null;
     isActive?: boolean;
 };
 
@@ -109,6 +113,8 @@ export class CategoryService implements ICategoryService {
                 slug,
                 parentId,
                 imageUploadId,
+                iconKey: parentId ? null : (input.iconKey ?? "sparkles"),
+                iconTone: parentId ? null : (input.iconTone ?? "amber"),
                 isActive: input.isActive ?? true,
             });
             return this.toAdmin(row);
@@ -145,6 +151,12 @@ export class CategoryService implements ICategoryService {
         }
         if (input.imageUploadId !== undefined) {
             data.imageUploadId = await this.assertImage(input.imageUploadId);
+        }
+        if (input.iconKey !== undefined) {
+            data.iconKey = existing.parentId ? null : input.iconKey;
+        }
+        if (input.iconTone !== undefined) {
+            data.iconTone = existing.parentId ? null : input.iconTone;
         }
         if (input.isActive !== undefined) data.isActive = input.isActive;
         try {

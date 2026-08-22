@@ -9,6 +9,7 @@ import {
     productAddonParamsDto,
     productCityPriceParamsDto,
     productIdParamsDto,
+    publicProductGetQueryDto,
     publicProductListQueryDto,
 } from "@/modules/catalog/products/product.dto.js";
 import { validate } from "@/shared/middlewares/validate.middleware.js";
@@ -16,6 +17,12 @@ import { validate } from "@/shared/middlewares/validate.middleware.js";
 export function createProductPublicRouter(productController: ProductController) {
     const router = Router();
     router.get("/", validate(publicProductListQueryDto, "query"), productController.listPublic);
+    router.get(
+        "/:id",
+        validate(productIdParamsDto, "params"),
+        validate(publicProductGetQueryDto, "query"),
+        productController.getPublic,
+    );
     return router;
 }
 

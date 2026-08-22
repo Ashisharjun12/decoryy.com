@@ -8,7 +8,7 @@ Unknown PIN is **not serviceable**. There are no numeric PIN ranges (`302001–3
 
 Same API process as identity. After schema changes, from `backend/`: `pnpm db:generate` then `pnpm db:migrate`.
 
-Base: `http://localhost:8080/api/v1`.
+Base: `http://localhost:3000/api/v1`.
 
 ## Tables
 
@@ -52,7 +52,7 @@ Import `@/modules/geo`:
 
 ## Postman catalog
 
-Set collection variable `baseUrl` = `http://localhost:8080/api/v1`.
+Set collection variable `baseUrl` = `http://localhost:3000/api/v1`.
 
 Geo HTTP does **not** use `clientType`. **Web and mobile send the same public requests.** Admin routes are for the admin dashboard (or Postman); the vendor Expo app does not call them.
 

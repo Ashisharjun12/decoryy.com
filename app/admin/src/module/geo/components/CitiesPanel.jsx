@@ -4,7 +4,6 @@ import { listAdmin, createCity, patchCity } from "@/api/cities.api"
 import { getApiError } from "@/api/api"
 import { toast } from "@/components/ui/toast"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Empty,
@@ -14,17 +13,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { MapSilhouette } from "@/assets/silhouettes"
 import { CitiesTable } from "@/module/geo/components/CitiesTable"
 import { CityFormDialog } from "@/module/geo/components/CityFormDialog"
 import { ListPagination } from "@/module/geo/components/ListPagination"
+import { CityFilters } from "@/module/geo/filters/CityFilters"
 
 const LIMIT = 20
 
@@ -119,36 +112,18 @@ export function CitiesPanel() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <Input
-            className="w-56"
-            value={q}
-            onChange={(event) => {
-              setPage(1)
-              setQ(event.target.value)
-            }}
-            placeholder="Search by name"
-            aria-label="Search cities"
-          />
-          <Select
-            value={isActive || "all"}
-            onValueChange={(value) => {
-              setPage(1)
-              setIsActive(value === "all" ? "" : value)
-            }}
-          >
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="All">
-                {isActive === "true" ? "Active" : isActive === "false" ? "Inactive" : "All"}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="true">Active</SelectItem>
-              <SelectItem value="false">Inactive</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <CityFilters
+          q={q}
+          isActive={isActive}
+          onQ={(value) => {
+            setPage(1)
+            setQ(value)
+          }}
+          onIsActive={(value) => {
+            setPage(1)
+            setIsActive(value)
+          }}
+        />
         <Button type="button" onClick={openCreate}>
           <PlusIcon />
           Add city

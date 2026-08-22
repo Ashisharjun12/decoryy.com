@@ -1,0 +1,25 @@
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { LoginCard } from "@/components/card2";
+import { useAuthStore } from "@/store/auth.store";
+
+export function LoginDialog() {
+  const loginOpen = useAuthStore((s) => s.loginOpen);
+  const setLoginOpen = useAuthStore((s) => s.setLoginOpen);
+
+  return (
+    <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
+      <DialogContent className="gap-0 p-0 sm:max-w-sm">
+        <DialogTitle className="sr-only">Login to your account</DialogTitle>
+        <DialogDescription className="sr-only">
+          Sign in with Google or phone number
+        </DialogDescription>
+        {loginOpen ? <LoginCard /> : null}
+      </DialogContent>
+    </Dialog>
+  );
+}

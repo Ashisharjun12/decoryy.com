@@ -8,3 +8,4 @@ export * from "../modules/catalog/categories/category.schema.js";
 export * from "../modules/catalog/products/product.schema.js";
 export * from "../modules/catalog/addons/addon.schema.js";
 export * from "../modules/catalog/pricing/city-price.schema.js";
+export * from "../modules/catalog/sections/section.schema.js";

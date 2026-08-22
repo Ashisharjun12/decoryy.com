@@ -39,6 +39,20 @@ export type ProductForCity = Product & {
     addonIds: string[];
 };
 
+export type PublicAddonForCity = {
+    id: string;
+    name: string;
+    slug: string;
+    image: (PublicMedia & { url: string }) | null;
+    color: { id: string; name: string; slug: string; hex: string } | null;
+    pricePaise: number | null;
+};
+
+export type ProductPublicDetail = ProductForCity & {
+    city: PublicCity;
+    addons: PublicAddonForCity[];
+};
+
 export type CreateProductInput = {
     name: string;
     slug?: string;
@@ -79,6 +93,8 @@ export type ProductAdminListQuery = {
     q?: unknown;
     isActive?: unknown;
     categoryId?: unknown;
+    cityId?: unknown;
+    price?: unknown;
 };
 
 export type PublicProductListQuery = {
@@ -120,6 +136,10 @@ export interface IProductService {
     delete(id: string): Promise<void>;
     listByPincode(query: PublicProductListQuery): Promise<{ city: PublicCity; items: ProductForCity[] }>;
     getForCity(productId: string, cityId: string): Promise<ProductForCity>;
+    getPublicByPincode(productId: string, pincode: string): Promise<ProductPublicDetail>;
+    adminByIds(ids: string[]): Promise<ProductAdmin[]>;
+    listForCityByIds(cityId: string, productIds: string[]): Promise<ProductForCity[]>;
+    findByIds(ids: string[]): Promise<Product[]>;
 }
 
 function assertFulfillment(scheduledEnabled: boolean, instantEnabled: boolean) {
@@ -143,10 +163,17 @@ export class ProductService implements IProductService {
         const isActive =
             query.isActive === "true" ? true : query.isActive === "false" ? false : undefined;
         const categoryId = typeof query.categoryId === "string" ? query.categoryId : undefined;
+        const cityId = typeof query.cityId === "string" ? query.cityId : undefined;
+        const price =
+            query.price === "none" || query.price === "set" || query.price === "sale"
+                ? query.price
+                : undefined;
         const { items, total } = await this.products.list(pagination, {
             q: q || undefined,
             isActive,
             categoryId,
+            cityId,
+            price,
         });
         const withMedia = await Promise.all(
             items.map(async (item) => {
@@ -301,6 +328,41 @@ export class ProductService implements IProductService {
         return { city: resolved.city, items };
     }
 
+    async getPublicByPincode(productId: string, pincode: string): Promise<ProductPublicDetail> {
+        const resolved = await assertServiceable(pincode);
+        const product = await this.getForCity(productId, resolved.city.id);
+        const addons = await this.mappedAddonsForCity(product.addonIds, resolved.city.id);
+        return { ...product, city: resolved.city, addons };
+    }
+
+    async adminByIds(ids: string[]): Promise<ProductAdmin[]> {
+        const found = await this.products.findByIds(ids);
+        const byId = new Map(found.map((row) => [row.id, row]));
+        const items: ProductAdmin[] = [];
+        for (const id of ids) {
+            const product = byId.get(id);
+            if (!product) continue;
+            items.push(await this.toAdmin(product));
+        }
+        return items;
+    }
+
+    async listForCityByIds(cityId: string, productIds: string[]): Promise<ProductForCity[]> {
+        const rows = await this.products.listPricedByIds(cityId, productIds);
+        const byId = new Map(rows.map((row) => [row.product.id, row]));
+        const items: ProductForCity[] = [];
+        for (const id of productIds) {
+            const row = byId.get(id);
+            if (!row) continue;
+            items.push(await this.toCityProduct(row.product, row.pricePaise));
+        }
+        return items;
+    }
+
+    async findByIds(ids: string[]): Promise<Product[]> {
+        return this.products.findByIds(ids);
+    }
+
     async getForCity(productId: string, cityId: string): Promise<ProductForCity> {
         const product = await this.requireProduct(productId);
         if (!product.isActive) {
@@ -351,6 +413,42 @@ export class ProductService implements IProductService {
     private async toCityProduct(product: Product, pricePaise: number): Promise<ProductForCity> {
         const admin = await this.toAdmin(product);
         return { ...admin, pricePaise };
+    }
+
+    private async mappedAddonsForCity(addonIds: string[], cityId: string): Promise<PublicAddonForCity[]> {
+        const items: PublicAddonForCity[] = [];
+        for (const addonId of addonIds) {
+            const addon = await this.addons.findById(addonId);
+            if (!addon || !addon.isActive) continue;
+            const override = await this.prices.getAddonPrice(addonId, cityId);
+            const pricePaise = resolvedSellPaise(override?.pricePaise, addon.pricePaise);
+            items.push({
+                id: addon.id,
+                name: addon.name,
+                slug: addon.slug,
+                image: await this.toAddonImage(addon.imageUploadId),
+                color: await this.toAddonColor(addon.colorId),
+                pricePaise,
+            });
+        }
+        return items;
+    }
+
+    private async toAddonImage(imageUploadId: string | null): Promise<PublicAddonForCity["image"]> {
+        if (!imageUploadId) return null;
+        try {
+            const upload = await getCompletedUpload(imageUploadId);
+            return { ...toPublicMedia(upload), url: displayUrl(upload) };
+        } catch {
+            return null;
+        }
+    }
+
+    private async toAddonColor(colorId: string | null): Promise<PublicAddonForCity["color"]> {
+        if (!colorId) return null;
+        const row = await this.addons.findColorById(colorId);
+        if (!row) return null;
+        return { id: row.id, name: row.name, slug: row.slug, hex: row.hex };
     }
 
     private async requireProduct(id: string): Promise<Product> {

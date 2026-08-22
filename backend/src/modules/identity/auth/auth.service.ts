@@ -35,6 +35,7 @@ export type PublicUser = {
     avatar: string | null;
     role: User["role"];
     status: User["status"];
+    linkedGoogle: boolean;
     vendor?: {
         id: string;
         city: string;
@@ -72,6 +73,8 @@ export interface IAuthService {
     }): Promise<{ user: PublicUser; tokens: AuthTokens }>;
     logout(refreshToken: string): Promise<void>;
     me(userId: string): Promise<PublicUser>;
+    linkPhone(actorId: string, phoneRaw: string, otp: string): Promise<PublicUser>;
+    linkGoogle(actorId: string, idToken: string): Promise<PublicUser>;
 }
 
 function publicUser(user: User, vendor?: Vendor): PublicUser {
@@ -83,6 +86,7 @@ function publicUser(user: User, vendor?: Vendor): PublicUser {
         avatar: user.avatar,
         role: user.role,
         status: user.status,
+        linkedGoogle: user.googleId != null,
         ...(vendor
             ? {
                   vendor: {
@@ -330,6 +334,97 @@ export class AuthService implements IAuthService {
 
     async logout(refreshToken: string): Promise<void> {
         await this.sessions.revoke(refreshToken);
+    }
+
+    private async assertCustomerActor(actorId: string): Promise<User> {
+        const user = await this.users.findById(actorId);
+        if (!user) {
+            throw ApiError.unauthorized("user not found");
+        }
+        if (user.status === "blocked") {
+            throw ApiError.forbidden("account blocked");
+        }
+        if (user.role !== "user") {
+            throw ApiError.forbidden("insufficient role");
+        }
+        return user;
+    }
+
+    async linkPhone(actorId: string, phoneRaw: string, otp: string): Promise<PublicUser> {
+        const actor = await this.assertCustomerActor(actorId);
+        const phone = normalizePhone(phoneRaw);
+
+        if (actor.phone) {
+            if (actor.phone === phone) {
+                return this.withVendor(actor);
+            }
+            throw ApiError.conflict("phone already linked");
+        }
+
+        const owner = await this.users.findByPhone(phone);
+        if (owner && owner.id !== actor.id) {
+            throw ApiError.conflict("phone already registered");
+        }
+
+        await consumeOtp(phone, otp);
+
+        try {
+            const user = await this.users.linkPhone(actor.id, phone);
+            return this.withVendor(user);
+        } catch (err) {
+            if (isUniqueViolation(err)) {
+                throw ApiError.conflict("phone already registered");
+            }
+            throw err;
+        }
+    }
+
+    async linkGoogle(actorId: string, idToken: string): Promise<PublicUser> {
+        const actor = await this.assertCustomerActor(actorId);
+
+        if (actor.googleId) {
+            throw ApiError.conflict("google already linked");
+        }
+
+        if (!_config.GOOGLE_CLIENT_ID) {
+            throw ApiError.internalServerError("GOOGLE_CLIENT_ID is not configured");
+        }
+
+        const client = new OAuth2Client(_config.GOOGLE_CLIENT_ID);
+        const ticket = await client.verifyIdToken({
+            idToken,
+            audience: _config.GOOGLE_CLIENT_ID,
+        });
+        const payload = ticket.getPayload();
+        if (!payload?.sub) {
+            throw ApiError.unauthorized("invalid google token");
+        }
+
+        const byGoogle = await this.users.findByGoogleId(payload.sub);
+        if (byGoogle && byGoogle.id !== actor.id) {
+            throw ApiError.conflict("google already registered");
+        }
+
+        if (payload.email) {
+            const byEmail = await this.users.findByEmail(payload.email);
+            if (byEmail && byEmail.id !== actor.id) {
+                throw ApiError.conflict("email already registered");
+            }
+        }
+
+        try {
+            const user = await this.users.linkGoogleProfile(actor.id, {
+                googleId: payload.sub,
+                email: payload.email ?? null,
+                avatar: payload.picture ?? null,
+            });
+            return this.withVendor(user);
+        } catch (err) {
+            if (isUniqueViolation(err)) {
+                throw ApiError.conflict("google already registered");
+            }
+            throw err;
+        }
     }
 
     async me(userId: string): Promise<PublicUser> {

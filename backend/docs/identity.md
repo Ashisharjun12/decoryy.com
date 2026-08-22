@@ -19,7 +19,7 @@ You need all four:
 
 API `200` on OTP request means the job was **enqueued**, not that Twilio delivered.
 
-Default API: `http://localhost:8080` (`PORT` in `.env`). Identity base: `http://localhost:8080/api/v1`.
+Default API: `http://localhost:3000` (`PORT` in `.env`). Identity base: `http://localhost:3000/api/v1`.
 
 CORS allows `http://localhost:5173` with credentials. Cookie `secure` is on only when `NODE_ENV=production`. `sameSite` is `lax`.
 
@@ -323,6 +323,46 @@ Postman cannot complete Google Sign-In by itself. Mint an `id_token`, then paste
 
 A random JWT or a Google **access** token fails. Only a Google-signed **ID token** whose `aud` is `GOOGLE_CLIENT_ID` works.
 
+### Account linking (Google + phone)
+
+Customers can attach **both** phone and Google to **one** user row while logged in. There is **no** silent merge of two existing full accounts.
+
+1. Send OTP: `POST /auth/otp/request` with `{ phone }` (same as login).
+2. Link: `POST /user/link-phone` with Bearer access token and `{ phone, otp }`.
+3. Link Google: `POST /user/link-google` with Bearer and `{ idToken }`.
+
+**Success 200** (`link-phone` / `link-google`):
+
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "data": {
+    "user": {
+      "id": "…",
+      "phone": "+919876543210",
+      "email": "you@gmail.com",
+      "name": "User",
+      "avatar": "…",
+      "role": "user",
+      "status": "active",
+      "linkedGoogle": true
+    }
+  },
+  "message": "phone linked"
+}
+```
+
+**Errors**
+
+| Status | Message |
+| ------ | ------- |
+| 401 | `missing authorization header` / `invalid otp` / `invalid google token` |
+| 403 | `insufficient role` (vendor/admin) / `account blocked` |
+| 409 | `phone already linked` / `phone already registered` / `google already linked` / `google already registered` / `email already registered` |
+
+Login endpoints (`/auth/otp/verify`, `/auth/google`) remain **login-only**; use `/user/link-*` from Profile while authenticated.
+
 ### Admin
 
 `POST /auth/admin/login`. Existing admin: **bcrypt only** against `passwordHash` (never env plaintext). First bootstrap: email/password must match `ADMIN_EMAIL` / `ADMIN_PASSWORD`, then the user is created with a hash. If two bootstraps race on unique email, the loser retries `findByEmail` then bcrypt.
@@ -333,7 +373,7 @@ A random JWT or a Google **access** token fails. Only a Google-signed **ID token
 
 ## Postman catalog
 
-Set a collection variable `baseUrl` = `http://localhost:8080/api/v1`.
+Set a collection variable `baseUrl` = `http://localhost:3000/api/v1`.
 
 For web requests that set cookies: enable **Postman → Settings → General → Automatically follow redirects** as usual, and send cookies. Use a Postman Cookie Jar for `localhost`.
 
@@ -345,7 +385,7 @@ Protected routes: header `Authorization: Bearer {{accessToken}}`.
 
 Not under `/api/v1`. Probe only.
 
-- URL: `http://localhost:8080/health`
+- URL: `http://localhost:3000/health`
 - Auth: none
 - Body: none
 
@@ -782,7 +822,7 @@ Identical handler and payloads to `GET /auth/me`. Prefer one in clients; both ex
 ## Postman checklist
 
 1. Start Postgres, Redis, `pnpm dev`, `pnpm worker:dev`.
-2. `GET http://localhost:8080/health`.
+2. `GET http://localhost:3000/health`.
 3. OTP request → copy `data.otp` in dev (or read SMS).
 4. OTP verify with `clientType: web` → save `accessToken`; confirm `Set-Cookie`.
 5. OTP verify with `clientType: mobile` → confirm `data.refreshToken`.

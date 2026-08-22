@@ -13,7 +13,7 @@ const start = async () => {
     await appInstance.setupMastra();
 
     const app = appInstance.getApp();
-    const PORT = _config.PORT ?? 8080;
+    const PORT = _config.PORT ?? 3000;
 
     app.listen(PORT, () => {
       logger.info(`Server is running on port ${PORT}`);

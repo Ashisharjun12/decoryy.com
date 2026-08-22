@@ -10,6 +10,11 @@ export interface IUserRepository {
     create(data: NewUser): Promise<User>;
     markPhoneVerified(id: string): Promise<void>;
     linkGoogleId(id: string, googleId: string): Promise<User>;
+    linkPhone(id: string, phone: string): Promise<User>;
+    linkGoogleProfile(
+        id: string,
+        input: { googleId: string; email?: string | null; avatar?: string | null },
+    ): Promise<User>;
     setAvatar(id: string, avatar: string): Promise<User>;
 }
 
@@ -54,6 +59,46 @@ export class UserRepository implements IUserRepository {
             .returning();
         if (!row) {
             throw new Error("failed to link google id");
+        }
+        return row;
+    }
+
+    async linkPhone(id: string, phone: string): Promise<User> {
+        const [row] = await db
+            .update(users)
+            .set({
+                phone,
+                phoneVerifiedAt: new Date(),
+                updatedAt: new Date(),
+            })
+            .where(eq(users.id, id))
+            .returning();
+        if (!row) {
+            throw new Error("failed to link phone");
+        }
+        return row;
+    }
+
+    async linkGoogleProfile(
+        id: string,
+        input: { googleId: string; email?: string | null; avatar?: string | null },
+    ): Promise<User> {
+        const existing = await this.findById(id);
+        if (!existing) {
+            throw new Error("user not found");
+        }
+        const [row] = await db
+            .update(users)
+            .set({
+                googleId: input.googleId,
+                email: existing.email ?? input.email ?? null,
+                avatar: existing.avatar ?? input.avatar ?? null,
+                updatedAt: new Date(),
+            })
+            .where(eq(users.id, id))
+            .returning();
+        if (!row) {
+            throw new Error("failed to link google profile");
         }
         return row;
     }

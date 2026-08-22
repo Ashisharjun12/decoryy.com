@@ -16,6 +16,13 @@ export class ProductController {
         res.status(200).json(new ApiResponse(200, data, "ok"));
     });
 
+    getPublic = asyncHandler(async (req, res) => {
+        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+        const pincode = String(req.query.pincode ?? "");
+        const data = await this.products.getPublicByPincode(id, pincode);
+        res.status(200).json(new ApiResponse(200, data, "ok"));
+    });
+
     listAdmin = asyncHandler(async (req, res) => {
         const data = await this.products.listAdmin(req.query);
         res.status(200).json(new ApiResponse(200, data, "ok"));

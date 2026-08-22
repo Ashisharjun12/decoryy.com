@@ -101,6 +101,90 @@ None.
 
 ---
 
+## GET `/api/v1/catalog/products/:id`
+
+**Auth:** public  
+**Clients:** customer web/mobile (PDP)
+
+Active product priced for the pincode’s city, plus mapped **active** add-ons (name, image, color, city sell price).
+
+### Params
+
+`id` uuid.
+
+### Query
+
+| Field | Required | Notes |
+|---|---|---|
+| `pincode` | yes | min 6 |
+
+`GET /api/v1/catalog/products/33333333-3333-4333-8333-333333333333?pincode=302001`
+
+### Payload
+
+None.
+
+### Response `data`
+
+Same product fields as a list item, plus `city` and `addons` (list items only have `addonIds`).
+
+```json
+{
+  "id": "33333333-3333-4333-8333-333333333333",
+  "name": "Theme cradle",
+  "slug": "theme-cradle",
+  "description": "Balloon backdrop and cradle setup",
+  "categoryId": "12121212-1212-4121-8121-121212121212",
+  "isActive": true,
+  "scheduledEnabled": true,
+  "instantEnabled": false,
+  "pricePaise": 49900,
+  "compareAtPaise": 59900,
+  "includes": ["Backdrop"],
+  "deliverySetup": [],
+  "careInstructions": [],
+  "faqs": [],
+  "createdAt": "2026-08-21T18:00:00.000Z",
+  "updatedAt": "2026-08-21T18:00:00.000Z",
+  "images": [],
+  "addonIds": ["44444444-4444-4444-8444-444444444444"],
+  "city": {
+    "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    "name": "Jaipur",
+    "slug": "jaipur",
+    "state": "Rajasthan"
+  },
+  "addons": [
+    {
+      "id": "44444444-4444-4444-8444-444444444444",
+      "name": "Extra balloon bunch",
+      "slug": "extra-balloon-bunch",
+      "image": {
+        "id": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+        "url": "https://cdn.example/uploads/....-opt.webp"
+      },
+      "color": {
+        "id": "66666666-6666-4666-8666-666666666666",
+        "name": "Pastel pink",
+        "slug": "pastel-pink",
+        "hex": "#f4c2c2"
+      },
+      "pricePaise": 19900
+    }
+  ]
+}
+```
+
+`image` is full `PublicMedia` + display `url`, or `null`. `color` may be `null`. `pricePaise: null` = Free.
+
+### Errors
+
+- `400` `pincode not serviceable` / invalid pincode
+- `400` `product is not priced for this city`
+- `404` `product not found` (missing or inactive)
+
+---
+
 ## GET `/api/v1/admin/products`
 
 **Auth:** Bearer + admin
@@ -113,7 +197,9 @@ None.
 | `limit` | no | default `20`, max `100` |
 | `q` | no | search |
 | `isActive` | no | `"true"` \| `"false"` |
-| `categoryId` | no | uuid |
+| `categoryId` | no | uuid (subcategory) |
+| `cityId` | no | uuid. Product is sellable in that city (default `pricePaise` or a `city_prices` row). With `price=none`, the opposite: not sellable there. |
+| `price` | no | `"none"` (no resolved sell price) \| `"set"` (has sell price) \| `"sale"` (resolved `compareAtPaise` set). Resolved pair is city override then default. |
 
 ### Payload
 

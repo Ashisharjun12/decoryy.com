@@ -4,8 +4,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CategoriesPanel } from "@/module/catalog/components/CategoriesPanel"
 import { ProductsPanel } from "@/module/catalog/components/ProductsPanel"
 import { AddonsPanel } from "@/module/catalog/components/AddonsPanel"
+import { SectionsPanel } from "@/module/catalog/components/SectionsPanel"
 
-const TABS = ["products", "categories", "addons"]
+const TABS = ["products", "categories", "addons", "sections"]
 
 function normalizeTab(value) {
   return TABS.includes(value) ? value : "products"
@@ -25,7 +26,7 @@ export function CatalogPage() {
       <div className="shrink-0">
         <h1 className="font-heading text-2xl font-medium tracking-tight">Catalog</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Categories, products, and add-ons for the booking menu. Prices live on each product and add-on.
+          Categories, products, add-ons, and sections. Prices live on each product and add-on.
         </p>
       </div>
 
@@ -34,6 +35,7 @@ export function CatalogPage() {
           <TabsTrigger value="products">Products</TabsTrigger>
           <TabsTrigger value="categories">Categories</TabsTrigger>
           <TabsTrigger value="addons">Add-ons</TabsTrigger>
+          <TabsTrigger value="sections">Sections</TabsTrigger>
         </TabsList>
         <TabsContent value="products" className="min-h-0 flex-1 overflow-auto">
           <motion.div
@@ -63,6 +65,16 @@ export function CatalogPage() {
             transition={{ duration: reduceMotion ? 0 : 0.16 }}
           >
             <AddonsPanel />
+          </motion.div>
+        </TabsContent>
+        <TabsContent value="sections" className="min-h-0 flex-1 overflow-auto">
+          <motion.div
+            key="sections"
+            initial={reduceMotion ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: reduceMotion ? 0 : 0.16 }}
+          >
+            <SectionsPanel />
           </motion.div>
         </TabsContent>
       </Tabs>

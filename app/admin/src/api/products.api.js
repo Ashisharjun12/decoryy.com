@@ -1,6 +1,6 @@
 import { api, unwrap } from "@/api/api";
 
-export function listAdmin({ page = 1, limit = 20, q, isActive, categoryId } = {}) {
+export function listAdmin({ page = 1, limit = 20, q, isActive, categoryId, cityId, price } = {}) {
   return api
     .get("/admin/products", {
       params: {
@@ -9,6 +9,8 @@ export function listAdmin({ page = 1, limit = 20, q, isActive, categoryId } = {}
         ...(q ? { q } : {}),
         ...(isActive === "true" || isActive === "false" ? { isActive } : {}),
         ...(categoryId ? { categoryId } : {}),
+        ...(cityId ? { cityId } : {}),
+        ...(price ? { price } : {}),
       },
     })
     .then(unwrap);

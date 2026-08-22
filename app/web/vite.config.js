@@ -11,9 +11,12 @@ export default defineConfig({
     react(),
     babel({ presets: [reactCompilerPreset()] }),
     tailwindcss(),
-    
   ],
-    resolve: {
+  server: {
+    port: 5174,
+    strictPort: true,
+  },
+  resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },

@@ -21,6 +21,16 @@ import { CityPriceRepository } from "@/modules/catalog/pricing/city-price.reposi
 import { addonCityPrices, cityPrices } from "@/modules/catalog/pricing/city-price.schema.js";
 import { CityPriceService } from "@/modules/catalog/pricing/city-price.service.js";
 import { MediaRepository } from "@/modules/upload/media/media.repository.js";
+import { CityRepository } from "@/modules/geo/cities/city.repository.js";
+import { SectionController } from "@/modules/catalog/sections/section.controller.js";
+import { SectionRepository } from "@/modules/catalog/sections/section.repository.js";
+import { createSectionAdminRouter, createSectionPublicRouter } from "@/modules/catalog/sections/section.route.js";
+import {
+    catalogSectionCityOverrides,
+    catalogSectionProducts,
+    catalogSections,
+} from "@/modules/catalog/sections/section.schema.js";
+import { SectionService } from "@/modules/catalog/sections/section.service.js";
 
 const categoryRepository = new CategoryRepository();
 const productRepository = new ProductRepository();
@@ -38,18 +48,24 @@ const productService = new ProductService(
     mediaRepository,
     categoryRepository,
 );
+const cityRepository = new CityRepository();
+const sectionRepository = new SectionRepository();
+const sectionService = new SectionService(sectionRepository, productService, cityRepository);
 
 const categoryController = new CategoryController(categoryService);
 const productController = new ProductController(productService, cityPriceService, addonService);
 const addonController = new AddonController(addonService, cityPriceService);
+const sectionController = new SectionController(sectionService);
 
 export const catalogRouter = Router();
 catalogRouter.use("/categories", createCategoryPublicRouter(categoryController));
 catalogRouter.use("/products", createProductPublicRouter(productController));
+catalogRouter.use("/sections", createSectionPublicRouter(sectionController));
 
 export const catalogCategoryAdminRouter = createCategoryAdminRouter(categoryController);
 export const catalogProductAdminRouter = createProductAdminRouter(productController);
 export const catalogAddonAdminRouter = createAddonAdminRouter(addonController);
+export const catalogSectionAdminRouter = createSectionAdminRouter(sectionController);
 
 export function getProductForCity(productId: string, cityId: string) {
     return productService.getForCity(productId, cityId);
@@ -59,4 +75,4 @@ export function priceQuote(productId: string, cityId: string, addonIds: string[]
     return cityPriceService.quote(productId, cityId, addonIds);
 }
 
-export { categories, products, productImages, addons, addonColors, productAddons, cityPrices, addonCityPrices };
+export { categories, products, productImages, addons, addonColors, productAddons, cityPrices, addonCityPrices, catalogSections, catalogSectionCityOverrides, catalogSectionProducts };

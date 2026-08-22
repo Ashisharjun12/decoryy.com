@@ -10,24 +10,25 @@ HTTP contracts for **live** mounted routes only. Booking, payments, CMS, assignm
 | [category.md](category.md) | Categories |
 | [products.md](products.md) | Products, city prices, add-on map |
 | [addons.md](addons.md) | Add-ons, colors, city prices |
+| [sections.md](sections.md) | Sections (global + city override) |
 | [media.md](media.md) | Uploads + media folders |
 | [admin.md](admin.md) | `/api/v1/admin` gateway index |
 
 ## Base URL
 
 ```text
-http://localhost:8080
+http://localhost:3000
 ```
 
 API prefix: `/api/v1`. Health (no prefix): `GET /health`.
 
-Port comes from `PORT` in env; default is `8080`.
+Port comes from `PORT` in env; default is `3000`.
 
-CORS origin: `http://localhost:5173` with `credentials: true`. Send cookies on auth refresh/logout for **web**.
+CORS origins: `http://localhost:5173` (admin) and `http://localhost:5174` (web) with `credentials: true`. Send cookies on auth refresh/logout for **web**.
 
 ## Postman setup
 
-1. Collection variables: `baseUrl` = `http://localhost:8080/api/v1`, `accessToken` = empty.
+1. Collection variables: `baseUrl` = `http://localhost:3000/api/v1`, `accessToken` = empty.
 2. After login, copy `data.accessToken` into `accessToken`.
 3. Admin requests: header `Authorization: Bearer {{accessToken}}`.
 4. Enable cookie jar. Web login always sets httpOnly cookie `refreshToken`.
@@ -35,7 +36,7 @@ CORS origin: `http://localhost:5173` with `credentials: true`. Send cookies on a
 
 **Admin smoke path:** `POST /auth/admin/login` → `GET /admin/cities`.
 
-**Customer smoke path:** `GET /geo/resolve?pincode=...` → `GET /catalog/products?pincode=...`.
+**Customer smoke path:** `GET /geo/resolve?pincode=...` → `GET /catalog/sections?pincode=...` → `GET /catalog/products?pincode=...` → `GET /catalog/products/:id?pincode=...`.
 
 ## Envelope
 

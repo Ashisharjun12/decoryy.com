@@ -78,11 +78,17 @@ export const adminProductListQueryDto = z.object({
     q: z.string().optional(),
     isActive: z.enum(["true", "false"]).optional(),
     categoryId: z.string().uuid().optional(),
+    cityId: z.string().uuid().optional(),
+    price: z.enum(["none", "set", "sale"]).optional(),
 });
 
 export const publicProductListQueryDto = z.object({
     pincode: z.string().min(6),
     categoryId: z.string().uuid().optional(),
+});
+
+export const publicProductGetQueryDto = z.object({
+    pincode: z.string().min(6),
 });
 
 export const cityPriceDto = z

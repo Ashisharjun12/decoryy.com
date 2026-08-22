@@ -32,6 +32,22 @@ function imageSrc(item) {
   return item?.thumbnailUrl || item?.url || item?.publicUrl || item?.optimizedUrl || ""
 }
 
+function clipParts(value, separator, count = 2) {
+  const text = String(value ?? "").trim()
+  if (!text) return ""
+  const parts = text.split(separator).filter(Boolean)
+  if (parts.length <= count) return text
+  return `${parts.slice(0, count).join(separator)}…`
+}
+
+function clippedName(name) {
+  return clipParts(name, " ")
+}
+
+function clippedSlug(slug) {
+  return clipParts(slug, "-")
+}
+
 export function ProductsTable({ items, loading, onTogglePublished, onDelete }) {
   const navigate = useNavigate()
 
@@ -76,8 +92,16 @@ export function ProductsTable({ items, loading, onTogglePublished, onDelete }) {
                   )}
                 </div>
               </TableCell>
-              <TableCell className="font-medium">{product.name}</TableCell>
-              <TableCell className="text-muted-foreground">{product.slug}</TableCell>
+              <TableCell className="max-w-40 font-medium">
+                <span className="block truncate" title={product.name}>
+                  {clippedName(product.name)}
+                </span>
+              </TableCell>
+              <TableCell className="max-w-40 text-muted-foreground">
+                <span className="block truncate" title={product.slug}>
+                  {clippedSlug(product.slug)}
+                </span>
+              </TableCell>
               <TableCell>{product.categoryName || "—"}</TableCell>
               <TableCell>
                 <span

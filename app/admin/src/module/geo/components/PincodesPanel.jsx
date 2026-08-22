@@ -5,7 +5,6 @@ import { listAdmin, createPincode, patchPincode } from "@/api/pincodes.api"
 import { getApiError } from "@/api/api"
 import { toast } from "@/components/ui/toast"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Empty,
@@ -15,17 +14,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { MapSilhouette } from "@/assets/silhouettes"
 import { PincodesTable } from "@/module/geo/components/PincodesTable"
 import { PincodeFormDialog } from "@/module/geo/components/PincodeFormDialog"
 import { ListPagination } from "@/module/geo/components/ListPagination"
+import { PincodeFilters } from "@/module/geo/filters/PincodeFilters"
 
 const LIMIT = 20
 
@@ -45,7 +38,6 @@ export function PincodesPanel() {
   const [formError, setFormError] = useState("")
 
   const citiesById = useMemo(() => new Map(cities.map((c) => [c.id, c])), [cities])
-  const selectedCityName = cities.find((c) => c.id === cityId)?.name
   const filtered = Boolean(q.trim()) || isServiceable !== "" || Boolean(cityId)
 
   useEffect(() => {
@@ -134,58 +126,24 @@ export function PincodesPanel() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <Input
-            className="w-40"
-            value={q}
-            onChange={(event) => {
-              setPage(1)
-              setQ(event.target.value)
-            }}
-            inputMode="numeric"
-            placeholder="Search PIN"
-            aria-label="Search pincodes"
-          />
-          <Select
-            value={cityId || "all"}
-            onValueChange={(value) => {
-              setPage(1)
-              setCityId(value === "all" ? "" : value)
-            }}
-          >
-            <SelectTrigger className="w-56">
-              <SelectValue placeholder="All cities">
-                {cityId ? selectedCityName : "All cities"}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All cities</SelectItem>
-              {cities.map((city) => (
-                <SelectItem key={city.id} value={city.id}>
-                  {city.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={isServiceable || "all"}
-            onValueChange={(value) => {
-              setPage(1)
-              setIsServiceable(value === "all" ? "" : value)
-            }}
-          >
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="All">
-                {isServiceable === "true" ? "Yes" : isServiceable === "false" ? "No" : "All"}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="true">Yes</SelectItem>
-              <SelectItem value="false">No</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <PincodeFilters
+          q={q}
+          cityId={cityId}
+          isServiceable={isServiceable}
+          cities={cities}
+          onQ={(value) => {
+            setPage(1)
+            setQ(value)
+          }}
+          onCityId={(value) => {
+            setPage(1)
+            setCityId(value)
+          }}
+          onIsServiceable={(value) => {
+            setPage(1)
+            setIsServiceable(value)
+          }}
+        />
         <Button type="button" onClick={openCreate}>
           <PlusIcon />
           Add pincode

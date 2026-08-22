@@ -1,0 +1,1 @@
+-- Snapshot baseline sync: schema changes through 0015 were already applied manually.
