@@ -70,7 +70,7 @@ export function BannerSearch() {
     DEMO_BUDGETS.find((item) => item.value === budget)?.label ?? "Budget";
 
   function findSetups() {
-    const target = document.getElementById("trending");
+    const target = document.getElementById("home-picks");
     const lenis = getLenis();
     if (lenis && target) {
       lenis.scrollTo(target, { offset: -80 });

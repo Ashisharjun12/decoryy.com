@@ -1,5 +1,5 @@
 import { format } from "date-fns"
-import { EyeIcon, MoreHorizontalIcon, PencilIcon, Trash2Icon } from "lucide-react"
+import { EyeIcon, MoreHorizontalIcon, PencilIcon, StarIcon, Trash2Icon } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { DecoryImageFallback } from "@/module/catalog/components/DecoryImageFallback"
 import { Button } from "@/components/ui/button"
@@ -153,6 +153,10 @@ export function ProductsTable({ items, loading, onTogglePublished, onDelete }) {
                     >
                       <EyeIcon />
                       Preview
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate(`/catalog/products/${product.id}/reviews`)}>
+                      <StarIcon />
+                      Reviews
                     </DropdownMenuItem>
                     <DropdownMenuItem variant="destructive" onClick={() => onDelete(product)}>
                       <Trash2Icon />

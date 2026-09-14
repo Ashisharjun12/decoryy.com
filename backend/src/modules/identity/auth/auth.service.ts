@@ -1,8 +1,8 @@
-import { randomInt } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { OAuth2Client } from "google-auth-library";
 import { _config } from "@/config/config.js";
-import type { ISmsService } from "@/modules/notifications/sms/sms.service.js";
+import type { INotificationService } from "@/modules/notifications/notification.service.js";
 import { ApiError } from "@/shared/errors/apiError.js";
 import {
     assertOtpRateLimit,
@@ -25,7 +25,8 @@ import {
 import type { IUserService } from "@/modules/identity/users/user.service.js";
 import type { User } from "@/modules/identity/users/user.schema.js";
 import type { IVendorService } from "@/modules/identity/vendors/vendor.service.js";
-import type { Vendor } from "@/modules/identity/vendors/vendor.schema.js";
+import type { PublicVendorProfile } from "@/modules/identity/vendors/vendor.public.js";
+import type { VendorRegisterInput } from "@/modules/identity/vendors/vendor.dto.js";
 
 export type PublicUser = {
     id: string;
@@ -36,17 +37,17 @@ export type PublicUser = {
     role: User["role"];
     status: User["status"];
     linkedGoogle: boolean;
-    vendor?: {
-        id: string;
-        city: string;
-        onboardingStatus: string;
-    };
+    vendor?: PublicVendorProfile;
 };
 
 export interface IAuthService {
-    requestOtp(phoneRaw: string, ip?: string): Promise<{ phone: string; otp?: string }>;
+    requestOtp(
+        phoneRaw: string,
+        ip?: string,
+        androidAppHash?: string,
+    ): Promise<{ phone: string; otp?: string }>;
     registerVendor(
-        input: { name: string; phone: string; city: string },
+        input: VendorRegisterInput & { phone: string; androidAppHash?: string },
         ip?: string,
     ): Promise<{ phone: string; otp?: string }>;
     verifyOtp(input: {
@@ -77,7 +78,7 @@ export interface IAuthService {
     linkGoogle(actorId: string, idToken: string): Promise<PublicUser>;
 }
 
-function publicUser(user: User, vendor?: Vendor): PublicUser {
+function publicUser(user: User, vendor?: PublicVendorProfile): PublicUser {
     return {
         id: user.id,
         phone: user.phone,
@@ -87,15 +88,7 @@ function publicUser(user: User, vendor?: Vendor): PublicUser {
         role: user.role,
         status: user.status,
         linkedGoogle: user.googleId != null,
-        ...(vendor
-            ? {
-                  vendor: {
-                      id: vendor.id,
-                      city: vendor.city,
-                      onboardingStatus: vendor.onboardingStatus,
-                  },
-              }
-            : {}),
+        ...(vendor ? { vendor } : {}),
     };
 }
 
@@ -124,11 +117,14 @@ export class AuthService implements IAuthService {
         private readonly users: IUserService,
         private readonly vendors: IVendorService,
         private readonly sessions: ISessionService,
-        private readonly sms: ISmsService,
+        private readonly notifications: INotificationService,
     ) {}
 
     private async withVendor(user: User): Promise<PublicUser> {
-        const vendor = user.role === "vendor" ? await this.vendors.findByUserId(user.id) : undefined;
+        const vendor =
+            user.role === "vendor"
+                ? await this.vendors.findPublicProfileByUserId(user.id)
+                : undefined;
         return publicUser(user, vendor);
     }
 
@@ -136,14 +132,24 @@ export class AuthService implements IAuthService {
         return _config.NODE_ENV === "development";
     }
 
-    private async sendOtp(phone: string, purpose: OtpPurpose, ip?: string) {
+    private async sendOtp(
+        phone: string,
+        purpose: OtpPurpose,
+        ip?: string,
+        androidAppHash?: string,
+    ) {
+        await this.notifications.assertCanSend("LOGIN_OTP");
         await assertOtpRateLimit(phone, ip);
         const otp = generateOtp();
         await saveOtp(phone, otp, purpose);
-        await this.sms.enqueue({
-            to: phone,
-            template: "login_otp",
-            data: { otp },
+        await this.notifications.notify({
+            event: "LOGIN_OTP",
+            recipient: { phone },
+            data: {
+                otp,
+                ...(androidAppHash ? { androidAppHash } : {}),
+            },
+            idempotencyKey: randomUUID(),
         });
 
         return {
@@ -152,22 +158,31 @@ export class AuthService implements IAuthService {
         };
     }
 
-    async requestOtp(phoneRaw: string, ip?: string) {
+    async requestOtp(phoneRaw: string, ip?: string, androidAppHash?: string) {
         const phone = normalizePhone(phoneRaw);
         const pending = await peekVendorPending(phone);
         const purpose: OtpPurpose = pending ? "vendor_register" : "login";
-        return this.sendOtp(phone, purpose, ip);
+        return this.sendOtp(phone, purpose, ip, androidAppHash);
     }
 
-    async registerVendor(input: { name: string; phone: string; city: string }, ip?: string) {
+    async registerVendor(input: VendorRegisterInput & { phone: string; androidAppHash?: string }, ip?: string) {
         const phone = normalizePhone(input.phone);
         const existing = await this.users.findByPhone(phone);
         if (existing) {
             throw ApiError.conflict("phone already registered");
         }
 
-        await saveVendorPending(phone, { name: input.name.trim(), city: input.city.trim() });
-        return this.sendOtp(phone, "vendor_register", ip);
+        await saveVendorPending(phone, {
+            name: input.name.trim(),
+            email: input.email.trim().toLowerCase(),
+            phone,
+            altPhone: input.altPhone,
+            cityId: input.cityId,
+            shopAddress: input.shopAddress.trim(),
+            pincode: input.pincode,
+            shopImageUploadId: input.shopImageUploadId,
+        });
+        return this.sendOtp(phone, "vendor_register", ip, input.androidAppHash);
     }
 
     async verifyOtp(input: {
@@ -198,9 +213,14 @@ export class AuthService implements IAuthService {
                 throw ApiError.conflict("phone already registered");
             }
             user = await this.vendors.createWithUser({
-                phone,
                 name: pendingData.name,
-                city: pendingData.city,
+                email: pendingData.email,
+                phone,
+                altPhone: pendingData.altPhone,
+                cityId: pendingData.cityId,
+                shopAddress: pendingData.shopAddress,
+                pincode: pendingData.pincode,
+                shopImageUploadId: pendingData.shopImageUploadId,
             });
         } else if (!user) {
             user = await this.users.create({

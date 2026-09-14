@@ -88,6 +88,7 @@ export function CitiesPanel() {
       name: values.name,
       state: values.state,
       isActive: values.isActive,
+      imageUploadId: values.image?.uploadId || null,
       ...(values.slug ? { slug: values.slug } : {}),
     }
     try {

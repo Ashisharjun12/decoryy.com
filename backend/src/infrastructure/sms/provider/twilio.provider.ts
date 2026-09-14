@@ -3,10 +3,6 @@ import { _config } from "@/config/config.js";
 import type { ISmsProvider, SmsMessage } from "@/infrastructure/sms/sms.interface.js";
 import { logger } from "@/utils/logger.js";
 
-const TEMPLATES: Record<string, (data: Record<string, string>) => string> = {
-    login_otp: (data) => `Your Decory OTP is ${data.otp}. Valid for 5 minutes.`,
-};
-
 export class TwilioSmsProvider implements ISmsProvider {
     private readonly client: ReturnType<typeof twilio>;
     private readonly fromNumber: string | undefined;
@@ -28,18 +24,11 @@ export class TwilioSmsProvider implements ISmsProvider {
         this.client = twilio(accountSid, authToken);
     }
 
-
     async send(message: SmsMessage): Promise<void> {
-        const render = TEMPLATES[message.template];
-        if (!render) {
-            throw new Error(`Unknown SMS template "${message.template}"`);
-        }
-
-        const body = render(message.data);
         try {
             const result = await this.client.messages.create({
                 to: message.to,
-                body,
+                body: message.body,
                 ...(this.messagingServiceSid
                     ? { messagingServiceSid: this.messagingServiceSid }
                     : { from: this.fromNumber }),

@@ -8,6 +8,9 @@ declare global {
                 role: UserRole;
             };
         }
+        interface Response {
+            err?: Error;
+        }
     }
 }
 

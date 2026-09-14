@@ -12,7 +12,7 @@ You need all four:
 | Process  | Command                 | Why                                     |
 | -------- | ----------------------- | --------------------------------------- |
 | API      | `pnpm dev`              | HTTP                                    |
-| Worker   | `pnpm worker:dev`       | Sends SMS from the `sms` queue          |
+| Worker   | `pnpm worker:dev`       | Sends SMS from the `sms` queue; reads notification channel flags from Postgres |
 | Postgres | `POSTGRES_DATABASE_URL` | Users, vendors, sessions                |
 | Redis    | `REDIS_URL`             | OTP, rate limit, vendor pending, BullMQ |
 
@@ -72,7 +72,7 @@ flowchart TB
     UserSvc[UserService]
     VendorSvc[VendorService]
     SessionSvc[SessionService]
-    SmsSvc[SmsService]
+    NotifySvc[NotificationService]
   end
 
   subgraph stores [Stores]
@@ -92,7 +92,7 @@ flowchart TB
   AuthSvc --> UserSvc --> PG
   AuthSvc --> VendorSvc --> PG
   AuthSvc --> SessionSvc --> PG
-  AuthSvc -->|"enqueue OTP SMS"| SmsSvc --> Redis
+  AuthSvc -->|"notify LOGIN_OTP"| NotifySvc --> Redis
   Redis --> SmsJob --> SmsFactory --> Twilio
 ```
 
@@ -153,7 +153,7 @@ On **logout**: revoke that refresh row. Access JWT still verifies until it expir
 
 `purpose` is `"login"` or `"vendor_register"`. Public `POST /auth/otp/request` is **login only** (no `purpose` field). Only `POST /vendor/register` writes `vendor_register`. If `vendor:pending:{phone}` already exists, a later login OTP request **keeps** `vendor_register` so it cannot create a customer.
 
-SMS is **not** sent in the API process. Auth enqueues BullMQ job `sms` (`template: login_otp`). The worker uses `SmsFactory` (`SMS_PROVIDER=dev|twilio`).
+SMS is **not** sent in the API process. Auth calls `notificationService.assertCanSend("LOGIN_OTP")` then `notify()`. If SMS is disabled, the API returns **503** `sms notifications disabled`. The worker uses `SmsFactory` (`SMS_PROVIDER=dev|twilio|fast2sms`) after the outbox relay.
 
 OTP is returned in JSON **only** when `NODE_ENV === "development"`. Production never echoes OTP, even if `SMS_PROVIDER=dev`.
 

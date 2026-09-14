@@ -22,6 +22,13 @@ export function parsePositivePaise(rupees) {
   return paise
 }
 
+export function parseNonNegativePaise(rupees) {
+  if (rupees === "" || rupees == null) return 0
+  const paise = rupeesToPaise(rupees)
+  if (!Number.isInteger(paise) || paise < 0) return null
+  return paise
+}
+
 export function defaultDiscountedRupees(regularRupees) {
   const paise = parsePositivePaise(regularRupees)
   if (paise == null) return ""

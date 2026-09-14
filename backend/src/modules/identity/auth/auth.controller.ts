@@ -49,7 +49,11 @@ export class AuthController {
     constructor(private readonly authService: IAuthService) {}
 
     requestOtp = asyncHandler(async (req, res) => {
-        const data = await this.authService.requestOtp(req.body.phone, clientIp(req));
+        const data = await this.authService.requestOtp(
+            req.body.phone,
+            clientIp(req),
+            req.body.androidAppHash,
+        );
         res.status(200).json(new ApiResponse(200, data, "otp sent"));
     });
 

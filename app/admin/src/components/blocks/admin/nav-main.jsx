@@ -27,6 +27,11 @@ export function NavMain({ items, pathname = "" }) {
               >
                 {item.icon}
                 <span>{item.title}</span>
+                {item.badge ? (
+                  <span className="ml-auto rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground">
+                    {item.badge}
+                  </span>
+                ) : null}
               </SidebarMenuButton>
             </SidebarMenuItem>
           )

@@ -61,10 +61,16 @@ export const productFormSchema = z
     isActive: z.boolean(),
     scheduledEnabled: z.boolean(),
     instantEnabled: z.boolean(),
+    paymentCod: z.boolean(),
+    paymentOnline: z.boolean(),
   })
   .refine((value) => value.scheduledEnabled || value.instantEnabled, {
     message: "Turn on Scheduled or Instant",
     path: ["scheduledEnabled"],
+  })
+  .refine((value) => value.paymentCod || value.paymentOnline, {
+    message: "Turn on COD or Online payment",
+    path: ["paymentCod"],
   });
 
 export const addonFormSchema = z.object({

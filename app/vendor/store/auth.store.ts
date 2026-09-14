@@ -1,0 +1,300 @@
+import { me, refresh } from '@/api/auth.api';
+import { registerAccessTokenGetter } from '@/api/client';
+import { clearPushRegistration } from '@/lib/push-registration';
+import type { AuthSessionPayload, AuthUser, VendorProfile } from '@/lib/auth.types';
+import {
+  clearHasSeenWelcome,
+  clearTokens,
+  loadHasSeenWelcome,
+  loadRefreshToken,
+  saveHasSeenWelcome,
+  saveTokens,
+} from '@/lib/secure-storage';
+import { toLocalPhone } from '@/lib/phone';
+
+import { create } from 'zustand';
+
+export { getAuthRedirectPath, getPostOtpRedirectPath } from '@/module/auth/lib/auth-routing';
+
+export type { AuthUser, VendorProfile, VendorOnboardingStatus } from '@/lib/auth.types';
+
+export type RegisterBasicPayload = {
+  name: string;
+  email: string;
+  phone: string;
+  altPhone?: string;
+};
+
+export type RegisterLocationPayload = {
+  state: string;
+  cityId: string;
+  cityName: string;
+  shopAddress: string;
+  pincode: string;
+  shopImageUri?: string;
+};
+
+export type RegisterPayload = RegisterBasicPayload & RegisterLocationPayload;
+
+type AuthState = {
+  hydrated: boolean;
+  hasSeenWelcome: boolean;
+  accessToken: string | null;
+  refreshToken: string | null;
+  user: AuthUser | null;
+  registerDraft: RegisterBasicPayload | null;
+  pendingRegistration: RegisterPayload | null;
+  pendingOtpPhone: string | null;
+  pendingOtpMode: 'register' | 'sign-in' | null;
+  lastDevOtp: string | null;
+  isReapplyMode: boolean;
+  hydrate: () => Promise<void>;
+  completeWelcome: () => Promise<void>;
+  setRegisterDraft: (data: RegisterBasicPayload) => void;
+  setPendingRegistration: (data: RegisterPayload) => void;
+  setPendingOtp: (input: { phone: string; mode: 'register' | 'sign-in'; devOtp?: string }) => void;
+  setSession: (payload: AuthSessionPayload) => Promise<void>;
+  refreshSession: () => Promise<AuthUser | null>;
+  clearPendingOtp: () => void;
+  restoreRegisterDraftFromPending: () => void;
+  getPendingPhone: () => string | null;
+  signOut: () => Promise<void>;
+  resetOnboarding: () => Promise<void>;
+  startReapplyFromSession: () => void;
+  completeReapply: (user: AuthUser) => void;
+  clearReapplyMode: () => void;
+  updateUser: (user: AuthUser) => void;
+};
+
+export const useAuthStore = create<AuthState>((set, get) => ({
+  hydrated: false,
+  hasSeenWelcome: false,
+  accessToken: null,
+  refreshToken: null,
+  user: null,
+  registerDraft: null,
+  pendingRegistration: null,
+  pendingOtpPhone: null,
+  pendingOtpMode: null,
+  lastDevOtp: null,
+  isReapplyMode: false,
+
+  hydrate: async () => {
+    const [hasSeenWelcome, refreshToken] = await Promise.all([
+      loadHasSeenWelcome(),
+      loadRefreshToken(),
+    ]);
+
+    if (!refreshToken) {
+      set({ hydrated: true, hasSeenWelcome });
+      return;
+    }
+
+    try {
+      const payload = await refresh(refreshToken);
+      await saveTokens(payload.accessToken, payload.refreshToken);
+      set({
+        hydrated: true,
+        hasSeenWelcome,
+        accessToken: payload.accessToken,
+        refreshToken: payload.refreshToken ?? refreshToken,
+        user: payload.user,
+      });
+    } catch {
+      await clearTokens();
+      set({
+        hydrated: true,
+        hasSeenWelcome,
+        accessToken: null,
+        refreshToken: null,
+        user: null,
+      });
+    }
+  },
+
+  completeWelcome: async () => {
+    await saveHasSeenWelcome();
+    set({ hasSeenWelcome: true });
+  },
+
+  setRegisterDraft: (data) => set({ registerDraft: data }),
+
+  setPendingRegistration: (data) =>
+    set({
+      pendingRegistration: data,
+      registerDraft: get().isReapplyMode
+        ? {
+            name: data.name,
+            email: data.email,
+            phone: data.phone,
+            altPhone: data.altPhone,
+          }
+        : null,
+      pendingOtpPhone: null,
+      pendingOtpMode: null,
+    }),
+
+  setPendingOtp: ({ phone, mode, devOtp }) =>
+    set({
+      pendingOtpPhone: phone,
+      pendingOtpMode: mode,
+      lastDevOtp: devOtp ?? null,
+      pendingRegistration: mode === 'register' ? get().pendingRegistration : null,
+    }),
+
+  setSession: async (payload) => {
+    await saveTokens(payload.accessToken, payload.refreshToken);
+    set({
+      accessToken: payload.accessToken,
+      refreshToken: payload.refreshToken ?? get().refreshToken,
+      user: payload.user,
+      pendingRegistration: null,
+      pendingOtpPhone: null,
+      pendingOtpMode: null,
+      lastDevOtp: null,
+      registerDraft: null,
+      isReapplyMode: false,
+    });
+  },
+
+  refreshSession: async () => {
+    const token = get().accessToken;
+    if (!token) return null;
+    try {
+      const user = await me();
+      set({ user });
+      return user;
+    } catch {
+      const refreshToken = get().refreshToken ?? (await loadRefreshToken());
+      if (!refreshToken) {
+        await get().signOut();
+        return null;
+      }
+      try {
+        const payload = await refresh(refreshToken);
+        await get().setSession(payload);
+        return payload.user;
+      } catch {
+        await get().signOut();
+        return null;
+      }
+    }
+  },
+
+  clearPendingOtp: () =>
+    set({
+      pendingOtpPhone: null,
+      pendingOtpMode: null,
+      lastDevOtp: null,
+      pendingRegistration: null,
+    }),
+
+  restoreRegisterDraftFromPending: () => {
+    const pending = get().pendingRegistration;
+    if (!pending) return;
+    set({
+      registerDraft: {
+        name: pending.name,
+        email: pending.email,
+        phone: pending.phone,
+        altPhone: pending.altPhone,
+      },
+    });
+  },
+
+  getPendingPhone: () => get().pendingOtpPhone,
+
+  signOut: async () => {
+    const accessToken = get().accessToken;
+    const vendor = get().user?.vendor;
+    if (vendor?.onboardingStatus === 'ACTIVE' && vendor.isOnDuty) {
+      try {
+        const { patchDuty } = await import('@/api/vendor.api');
+        await patchDuty(false);
+      } catch {
+        // best-effort offline before logout
+      }
+    }
+    await clearPushRegistration(accessToken);
+
+    const refreshToken = get().refreshToken ?? (await loadRefreshToken());
+    if (refreshToken) {
+      try {
+        const { logout } = await import('@/api/auth.api');
+        await logout(refreshToken);
+      } catch {
+        // ignore network errors on logout
+      }
+    }
+    await clearTokens();
+    set({
+      accessToken: null,
+      refreshToken: null,
+      user: null,
+      pendingRegistration: null,
+      pendingOtpPhone: null,
+      pendingOtpMode: null,
+      lastDevOtp: null,
+      isReapplyMode: false,
+    });
+  },
+
+  startReapplyFromSession: () => {
+    const user = get().user;
+    const vendor = user?.vendor;
+    if (!user?.phone || !vendor || vendor.onboardingStatus !== 'REJECTED') return;
+
+    const draft: RegisterBasicPayload = {
+      name: user.name,
+      email: user.email ?? '',
+      phone: toLocalPhone(user.phone),
+      altPhone: vendor.altPhone ? toLocalPhone(vendor.altPhone) : undefined,
+    };
+
+    const registration: RegisterPayload = {
+      ...draft,
+      state: vendor.state,
+      cityId: vendor.cityId,
+      cityName: vendor.cityName,
+      shopAddress: vendor.shopAddress,
+      pincode: vendor.pincode,
+      shopImageUri: vendor.shopImageUrl ?? undefined,
+    };
+
+    set({
+      isReapplyMode: true,
+      registerDraft: draft,
+      pendingRegistration: registration,
+      pendingOtpPhone: null,
+      pendingOtpMode: null,
+    });
+  },
+
+  completeReapply: (user) =>
+    set({
+      user,
+      isReapplyMode: false,
+      registerDraft: null,
+      pendingRegistration: null,
+    }),
+
+  clearReapplyMode: () =>
+    set({
+      isReapplyMode: false,
+      registerDraft: null,
+      pendingRegistration: null,
+    }),
+
+  updateUser: (user) => set({ user }),
+
+  resetOnboarding: async () => {
+    await get().signOut();
+    await clearHasSeenWelcome();
+    set({
+      hasSeenWelcome: false,
+      registerDraft: null,
+    });
+  },
+}));
+
+registerAccessTokenGetter(() => useAuthStore.getState().accessToken);

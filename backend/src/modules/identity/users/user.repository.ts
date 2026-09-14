@@ -1,6 +1,11 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db/postgres-client.js";
-import { users, type NewUser, type User } from "@/modules/identity/users/user.schema.js";
+import {
+    users,
+    type NewUser,
+    type User,
+    type UserStatus,
+} from "@/modules/identity/users/user.schema.js";
 
 export interface IUserRepository {
     findById(id: string): Promise<User | undefined>;
@@ -16,6 +21,10 @@ export interface IUserRepository {
         input: { googleId: string; email?: string | null; avatar?: string | null },
     ): Promise<User>;
     setAvatar(id: string, avatar: string): Promise<User>;
+    updateProfile(id: string, input: { name: string; email: string }): Promise<User>;
+    updateName(id: string, name: string): Promise<void>;
+    setEmail(id: string, email: string): Promise<User>;
+    updateStatus(id: string, status: UserStatus): Promise<User>;
 }
 
 export class UserRepository implements IUserRepository {
@@ -111,6 +120,56 @@ export class UserRepository implements IUserRepository {
             .returning();
         if (!row) {
             throw new Error("failed to set avatar");
+        }
+        return row;
+    }
+
+    async updateProfile(id: string, input: { name: string; email: string }): Promise<User> {
+        const [row] = await db
+            .update(users)
+            .set({
+                name: input.name.trim(),
+                email: input.email.trim().toLowerCase(),
+                updatedAt: new Date(),
+            })
+            .where(eq(users.id, id))
+            .returning();
+        if (!row) {
+            throw new Error("failed to update user profile");
+        }
+        return row;
+    }
+
+    async updateName(id: string, name: string): Promise<void> {
+        await db
+            .update(users)
+            .set({ name: name.trim(), updatedAt: new Date() })
+            .where(eq(users.id, id));
+    }
+
+    async setEmail(id: string, email: string): Promise<User> {
+        const [row] = await db
+            .update(users)
+            .set({
+                email: email.trim().toLowerCase(),
+                updatedAt: new Date(),
+            })
+            .where(eq(users.id, id))
+            .returning();
+        if (!row) {
+            throw new Error("failed to set email");
+        }
+        return row;
+    }
+
+    async updateStatus(id: string, status: UserStatus): Promise<User> {
+        const [row] = await db
+            .update(users)
+            .set({ status, updatedAt: new Date() })
+            .where(eq(users.id, id))
+            .returning();
+        if (!row) {
+            throw new Error("failed to update user status");
         }
         return row;
     }

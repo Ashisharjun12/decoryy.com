@@ -10,6 +10,11 @@ import { authRouter, userRouter, vendorRouter } from "@/modules/identity/index.j
 import { geoRouter } from "@/modules/geo/index.js";
 import { catalogRouter } from "@/modules/catalog/index.js";
 import { adminRouter } from "@/modules/admin/index.js";
+import { paymentsPublicRouter } from "@/modules/ops/index.js";
+import { cartRouter, orderRouter, paymentIntentRouter } from "@/modules/booking/index.js";
+import { userNotificationPreferenceRouter } from "@/modules/notifications/index.js";
+import { userChatRouter, vendorChatRouter } from "@/modules/chat/index.js";
+import { createPaymentWebhookRouter } from "@/modules/payments/index.js";
 
 class App {
   private app: Application;
@@ -29,14 +34,39 @@ class App {
 
   private setupMiddleware() {
     const corsOption = {
-      origin: ["http://localhost:5173" , "http://localhost:5174"],
-      methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-      credentials: true,
+        origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+            if (!origin) {
+                callback(null, true);
+                return;
+            }
+            const allowed = [
+                "http://localhost:5173",
+                "http://localhost:5174",
+                process.env.EXPO_PUBLIC_ORIGIN,
+            ].filter(Boolean) as string[];
+            if (
+                allowed.includes(origin) ||
+                /^https:\/\/[a-z0-9-]+\.ngrok-free\.app$/i.test(origin) ||
+                /^exp:\/\//i.test(origin)
+            ) {
+                callback(null, true);
+                return;
+            }
+            callback(null, false);
+        },
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        credentials: true,
     };
 
     this.app.use(helmet());
     this.app.use(cors(corsOption));
+    this.app.options(/.*/, cors(corsOption));
     this.app.use(httpLogger);
+    this.app.use(
+        "/api/v1/webhooks",
+        express.raw({ type: "application/json" }),
+        createPaymentWebhookRouter(),
+    );
     this.app.use(express.json());
     this.app.use(cookieParser());
     this.app.use(express.urlencoded({ extended: true }));
@@ -48,10 +78,17 @@ class App {
     });
 
     this.app.use("/api/v1/auth", authRouter);
+    this.app.use("/api/v1/vendor/chat", vendorChatRouter);
     this.app.use("/api/v1/vendor", vendorRouter);
+    this.app.use("/api/v1/user/notification-preferences", userNotificationPreferenceRouter);
+    this.app.use("/api/v1/user/chat", userChatRouter);
     this.app.use("/api/v1/user", userRouter);
     this.app.use("/api/v1/geo", geoRouter);
     this.app.use("/api/v1/catalog", catalogRouter);
+    this.app.use("/api/v1/payments", paymentsPublicRouter);
+    this.app.use("/api/v1/payments", paymentIntentRouter);
+    this.app.use("/api/v1/cart", cartRouter);
+    this.app.use("/api/v1/orders", orderRouter);
     this.app.use("/api/v1/admin", adminRouter);
   }
 

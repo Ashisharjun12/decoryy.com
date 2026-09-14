@@ -1,5 +1,6 @@
 import { logout, refresh } from "@/api/auth.api";
 import { useAuthStore } from "@/store/auth.store";
+import { useCartStore } from "@/store/cart.store";
 
 export function isCustomer(user) {
   return user?.role === "user";
@@ -16,6 +17,15 @@ export async function applyCustomerSession(payload) {
     throw new Error("This Google account cannot sign in here");
   }
   useAuthStore.getState().setSession(payload);
+  try {
+    await useCartStore.getState().merge();
+  } catch {
+    try {
+      await useCartStore.getState().load();
+    } catch {
+      // bag hydrate is best-effort after login
+    }
+  }
 }
 
 export async function hydrateAuth() {

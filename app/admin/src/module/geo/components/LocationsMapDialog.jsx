@@ -1,7 +1,11 @@
-import { useEffect, useState } from "react"
-import { useMap } from "react-leaflet"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { MapPinIcon } from "lucide-react"
+import Map, { Marker, Popup } from "react-map-gl/maplibre"
+import "maplibre-gl/dist/maplibre-gl.css"
 import { listActive, listAdmin } from "@/api/cities.api"
+import { useTheme } from "@/components/ui/theme-provider"
 import { INDIA_CENTER, INDIA_STATE_COORDS } from "@/data/state-coords"
+import { MAP_STYLE_DARK, MAP_STYLE_LIGHT } from "@/lib/map-styles"
 import {
   Dialog,
   DialogContent,
@@ -9,25 +13,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  Map,
-  MapMarker,
-  MapPopup,
-  MapTileLayer,
-  MapZoomControl,
-} from "@/components/ui/map"
 
-function InvalidateSizeOnOpen() {
-  const map = useMap()
-
-  useEffect(() => {
-    const id = window.setTimeout(() => {
-      map.invalidateSize()
-    }, 50)
-    return () => window.clearTimeout(id)
-  }, [map])
-
-  return null
+const INITIAL_VIEW = {
+  latitude: INDIA_CENTER[0],
+  longitude: INDIA_CENTER[1],
+  zoom: 5.2,
 }
 
 function statesWithActiveCities(cities) {
@@ -44,9 +34,10 @@ function statesWithActiveCities(cities) {
     .map(([state, cityNames]) => ({
       state,
       cityNames: cityNames.sort((a, b) => a.localeCompare(b)),
-      position: INDIA_STATE_COORDS[state],
+      latitude: INDIA_STATE_COORDS[state]?.[0],
+      longitude: INDIA_STATE_COORDS[state]?.[1],
     }))
-    .filter((row) => row.position)
+    .filter((row) => row.latitude != null && row.longitude != null)
     .sort((a, b) => a.state.localeCompare(b.state))
 }
 
@@ -62,10 +53,21 @@ async function loadActiveCities() {
 }
 
 export function LocationsMapDialog({ open, onOpenChange }) {
+  const mapRef = useRef(null)
+  const { resolvedTheme } = useTheme()
   const [markers, setMarkers] = useState([])
+  const [selected, setSelected] = useState(null)
+
+  const mapStyle = useMemo(
+    () => (resolvedTheme === "dark" ? MAP_STYLE_DARK : MAP_STYLE_LIGHT),
+    [resolvedTheme],
+  )
 
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      setSelected(null)
+      return
+    }
 
     let cancelled = false
 
@@ -82,30 +84,91 @@ export function LocationsMapDialog({ open, onOpenChange }) {
     }
   }, [open])
 
+  useEffect(() => {
+    if (!open) return
+
+    function resizeMap() {
+      mapRef.current?.resize()
+    }
+
+    resizeMap()
+    const t1 = window.setTimeout(resizeMap, 150)
+    const t2 = window.setTimeout(resizeMap, 400)
+
+    return () => {
+      window.clearTimeout(t1)
+      window.clearTimeout(t2)
+    }
+  }, [open, markers.length, mapStyle])
+
+  function onMapLoad() {
+    mapRef.current?.resize()
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>Active states</DialogTitle>
+          <DialogTitle>Active locations</DialogTitle>
           <DialogDescription>
-            States with at least one active city.
+            States with at least one active city on the service allowlist.
           </DialogDescription>
         </DialogHeader>
 
         {open ? (
-          <div className="h-112 overflow-hidden rounded-md">
-            <Map center={INDIA_CENTER} zoom={5} className="z-0 h-full">
-              <MapTileLayer />
-              <MapZoomControl />
-              <InvalidateSizeOnOpen />
-              {markers.map((city) => (
-                <MapMarker key={city.state} position={city.position}>
-                  <MapPopup>
-                    {city.state}
-                    {city.cityNames.length ? `: ${city.cityNames.join(", ")}` : ""}
-                  </MapPopup>
-                </MapMarker>
+          <div className="locations-map-root relative h-112 min-h-112 overflow-hidden rounded-md border border-border">
+            <Map
+              ref={mapRef}
+              key={resolvedTheme}
+              initialViewState={INITIAL_VIEW}
+              mapStyle={mapStyle}
+              style={{ width: "100%", height: "100%" }}
+              attributionControl={{ compact: true }}
+              onLoad={onMapLoad}
+              onClick={() => setSelected(null)}
+            >
+              {markers.map((marker) => (
+                <Marker
+                  key={marker.state}
+                  latitude={marker.latitude}
+                  longitude={marker.longitude}
+                  anchor="bottom"
+                  onClick={(event) => {
+                    event.originalEvent.stopPropagation()
+                    setSelected(marker)
+                  }}
+                >
+                  <button
+                    type="button"
+                    aria-label={`${marker.state} locations`}
+                    className="flex size-8 items-center justify-center rounded-full border border-primary/30 bg-primary text-primary-foreground shadow-md transition-transform hover:scale-110"
+                  >
+                    <MapPinIcon className="size-4" />
+                  </button>
+                </Marker>
               ))}
+
+              {selected ? (
+                <Popup
+                  latitude={selected.latitude}
+                  longitude={selected.longitude}
+                  anchor="bottom"
+                  offset={12}
+                  closeButton
+                  closeOnClick={false}
+                  onClose={() => setSelected(null)}
+                  className="locations-map-popup"
+                >
+                  <div className="space-y-1 p-1 text-sm">
+                    <p className="font-medium">{selected.state}</p>
+                    {selected.cityNames.length ? (
+                      <p className="max-w-56 text-muted-foreground">
+                        {selected.cityNames.join(", ")}
+                      </p>
+                    ) : null}
+                  </div>
+                </Popup>
+              ) : null}
             </Map>
           </div>
         ) : null}

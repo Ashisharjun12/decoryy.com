@@ -1,18 +1,19 @@
-import { Link } from "react-router-dom";
 import { ShoppingBagIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/store/cart.store";
 
 export function CartButton() {
   const count = useCartStore((s) => s.count);
+  const setOpen = useCartStore((s) => s.setOpen);
 
   return (
     <Button
+      type="button"
       variant="ghost"
       size="icon"
       className="relative"
-      nativeButton={false}
-      render={<Link to="/bag" />}
+      onClick={() => setOpen(true)}
+      aria-label="Open bag"
     >
       <ShoppingBagIcon />
       <span className="sr-only">Bag</span>

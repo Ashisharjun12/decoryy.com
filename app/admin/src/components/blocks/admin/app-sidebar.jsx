@@ -1,5 +1,8 @@
 import { NavLink, useLocation } from "react-router-dom"
-import { LayoutDashboardIcon, MapPinIcon, ImagesIcon, TagsIcon } from "lucide-react"
+import { useEffect } from "react"
+import { LayoutDashboardIcon, MapPinIcon, ImagesIcon, TagsIcon, TicketPercentIcon, StarIcon, CalendarClockIcon, UsersIcon, Settings, MessageSquareIcon, WalletIcon, LayoutTemplateIcon } from "lucide-react"
+import { getUnreadCount } from "@/api/chat.api"
+import { useChatStore } from "@/store/chat.store"
 import { NavMain } from "@/components/blocks/admin/nav-main"
 import { NavUser } from "@/components/blocks/admin/nav-user"
 import { DecoryLogo } from "@/components/decory-logo"
@@ -34,10 +37,64 @@ const navItems = [
     url: "/catalog",
     icon: <TagsIcon />,
   },
+  {
+    title: "Content",
+    url: "/content",
+    icon: <LayoutTemplateIcon />,
+  },
+  {
+    title: "Promotions",
+    url: "/promotions",
+    icon: <TicketPercentIcon />,
+  },
+  {
+    title: "Reviews",
+    url: "/reviews",
+    icon: <StarIcon />,
+  },
+  {
+    title: "Bookings",
+    url: "/bookings",
+    icon: <CalendarClockIcon />,
+  },
+  {
+    title: "Inbox",
+    url: "/inbox",
+    icon: <MessageSquareIcon />,
+  },
+  {
+    title: "People",
+    url: "/people",
+    icon: <UsersIcon />,
+  },
+  {
+    title: "Payments",
+    url: "/payouts",
+    icon: <WalletIcon />,
+  },
+  {
+    title: "Settings",
+    url: "/settings",
+    icon: <Settings />,
+  },
 ]
 
 export function AppSidebar(props) {
   const location = useLocation()
+  const totalUnreadCount = useChatStore((s) => s.totalUnreadCount)
+  const setTotalUnreadCount = useChatStore((s) => s.setTotalUnreadCount)
+
+  useEffect(() => {
+    void getUnreadCount()
+      .then((data) => setTotalUnreadCount(data.total ?? 0))
+      .catch(() => {})
+  }, [setTotalUnreadCount])
+
+  const items = navItems.map((item) =>
+    item.url === "/inbox" && totalUnreadCount > 0
+      ? { ...item, badge: totalUnreadCount }
+      : item,
+  )
 
   return (
     <Sidebar
@@ -58,7 +115,7 @@ export function AppSidebar(props) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navItems} pathname={location.pathname} />
+        <NavMain items={items} pathname={location.pathname} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

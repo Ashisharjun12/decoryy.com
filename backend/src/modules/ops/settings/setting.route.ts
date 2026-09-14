@@ -1,2 +1,54 @@
-/** ops / settings / route — see docs/project-requriment.md */
-export {};
+import { Router } from "express";
+import type { SettingController } from "@/modules/ops/settings/setting.controller.js";
+import {
+    patchNotificationChannelsDto,
+    patchPaymentMethodsDto,
+    patchPayoutPolicyDto,
+} from "@/modules/ops/settings/setting.dto.js";
+import { validate } from "@/shared/middlewares/validate.middleware.js";
+import { getApiPublicOrigin, paymentWebhookUrl } from "@/lib/api-public-url.js";
+import { ApiResponse } from "@/shared/errors/apiResponse.js";
+
+export function createSettingsAdminRouter(controller: SettingController) {
+    const router = Router();
+    router.get("/notifications", controller.getNotifications);
+    router.patch(
+        "/notifications",
+        validate(patchNotificationChannelsDto),
+        controller.patchNotifications,
+    );
+    router.get("/payments", controller.getPayments);
+    router.patch(
+        "/payments",
+        validate(patchPaymentMethodsDto),
+        controller.patchPayments,
+    );
+    router.get("/payout-policy", controller.getPayoutPolicy);
+    router.patch(
+        "/payout-policy",
+        validate(patchPayoutPolicyDto),
+        controller.patchPayoutPolicy,
+    );
+    return router;
+}
+
+export function createPaymentsPublicRouter(controller: SettingController) {
+    const router = Router();
+    router.get("/methods", controller.getPayments);
+    router.get("/webhook-endpoints", (_req, res) => {
+        res.status(200).json(
+            new ApiResponse(
+                200,
+                {
+                    apiPublicUrl: getApiPublicOrigin(),
+                    razorpay: paymentWebhookUrl("razorpay"),
+                    cashfree: paymentWebhookUrl("cashfree"),
+                    dashboardHint:
+                        "Paste razorpay/cashfree URLs into each provider webhook settings.",
+                },
+                "ok",
+            ),
+        );
+    });
+    return router;
+}

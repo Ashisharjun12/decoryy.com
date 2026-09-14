@@ -22,8 +22,8 @@ import { cn } from "@/lib/utils";
 
 const MENU_LINKS = [
   { label: "Profile", href: "/account", icon: UserRoundIcon },
-  { label: "Bookings", href: "/bookings", icon: CalendarDaysIcon },
-  { label: "Settings", href: "/settings", icon: SettingsIcon },
+  { label: "Bookings", href: "/account/bookings", icon: CalendarDaysIcon },
+  { label: "Settings", href: "/account/settings", icon: SettingsIcon },
 ];
 
 function initials(name = "") {

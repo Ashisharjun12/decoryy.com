@@ -30,6 +30,8 @@ export const createProductDto = z
         isActive: z.boolean().optional(),
         scheduledEnabled: z.boolean().optional(),
         instantEnabled: z.boolean().optional(),
+        paymentCod: z.boolean().optional(),
+        paymentOnline: z.boolean().optional(),
         imageUploadIds: z.array(z.string().uuid()).optional(),
         includes: copyPointsDto,
         deliverySetup: copyPointsDto,
@@ -51,6 +53,8 @@ export const patchProductDto = z
         isActive: z.boolean().optional(),
         scheduledEnabled: z.boolean().optional(),
         instantEnabled: z.boolean().optional(),
+        paymentCod: z.boolean().optional(),
+        paymentOnline: z.boolean().optional(),
         imageUploadIds: z.array(z.string().uuid()).optional(),
         includes: copyPointsDto,
         deliverySetup: copyPointsDto,
@@ -82,14 +86,31 @@ export const adminProductListQueryDto = z.object({
     price: z.enum(["none", "set", "sale"]).optional(),
 });
 
-export const publicProductListQueryDto = z.object({
-    pincode: z.string().min(6),
-    categoryId: z.string().uuid().optional(),
-});
+export const publicProductListQueryDto = z
+    .object({
+        pincode: z.string().min(6).optional(),
+        cityId: z.string().uuid().optional(),
+        categoryId: z.string().uuid().optional(),
+        categoryIds: z.string().optional(),
+        minPricePaise: z.string().optional(),
+        maxPricePaise: z.string().optional(),
+        page: z.string().optional(),
+        limit: z.string().optional(),
+    })
+    .refine((value) => Boolean(value.pincode?.trim()) || Boolean(value.cityId), {
+        message: "pincode or cityId is required",
+        path: ["pincode"],
+    });
 
-export const publicProductGetQueryDto = z.object({
-    pincode: z.string().min(6),
-});
+export const publicProductGetQueryDto = z
+    .object({
+        pincode: z.string().min(6).optional(),
+        cityId: z.string().uuid().optional(),
+    })
+    .refine((value) => Boolean(value.pincode?.trim()) || Boolean(value.cityId), {
+        message: "pincode or cityId is required",
+        path: ["pincode"],
+    });
 
 export const cityPriceDto = z
     .object({

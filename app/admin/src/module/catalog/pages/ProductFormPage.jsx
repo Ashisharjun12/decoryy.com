@@ -6,6 +6,7 @@ import { ArrowLeftIcon, EyeIcon } from "lucide-react"
 import { createProduct, deleteCityPrice, getAdmin, patchProduct, setCityPrice } from "@/api/products.api"
 import { listAdmin as listCategories } from "@/api/categories.api"
 import { listAdmin as listCities } from "@/api/cities.api"
+import { getPaymentMethods } from "@/api/settings.api"
 import { getApiError } from "@/api/api"
 import { toSellAndCompare } from "@/lib/money"
 import { productFormSchema } from "@/module/catalog/schema"
@@ -72,6 +73,8 @@ export function ProductFormPage() {
       isActive: false,
       scheduledEnabled: true,
       instantEnabled: false,
+      paymentCod: true,
+      paymentOnline: false,
     },
   })
   const parentCategoryId = form.watch("parentCategoryId")
@@ -98,6 +101,7 @@ export function ProductFormPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
   const [productName, setProductName] = useState("")
+  const [platformPay, setPlatformPay] = useState({ cod: true, online: false })
 
   const loadChildren = useCallback(async (parentId) => {
     if (!parentId) {
@@ -122,16 +126,23 @@ export function ProductFormPage() {
 
     async function load() {
       try {
-        const [parentData, cityData] = await Promise.all([
+        const [parentData, cityData, payData] = await Promise.all([
           listCategories({ parentId: null, limit: 100, isActive: "true" }),
           listCities({ page: 1, limit: 100 }),
+          getPaymentMethods(),
         ])
         if (cancelled) return
         const parentItems = parentData.items ?? []
         setParents(parentItems)
         setCities(cityData.items ?? [])
+        setPlatformPay({
+          cod: payData?.cod !== false,
+          online: Boolean(payData?.online),
+        })
 
         if (isNew) {
+          form.setValue("paymentCod", payData?.cod !== false)
+          form.setValue("paymentOnline", Boolean(payData?.online))
           setLoading(false)
           return
         }
@@ -161,6 +172,8 @@ export function ProductFormPage() {
           isActive: Boolean(product.isActive),
           scheduledEnabled: product.scheduledEnabled !== false,
           instantEnabled: Boolean(product.instantEnabled),
+          paymentCod: product.paymentCod !== false,
+          paymentOnline: Boolean(product.paymentOnline),
         })
         setGallery((product.images ?? []).map(toGalleryItem))
         setIncludes(product.includes ?? [])
@@ -277,6 +290,8 @@ export function ProductFormPage() {
       faqs: fromFaqRows(faqs),
       scheduledEnabled: values.scheduledEnabled,
       instantEnabled: values.instantEnabled,
+      paymentCod: values.paymentCod,
+      paymentOnline: values.paymentOnline,
       pricePaise: defaults.pricePaise,
       compareAtPaise: defaults.compareAtPaise,
       ...(values.slug ? { slug: values.slug } : {}),
@@ -324,7 +339,7 @@ export function ProductFormPage() {
   if (isPreview) {
     const fromCatalog = Boolean(location.state?.fromCatalog)
     return (
-      <div className="flex min-h-0 flex-1 flex-col gap-6">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 overflow-x-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Button
             type="button"
@@ -645,6 +660,65 @@ export function ProductFormPage() {
               />
               {form.formState.errors.scheduledEnabled ? (
                 <FieldError errors={[form.formState.errors.scheduledEnabled]} />
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Payment</CardTitle>
+              <CardDescription>
+                Only methods enabled in Settings → Payments appear here.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              {platformPay.cod ? (
+                <Controller
+                  name="paymentCod"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field orientation="horizontal" data-invalid={fieldState.invalid}>
+                      <div className="flex min-w-0 flex-col gap-1">
+                        <FieldLabel htmlFor="payment-cod">Cash on delivery</FieldLabel>
+                        <FieldDescription>Customer pays after setup.</FieldDescription>
+                      </div>
+                      <Switch
+                        id="payment-cod"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </Field>
+                  )}
+                />
+              ) : null}
+              {platformPay.online ? (
+                <Controller
+                  name="paymentOnline"
+                  control={form.control}
+                  render={({ field }) => (
+                    <Field orientation="horizontal">
+                      <div className="flex min-w-0 flex-col gap-1">
+                        <FieldLabel htmlFor="payment-online">Pay online</FieldLabel>
+                        <FieldDescription>
+                          Razorpay or Cashfree when those platforms are on. Capture comes later.
+                        </FieldDescription>
+                      </div>
+                      <Switch
+                        id="payment-online"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </Field>
+                  )}
+                />
+              ) : null}
+              {!platformPay.cod && !platformPay.online ? (
+                <p className="text-sm text-muted-foreground">
+                  Enable a payment platform in Settings first.
+                </p>
+              ) : null}
+              {form.formState.errors.paymentCod ? (
+                <FieldError errors={[form.formState.errors.paymentCod]} />
               ) : null}
             </CardContent>
           </Card>

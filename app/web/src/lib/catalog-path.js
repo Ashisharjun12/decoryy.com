@@ -4,5 +4,11 @@ export function categoryPath(parent, child) {
 }
 
 export function productPath(product) {
-  return `/p/${product.id}`;
+  const id = typeof product === "string" ? product : product?.id;
+  return `/p/${id}`;
+}
+
+export function productReviewsPath(productOrId) {
+  const id = typeof productOrId === "string" ? productOrId : productOrId?.id;
+  return `/p/${id}/reviews`;
 }

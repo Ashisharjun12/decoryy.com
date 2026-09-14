@@ -5,6 +5,11 @@ export const deviceSchema = z.enum(["web", "ios", "android"]).optional();
 
 export const otpRequestDto = z.object({
     phone: z.string().min(10),
+    androidAppHash: z
+        .string()
+        .trim()
+        .regex(/^[A-Za-z0-9+/=]{11}$/, "invalid android app hash")
+        .optional(),
 });
 
 export const otpVerifyDto = z.object({

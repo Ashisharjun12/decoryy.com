@@ -18,8 +18,7 @@ export class ProductController {
 
     getPublic = asyncHandler(async (req, res) => {
         const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-        const pincode = String(req.query.pincode ?? "");
-        const data = await this.products.getPublicByPincode(id, pincode);
+        const data = await this.products.getPublicByLocation(id, req.query);
         res.status(200).json(new ApiResponse(200, data, "ok"));
     });
 

@@ -3,7 +3,6 @@ import { QuoteIcon, StarIcon } from "lucide-react";
 import { getLenis } from "@/lib/lenis-instance";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Reveal } from "@/module/home/components/Reveal";
-import { DEMO_REVIEWS } from "@/module/home/data/demo-reviews";
 
 const START_LAYOUT = [
   { x: -240, y: -60, rot: -6 },
@@ -139,8 +138,14 @@ function DraggableCard({ data, layout, z, bringToFront, stageRef, cardW, cardH }
   );
 }
 
-export function HostQuotes() {
-  const [order, setOrder] = useState(() => DEMO_REVIEWS.map((review) => review.id));
+export function HostQuotes({ reviews = [] }) {
+  const items = reviews ?? [];
+  const [order, setOrder] = useState(() => items.map((review) => review.id));
+
+  useEffect(() => {
+    setOrder((reviews ?? []).map((review) => review.id));
+  }, [reviews]);
+
   const [scale, setScale] = useState(1);
   const stageRef = useRef(null);
 
@@ -166,6 +171,8 @@ export function HostQuotes() {
   const cardW = Math.round(CARD_W * Math.min(1, scale + 0.12));
   const cardH = Math.round(CARD_H * Math.min(1, scale + 0.12));
 
+  if (!items.length) return null;
+
   return (
     <Reveal className="mx-auto max-w-[1240px] px-4 py-12 md:px-8 md:py-16">
       <div className="flex w-full flex-col items-center overflow-hidden rounded-3xl bg-zinc-950 py-8 md:py-10">
@@ -182,7 +189,7 @@ export function HostQuotes() {
           className="relative w-full max-w-4xl"
           style={{ height: scale < 0.7 ? 460 : 620 }}
         >
-          {DEMO_REVIEWS.map((review, index) => {
+          {items.map((review, index) => {
             const start = START_LAYOUT[index] ?? START_LAYOUT[0];
             return (
               <DraggableCard

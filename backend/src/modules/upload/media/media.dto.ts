@@ -3,7 +3,7 @@ import { z } from "zod";
 export const presignUploadDto = z.object({
     filename: z.string().min(1).max(255),
     mimeType: z.string().min(3).max(100),
-    kind: z.enum(["image", "video"]),
+    kind: z.enum(["image", "video", "file"]),
     folderId: z.string().uuid().nullable().optional(),
     optimize: z.boolean().optional(),
 });
@@ -25,7 +25,7 @@ export const adminUploadListQueryDto = z.object({
     page: z.string().optional(),
     limit: z.string().optional(),
     q: z.string().optional(),
-    kind: z.enum(["image", "video"]).optional(),
+    kind: z.enum(["image", "video", "file"]).optional(),
     folderId: z.string().optional(),
     status: z.enum(["pending", "completed", "failed"]).optional(),
     optimizeStatus: z.enum(["none", "queued", "completed", "failed"]).optional(),

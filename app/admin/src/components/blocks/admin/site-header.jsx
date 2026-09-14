@@ -15,6 +15,10 @@ function pageLabel(pathname) {
   if (pathname.startsWith("/locations")) return "Operational locations"
   if (pathname.startsWith("/catalog")) return "Catalog"
   if (pathname.startsWith("/media")) return "Media"
+  if (pathname.startsWith("/bookings")) return "Bookings"
+  if (pathname.startsWith("/people")) return "People"
+  if (pathname.startsWith("/settings")) return "Settings"
+  if (pathname.startsWith("/inbox")) return "Inbox"
   return "Dashboard"
 }
 

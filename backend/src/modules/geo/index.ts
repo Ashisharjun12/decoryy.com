@@ -9,7 +9,8 @@ import { PincodeRepository } from "@/modules/geo/pincodes/pincode.repository.js"
 import { createPincodeAdminRouter, createPincodePublicRouter } from "@/modules/geo/pincodes/pincode.route.js";
 import { pincodes } from "@/modules/geo/pincodes/pincode.schema.js";
 import { PincodeService } from "@/modules/geo/pincodes/pincode.service.js";
-import type { PublicCity } from "@/modules/geo/cities/city.public.js";
+import { ApiError } from "@/shared/errors/apiError.js";
+import { publicCity, type PublicCity } from "@/modules/geo/cities/city.public.js";
 import type { ResolvedPincode } from "@/modules/geo/pincodes/pincode.service.js";
 
 const cityRepository = new CityRepository();
@@ -34,6 +35,14 @@ export function assertServiceable(pincode: string): Promise<ResolvedPincode> {
 
 export function getCityByPincode(pincode: string): Promise<PublicCity> {
     return pincodeService.getCityByPincode(pincode);
+}
+
+export async function getActiveCityById(id: string): Promise<PublicCity> {
+    const city = await cityRepository.findById(id);
+    if (!city || !city.isActive) {
+        throw ApiError.badRequest("city not found");
+    }
+    return publicCity(city);
 }
 
 export { cities, pincodes };

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Booking confirmed</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f4f1ea;font-family:Georgia,'Times New Roman',serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1ea;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#fffaf4;border-radius:16px;overflow:hidden;border:1px solid #eadfce;">
+            <tr>
+              <td align="center" style="padding:28px 32px 20px;background:#1c1917;">
+                <img
+                  src="https://ik.imagekit.io/aevhlnk0h/decoryy-light.png?updatedAt=1787252402359"
+                  alt="Decoryy"
+                  width="56"
+                  height="56"
+                  style="display:block;width:56px;height:56px;border:0;outline:none;border-radius:14px;"
+                />
+                <p style="margin:12px 0 0;font-size:13px;letter-spacing:0.28em;text-transform:uppercase;color:#e8d5b5;font-family:Arial,Helvetica,sans-serif;">Decoryy</p>
+                <h1 style="margin:10px 0 0;font-size:26px;line-height:1.25;color:#fffaf4;font-weight:500;">Booking confirmed</h1>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px 32px 8px;color:#44403c;font-size:16px;line-height:1.55;font-family:Arial,Helvetica,sans-serif;">
+                <%= intro %>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:8px 32px 20px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#78716c;">
+                Order <strong style="color:#1c1917;"><%= orderRef %></strong>
+                &nbsp;·&nbsp; <%= scheduledAt %>
+                &nbsp;·&nbsp; <%= city %>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 24px 8px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eadfce;border-radius:12px;">
+                  <% items.forEach(function (item, index) { %>
+                  <tr>
+                    <td style="padding:16px;border-top:<%= index === 0 ? '0' : '1px solid #eadfce' %>;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td width="72" valign="top">
+                            <% if (item.imageUrl) { %>
+                            <img src="<%= item.imageUrl %>" alt="<%= item.name %>" width="72" height="72" style="display:block;width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid #eadfce;" />
+                            <% } else { %>
+                            <div style="width:72px;height:72px;border-radius:10px;background:#1c1917;color:#e8d5b5;text-align:center;line-height:72px;font-family:Georgia,serif;font-size:22px;"><%= item.initial %></div>
+                            <% } %>
+                          </td>
+                          <td valign="middle" style="padding-left:14px;font-family:Arial,Helvetica,sans-serif;">
+                            <p style="margin:0 0 4px;font-size:15px;color:#1c1917;font-weight:600;"><%= item.name %></p>
+                            <p style="margin:0;font-size:13px;color:#78716c;">Qty <%= item.quantity %></p>
+                          </td>
+                          <td valign="middle" align="right" style="font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#1c1917;white-space:nowrap;"><%= item.lineTotal %></td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <% }) %>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:8px 32px 8px;font-family:Arial,Helvetica,sans-serif;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="font-size:14px;color:#78716c;">Total</td>
+                    <td align="right" style="font-size:22px;color:#1c1917;font-weight:600;"><%= total %></td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:8px 32px 20px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#78716c;line-height:1.5;">
+                <%= address %>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding:8px 32px 32px;">
+                <a href="<%= viewUrl %>" style="display:inline-block;background:#1c1917;color:#fffaf4;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-size:14px;letter-spacing:0.04em;padding:12px 28px;border-radius:999px;">View booking</a>
+              </td>
+            </tr>
+          </table>
+          <p style="margin:16px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#a8a29e;">Decoryy · decorations, delivered with care</p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

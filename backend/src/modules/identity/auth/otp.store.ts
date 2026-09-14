@@ -16,9 +16,15 @@ type OtpRecord = {
     purpose: OtpPurpose;
 };
 
-type VendorPending = {
+export type VendorPending = {
     name: string;
-    city: string;
+    email: string;
+    phone: string;
+    altPhone?: string;
+    cityId: string;
+    shopAddress: string;
+    pincode: string;
+    shopImageUploadId?: string;
 };
 
 function redis() {
@@ -70,6 +76,8 @@ async function bumpRateLimit(key: string): Promise<number> {
 }
 
 export async function assertOtpRateLimit(phone: string, ip?: string): Promise<void> {
+    if (_config.NODE_ENV === "development") return;
+
     const phoneCount = await bumpRateLimit(rateKeyPhone(phone));
     if (phoneCount > MAX_SENDS_PER_HOUR) {
         throw ApiError.badRequest("too many OTP requests, try later");

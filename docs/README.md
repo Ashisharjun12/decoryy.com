@@ -13,6 +13,7 @@ HTTP contracts for **live** mounted routes only. Booking, payments, CMS, assignm
 | [sections.md](sections.md) | Sections (global + city override) |
 | [media.md](media.md) | Uploads + media folders |
 | [admin.md](admin.md) | `/api/v1/admin` gateway index |
+| [notifications.md](notifications.md) | Channel flags, templates, prefs, `notify()`, BullMQ |
 
 ## Base URL
 

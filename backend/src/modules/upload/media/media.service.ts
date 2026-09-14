@@ -13,14 +13,17 @@ import type { MediaKind, OptimizeStatus, Upload, UploadStatus } from "@/modules/
 
 const IMAGE_MIMES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const VIDEO_MIMES = new Set(["video/mp4", "video/webm"]);
+const FILE_MIMES = new Set(["application/pdf"]);
 
 export type PresignInput = {
+    id?: string;
     filename: string;
     mimeType: string;
     kind: MediaKind;
     uploadedBy?: string | null;
     folderId?: string | null;
     optimize?: boolean;
+    storageKey?: string;
 };
 
 export type IngestInput = {
@@ -72,6 +75,9 @@ function assertMime(kind: MediaKind, mimeType: string) {
     if (kind === "video" && !VIDEO_MIMES.has(mimeType)) {
         throw ApiError.badRequest("unsupported video type");
     }
+    if (kind === "file" && !FILE_MIMES.has(mimeType)) {
+        throw ApiError.badRequest("unsupported file type");
+    }
 }
 
 function buildObjectKey(kind: MediaKind, id: string, filename: string): string {
@@ -99,7 +105,7 @@ export class MediaService implements IMediaService {
         assertMime(input.kind, mimeType);
 
         const folderId = await this.assertFolder(input.folderId);
-        const id = randomUUID();
+        const id = input.id ?? randomUUID();
         const filename = safeFilename(input.filename);
         const optimize = input.optimize === true && input.kind === "image";
 
@@ -111,7 +117,7 @@ export class MediaService implements IMediaService {
             throw ApiError.internalServerError("storage presign is not configured");
         }
 
-        const key = buildObjectKey(input.kind, id, filename);
+        const key = input.storageKey ?? buildObjectKey(input.kind, id, filename);
         const signed = await storageProvider.getPresignedUploadUrlForKey(key, mimeType);
         const row = await this.media.insert({
             id,
@@ -194,7 +200,10 @@ export class MediaService implements IMediaService {
     }) {
         const pagination = parsePagination(query);
         const q = typeof query.q === "string" ? query.q.trim() : "";
-        const kind = query.kind === "image" || query.kind === "video" ? query.kind : undefined;
+        const kind =
+            query.kind === "image" || query.kind === "video" || query.kind === "file"
+                ? query.kind
+                : undefined;
         const status =
             query.status === "pending" || query.status === "completed" || query.status === "failed"
                 ? (query.status as UploadStatus)

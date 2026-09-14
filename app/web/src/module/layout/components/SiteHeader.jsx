@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useMotionValueEvent, useScroll } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { DecoryLogo } from "@/components/decory-logo";
@@ -12,20 +12,44 @@ import { MobileNav } from "@/module/layout/components/MobileNav";
 import { SearchCommand } from "@/module/layout/components/SearchCommand";
 import { SupportButton } from "@/module/layout/components/SupportButton";
 import { UserMenu } from "@/module/layout/components/UserMenu";
+import { NotificationBell } from "@/module/notifications/components/NotificationBell";
 import { useAuthStore } from "@/store/auth.store";
 
 export function SiteHeader() {
+  const location = useLocation();
+  const headerRef = useRef(null);
   const { scrollY } = useScroll();
   const [compact, setCompact] = useState(false);
   const user = useAuthStore((s) => s.user);
   const setLoginOpen = useAuthStore((s) => s.setLoginOpen);
+  const isAccount = location.pathname.startsWith("/account");
 
   useMotionValueEvent(scrollY, "change", (value) => {
     setCompact(value > 24);
   });
 
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return undefined;
+
+    const syncHeight = () => {
+      document.documentElement.style.setProperty(
+        "--site-header-height",
+        `${el.offsetHeight}px`,
+      );
+    };
+
+    syncHeight();
+    const observer = new ResizeObserver(syncHeight);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [compact]);
+
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-md">
+    <header
+      ref={headerRef}
+      className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-md"
+    >
       <div
         className={cn(
           "mx-auto flex max-w-[1240px] items-center gap-3 px-4 transition-[padding] duration-200 md:gap-4 md:px-8",
@@ -46,6 +70,7 @@ export function SiteHeader() {
         <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-1.5">
           <SearchCommand variant="icon" />
           <SupportButton />
+          {user ? <NotificationBell /> : null}
           <CartButton />
           {user ? (
             <UserMenu />
@@ -61,11 +86,18 @@ export function SiteHeader() {
           <ModeToggle />
         </div>
       </div>
-      <div className="hidden border-t border-border md:block">
-        <div className="mx-auto max-w-[1240px] px-4 md:px-8">
-          <CategoryBar />
+      {!isAccount ? (
+        <div
+          className={cn(
+            "hidden overflow-hidden border-t border-border transition-[max-height,opacity] duration-200 md:block",
+            compact ? "max-h-0 border-t-0 opacity-0" : "max-h-24 opacity-100",
+          )}
+        >
+          <div className="mx-auto max-w-[1240px] px-4 md:px-8">
+            <CategoryBar />
+          </div>
         </div>
-      </div>
+      ) : null}
     </header>
   );
 }

@@ -23,3 +23,12 @@ export function normalizePhone(phone: string): string {
 
     return `+91${local}`;
 }
+
+/** E.164 +91 for SMS providers; returns null instead of throwing (optional transactional SMS). */
+export function normalizePhoneForSms(phone: string): string | null {
+    try {
+        return normalizePhone(phone);
+    } catch {
+        return null;
+    }
+}

@@ -1,4 +1,5 @@
 import { ArrowRightIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useLocationStore } from "@/store/location.store";
 import { Reveal } from "@/module/home/components/Reveal";
 
@@ -35,22 +36,32 @@ export function PopularCities() {
         </p>
       </div>
       <div className="flex gap-4 overflow-x-auto pb-2.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {cities.map((city, index) => (
-          <button
-            key={city.id}
-            type="button"
-            onClick={() =>
-              setLocation({ city, pincode: null, source: "manual" })
-            }
-            className={`relative h-[140px] w-[210px] shrink-0 overflow-hidden rounded-[20px] bg-linear-to-br p-5 text-left text-white ${CITY_TONES[index % CITY_TONES.length]}`}
-          >
-            <h4 className="font-heading text-[19px] font-extrabold">{city.name}</h4>
-            <span className="text-[12.5px] text-white/90">{city.state}</span>
-            <span className="absolute right-4 bottom-4 flex size-8 items-center justify-center rounded-full bg-white/25">
-              <ArrowRightIcon className="size-4" />
-            </span>
-          </button>
-        ))}
+        {cities.map((city, index) => {
+          const imageUrl = city.imageUrl;
+          return (
+            <button
+              key={city.id}
+              type="button"
+              onClick={() =>
+                setLocation({ city, pincode: null, source: "manual" })
+              }
+              className={cn(
+                "relative h-[140px] w-[210px] shrink-0 overflow-hidden rounded-[20px] p-5 text-left text-white",
+                imageUrl ? "bg-cover bg-center" : `bg-linear-to-br ${CITY_TONES[index % CITY_TONES.length]}`,
+              )}
+              style={imageUrl ? { backgroundImage: `url(${imageUrl})` } : undefined}
+            >
+              {imageUrl ? (
+                <span className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/70 via-black/25 to-black/10" />
+              ) : null}
+              <h4 className="relative font-heading text-[19px] font-extrabold">{city.name}</h4>
+              <span className="relative text-[12.5px] text-white/90">{city.state}</span>
+              <span className="absolute right-4 bottom-4 flex size-8 items-center justify-center rounded-full bg-white/25">
+                <ArrowRightIcon className="size-4" />
+              </span>
+            </button>
+          );
+        })}
       </div>
     </Reveal>
   );

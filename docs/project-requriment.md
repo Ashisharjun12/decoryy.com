@@ -324,8 +324,10 @@ decory/
         │   ├── queue/
         │   ├── payment/               ← port + factory + razorpay
         │   ├── sms/
+        │   ├── email/                 ← port + smtp
         │   ├── storage/
         │   ├── push/
+        │   ├── whatsapp/              ← port + noop
         │   └── realtime/              ← port + noop
         ├── shared/
         │   ├── errors/
@@ -420,15 +422,19 @@ photos/   photo.* (all six)
 **notifications**
 
 ```text
-index.ts
-sms/sms.service.ts, sms.job.ts
-templates/sms.templates.ts
+index.ts, schema.ts, container.ts
+notification.service.ts, notification.repository.ts
+policy/events.ts
+templates/template.service.ts
+preferences/preference.service.ts
+jobs/relay.job.ts, deliver.job.ts
 ```
 
 **ops**
 
 ```text
-settings/  setting.* (all six)
+settings/  setting.* (all six) + notification-channels.ts
+           key notify.channels → { sms, email, push, inApp, whatsapp }
 audit/     audit-log.schema, repository, audit.service   (no HTTP)
 ```
 
@@ -445,7 +451,11 @@ admin.route.ts    mounts other admin routers; no schema
 
 | Queue | When | Module |
 |---|---|---|
-| `sms` | login OTP, confirmed, assigned, reminder | notifications |
+| `notify.relay` | outbox → channel queues | notifications |
+| `sms` | critical SMS / OTP | notifications |
+| `notify.email` | SMTP | notifications |
+| `notify.push` | Expo (skipped until implemented) | notifications |
+| `notify.in_app` | inbox insert | notifications |
 | `assignment.reminder` | T-24h / T-4h before slot | assignment |
 | `payments.webhook-retry` | PG callback failed | payments |
 | `ledger.post-on-complete` | after OTP verify (if not in same TX) | payments |

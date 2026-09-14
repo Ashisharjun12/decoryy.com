@@ -3,7 +3,7 @@ import { db } from "@/db/postgres-client.js";
 import { paginationOffset, type PaginationQuery } from "@/shared/http/pagination.js";
 import { cities, type City, type NewCity } from "@/modules/geo/cities/city.schema.js";
 
-export type CityPatch = Partial<Pick<City, "name" | "slug" | "state" | "isActive">>;
+export type CityPatch = Partial<Pick<City, "name" | "slug" | "state" | "isActive" | "imageUploadId">>;
 
 export type CityListFilter = {
     q?: string;

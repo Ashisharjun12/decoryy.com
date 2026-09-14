@@ -5,14 +5,16 @@ export type PublicCity = {
     name: string;
     slug: string;
     state: string;
+    imageUrl?: string | null;
 };
 
-export function publicCity(city: City): PublicCity {
+export function publicCity(city: City, imageUrl?: string | null): PublicCity {
     return {
-        id: city.id,
+        id: city.id, 
         name: city.name,
         slug: city.slug,
         state: city.state,
+        ...(imageUrl ? { imageUrl } : {}),
     };
 }
 

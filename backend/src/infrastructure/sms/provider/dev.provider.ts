@@ -3,9 +3,6 @@ import type { ISmsProvider, SmsMessage } from "@/infrastructure/sms/sms.interfac
 
 export class DevSmsProvider implements ISmsProvider {
     async send(message: SmsMessage): Promise<void> {
-        logger.info(
-            { to: message.to, template: message.template, otp: message.data.otp },
-            "DevSmsProvider: OTP (not sent)",
-        );
+        logger.info({ to: message.to, body: message.body }, "DevSmsProvider: SMS (not sent)");
     }
 }

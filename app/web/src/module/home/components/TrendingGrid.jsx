@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
-import { Button } from "@/components/ui/button";
+import { ArrowRightIcon } from "lucide-react";
 import { staggerContainer } from "@/lib/motion-variants";
 import { Reveal } from "@/module/home/components/Reveal";
 import { HomeProductCard } from "@/module/home/components/HomeProductCard";
@@ -23,15 +23,13 @@ export function TrendingGrid() {
             Popular setups this week, priced for the city in your header.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="rounded-xl"
-          nativeButton={false}
-          render={<Link to="/c/birthday" />}
+        <Link
+          to="/decorations"
+          className="group inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
         >
           View all decorations
-        </Button>
+          <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
+        </Link>
       </div>
       <motion.div
         className="grid grid-cols-2 gap-3 md:gap-6 lg:grid-cols-3"

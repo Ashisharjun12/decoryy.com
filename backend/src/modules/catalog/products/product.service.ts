@@ -1,7 +1,8 @@
+import { settingService } from "@/modules/ops/index.js";
 import { ApiError } from "@/shared/errors/apiError.js";
 import { parsePagination } from "@/shared/http/pagination.js";
 import { isForeignKeyViolation, isUniqueViolation } from "@/modules/geo/pg-error.js";
-import { assertServiceable } from "@/modules/geo/index.js";
+import { assertServiceable, getActiveCityById } from "@/modules/geo/index.js";
 import { slugify } from "@/modules/catalog/slug.js";
 import { displayUrl, getCompletedUpload, toPublicMedia, type PublicMedia } from "@/modules/upload/index.js";
 import type { IMediaRepository } from "@/modules/upload/media/media.repository.js";
@@ -61,6 +62,8 @@ export type CreateProductInput = {
     isActive?: boolean;
     scheduledEnabled?: boolean;
     instantEnabled?: boolean;
+    paymentCod?: boolean;
+    paymentOnline?: boolean;
     imageUploadIds?: string[];
     pricePaise?: number | null;
     compareAtPaise?: number | null;
@@ -78,6 +81,8 @@ export type PatchProductInput = {
     isActive?: boolean;
     scheduledEnabled?: boolean;
     instantEnabled?: boolean;
+    paymentCod?: boolean;
+    paymentOnline?: boolean;
     imageUploadIds?: string[];
     pricePaise?: number | null;
     compareAtPaise?: number | null;
@@ -99,10 +104,39 @@ export type ProductAdminListQuery = {
 
 export type PublicProductListQuery = {
     pincode?: unknown;
+    cityId?: unknown;
     categoryId?: unknown;
+    categoryIds?: unknown;
+    minPricePaise?: unknown;
+    maxPricePaise?: unknown;
+    page?: unknown;
+    limit?: unknown;
 };
 
 const COPY_MAX = 20;
+const UUID_RE =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function parseCategoryIds(query: PublicProductListQuery): string[] {
+    const ids = new Set<string>();
+    if (typeof query.categoryId === "string" && UUID_RE.test(query.categoryId)) {
+        ids.add(query.categoryId);
+    }
+    if (typeof query.categoryIds === "string") {
+        for (const part of query.categoryIds.split(",")) {
+            const id = part.trim();
+            if (UUID_RE.test(id)) ids.add(id);
+        }
+    }
+    return [...ids];
+}
+
+function parseOptionalPaise(value: unknown): number | undefined {
+    if (value == null || value === "") return undefined;
+    const n = Number(value);
+    if (!Number.isFinite(n) || n < 0) return undefined;
+    return Math.floor(n);
+}
 
 function sanitizePoints(value: string[] | undefined): string[] {
     if (!value) return [];
@@ -134,9 +168,22 @@ export interface IProductService {
     create(input: CreateProductInput): Promise<ProductAdminDetail>;
     patch(id: string, input: PatchProductInput): Promise<ProductAdminDetail>;
     delete(id: string): Promise<void>;
-    listByPincode(query: PublicProductListQuery): Promise<{ city: PublicCity; items: ProductForCity[] }>;
+    listByPincode(query: PublicProductListQuery): Promise<{
+        city: PublicCity;
+        items: ProductForCity[];
+        page: number;
+        limit: number;
+        total: number;
+        facets: {
+            categories: { id: string; name: string; count: number }[];
+            price: { minPaise: number; maxPaise: number };
+        };
+    }>;
     getForCity(productId: string, cityId: string): Promise<ProductForCity>;
-    getPublicByPincode(productId: string, pincode: string): Promise<ProductPublicDetail>;
+    getPublicByLocation(
+        productId: string,
+        query: Pick<PublicProductListQuery, "pincode" | "cityId">,
+    ): Promise<ProductPublicDetail>;
     adminByIds(ids: string[]): Promise<ProductAdmin[]>;
     listForCityByIds(cityId: string, productIds: string[]): Promise<ProductForCity[]>;
     findByIds(ids: string[]): Promise<Product[]>;
@@ -145,6 +192,15 @@ export interface IProductService {
 function assertFulfillment(scheduledEnabled: boolean, instantEnabled: boolean) {
     if (!scheduledEnabled && !instantEnabled) {
         throw ApiError.badRequest("product needs scheduled or instant booking");
+    }
+}
+
+async function assertProductPayment(paymentCod: boolean, paymentOnline: boolean) {
+    const platform = await settingService.getPaymentMethods();
+    const codOk = paymentCod && platform.cod;
+    const onlineOk = paymentOnline && platform.online;
+    if (!codOk && !onlineOk) {
+        throw ApiError.badRequest("product needs a payment method that is enabled on the platform");
     }
 }
 
@@ -204,7 +260,11 @@ export class ProductService implements IProductService {
         }
         const scheduledEnabled = input.scheduledEnabled ?? true;
         const instantEnabled = input.instantEnabled ?? false;
+        const platform = await settingService.getPaymentMethods();
+        const paymentCod = input.paymentCod ?? platform.cod;
+        const paymentOnline = input.paymentOnline ?? platform.online;
         assertFulfillment(scheduledEnabled, instantEnabled);
+        await assertProductPayment(paymentCod, paymentOnline);
         const defaults = normalizeDefaultPaisePair(input.pricePaise, input.compareAtPaise);
         try {
             const row = await this.products.insert({
@@ -215,6 +275,8 @@ export class ProductService implements IProductService {
                 isActive: false,
                 scheduledEnabled,
                 instantEnabled,
+                paymentCod,
+                paymentOnline,
                 pricePaise: defaults.pricePaise,
                 compareAtPaise: defaults.compareAtPaise,
                 includes: sanitizePoints(input.includes),
@@ -262,6 +324,8 @@ export class ProductService implements IProductService {
         if (input.isActive === false) data.isActive = false;
         if (input.scheduledEnabled !== undefined) data.scheduledEnabled = input.scheduledEnabled;
         if (input.instantEnabled !== undefined) data.instantEnabled = input.instantEnabled;
+        if (input.paymentCod !== undefined) data.paymentCod = input.paymentCod;
+        if (input.paymentOnline !== undefined) data.paymentOnline = input.paymentOnline;
         if (input.pricePaise !== undefined || input.compareAtPaise !== undefined) {
             const defaults = normalizeDefaultPaisePair(
                 input.pricePaise !== undefined ? input.pricePaise : existing.pricePaise,
@@ -279,6 +343,10 @@ export class ProductService implements IProductService {
         const nextScheduled = input.scheduledEnabled ?? existing.scheduledEnabled;
         const nextInstant = input.instantEnabled ?? existing.instantEnabled;
         assertFulfillment(nextScheduled, nextInstant);
+        await assertProductPayment(
+            input.paymentCod ?? existing.paymentCod,
+            input.paymentOnline ?? existing.paymentOnline,
+        );
         const nextActive = input.isActive ?? existing.isActive;
         const nextPricePaise =
             input.pricePaise !== undefined ? input.pricePaise : existing.pricePaise;
@@ -319,20 +387,67 @@ export class ProductService implements IProductService {
     }
 
     async listByPincode(query: PublicProductListQuery) {
-        const resolved = await assertServiceable(String(query.pincode ?? ""));
-        const categoryId = typeof query.categoryId === "string" ? query.categoryId : undefined;
-        const rows = await this.products.listPricedForCity(resolved.city.id, { categoryId });
+        const city = await this.resolvePublicCity(query);
+        const categoryIds = parseCategoryIds(query);
+        const minPricePaise = parseOptionalPaise(query.minPricePaise);
+        const maxPricePaise = parseOptionalPaise(query.maxPricePaise);
+        const pagination = parsePagination({
+            page: query.page,
+            limit: query.limit ?? "24",
+        });
+
+        const filter = {
+            categoryIds: categoryIds.length ? categoryIds : undefined,
+            minPricePaise,
+            maxPricePaise,
+        };
+
+        const [{ items: rows, total }, categories, price] = await Promise.all([
+            this.products.listPricedForCityPage(city.id, filter, pagination),
+            this.products.listCategoryFacets(city.id, {
+                minPricePaise,
+                maxPricePaise,
+            }),
+            this.products.priceRangeForCity(city.id, {
+                categoryIds: categoryIds.length ? categoryIds : undefined,
+            }),
+        ]);
+
         const items = await Promise.all(
             rows.map(async (row) => this.toCityProduct(row.product, row.pricePaise)),
         );
-        return { city: resolved.city, items };
+
+        return {
+            city,
+            items,
+            page: pagination.page,
+            limit: pagination.limit,
+            total,
+            facets: { categories, price },
+        };
     }
 
-    async getPublicByPincode(productId: string, pincode: string): Promise<ProductPublicDetail> {
-        const resolved = await assertServiceable(pincode);
-        const product = await this.getForCity(productId, resolved.city.id);
-        const addons = await this.mappedAddonsForCity(product.addonIds, resolved.city.id);
-        return { ...product, city: resolved.city, addons };
+    private async resolvePublicCity(query: PublicProductListQuery): Promise<PublicCity> {
+        const pincode = typeof query.pincode === "string" ? query.pincode.trim() : "";
+        if (pincode) {
+            const resolved = await assertServiceable(pincode);
+            return resolved.city;
+        }
+        const cityId = typeof query.cityId === "string" ? query.cityId : "";
+        if (cityId) {
+            return getActiveCityById(cityId);
+        }
+        throw ApiError.badRequest("pincode or cityId is required");
+    }
+
+    async getPublicByLocation(
+        productId: string,
+        query: Pick<PublicProductListQuery, "pincode" | "cityId">,
+    ): Promise<ProductPublicDetail> {
+        const city = await this.resolvePublicCity(query);
+        const product = await this.getForCity(productId, city.id);
+        const addons = await this.mappedAddonsForCity(product.addonIds, city.id);
+        return { ...product, city, addons };
     }
 
     async adminByIds(ids: string[]): Promise<ProductAdmin[]> {

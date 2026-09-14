@@ -21,6 +21,8 @@ export type ProductPatch = Partial<
         | "isActive"
         | "scheduledEnabled"
         | "instantEnabled"
+        | "paymentCod"
+        | "paymentOnline"
         | "pricePaise"
         | "compareAtPaise"
         | "includes"
@@ -47,6 +49,23 @@ export type PricedProduct = {
     pricePaise: number;
 };
 
+export type PublicPricedFilter = {
+    categoryIds?: string[];
+    minPricePaise?: number;
+    maxPricePaise?: number;
+};
+
+export type CategoryFacet = {
+    id: string;
+    name: string;
+    count: number;
+};
+
+export type PriceFacet = {
+    minPaise: number;
+    maxPaise: number;
+};
+
 export interface IProductRepository {
     findById(id: string): Promise<Product | undefined>;
     list(
@@ -59,20 +78,60 @@ export interface IProductRepository {
     listImages(productId: string): Promise<ProductImage[]>;
     replaceImages(productId: string, uploadIds: string[]): Promise<void>;
     listPricedForCity(cityId: string, filter?: { categoryId?: string }): Promise<PricedProduct[]>;
+    listPricedForCityPage(
+        cityId: string,
+        filter: PublicPricedFilter,
+        pagination: PaginationQuery,
+    ): Promise<{ items: PricedProduct[]; total: number }>;
+    listCategoryFacets(
+        cityId: string,
+        filter?: Pick<PublicPricedFilter, "minPricePaise" | "maxPricePaise">,
+    ): Promise<CategoryFacet[]>;
+    priceRangeForCity(
+        cityId: string,
+        filter?: Pick<PublicPricedFilter, "categoryIds">,
+    ): Promise<PriceFacet>;
     findByIds(ids: string[]): Promise<Product[]>;
     listPricedByIds(cityId: string, ids: string[]): Promise<PricedProduct[]>;
 }
 
+function sellPriceSql() {
+    return sql`coalesce(${cityPrices.pricePaise}, ${products.pricePaise})`;
+}
+
 function resolvedSell(cityId?: string) {
-    return cityId
-        ? sql`coalesce(${cityPrices.pricePaise}, ${products.pricePaise})`
-        : sql`${products.pricePaise}`;
+    return cityId ? sellPriceSql() : sql`${products.pricePaise}`;
 }
 
 function resolvedCompareAt(cityId?: string) {
     return cityId
         ? sql`coalesce(${cityPrices.compareAtPaise}, ${products.compareAtPaise})`
         : sql`${products.compareAtPaise}`;
+}
+
+function publicPricedWhere(
+    filter: PublicPricedFilter = {},
+    options: { applyCategories?: boolean } = {},
+): SQL[] {
+    const applyCategories = options.applyCategories !== false;
+    const conditions: SQL[] = [eq(products.isActive, true)];
+    const priced = or(isNotNull(cityPrices.pricePaise), isNotNull(products.pricePaise));
+    if (priced) conditions.push(priced);
+    if (applyCategories && filter.categoryIds?.length) {
+        conditions.push(inArray(products.categoryId, filter.categoryIds));
+    }
+    const sell = sellPriceSql();
+    if (filter.minPricePaise != null) {
+        conditions.push(sql`${sell} >= ${filter.minPricePaise}`);
+    }
+    if (filter.maxPricePaise != null) {
+        conditions.push(sql`${sell} <= ${filter.maxPricePaise}`);
+    }
+    return conditions;
+}
+
+function cityPriceJoin(cityId: string) {
+    return and(eq(cityPrices.productId, products.id), eq(cityPrices.cityId, cityId));
 }
 
 function productListWhere(filter: ProductListFilter = {}): SQL | undefined {
@@ -190,24 +249,91 @@ export class ProductRepository implements IProductRepository {
         cityId: string,
         filter: { categoryId?: string } = {},
     ): Promise<PricedProduct[]> {
-        const conditions: SQL[] = [eq(products.isActive, true)];
-        if (filter.categoryId) {
-            conditions.push(eq(products.categoryId, filter.categoryId));
-        }
-        const priced = or(isNotNull(cityPrices.pricePaise), isNotNull(products.pricePaise));
-        if (priced) conditions.push(priced);
-        return db
+        const result = await this.listPricedForCityPage(
+            cityId,
+            { categoryIds: filter.categoryId ? [filter.categoryId] : undefined },
+            { page: 1, limit: 10_000 },
+        );
+        return result.items;
+    }
+
+    async listPricedForCityPage(
+        cityId: string,
+        filter: PublicPricedFilter = {},
+        pagination: PaginationQuery,
+    ): Promise<{ items: PricedProduct[]; total: number }> {
+        const conditions = publicPricedWhere(filter);
+        const where = and(...conditions);
+        const join = cityPriceJoin(cityId);
+
+        const [totalRow] = await db
+            .select({ value: count() })
+            .from(products)
+            .leftJoin(cityPrices, join)
+            .where(where);
+
+        const rows = await db
             .select({
                 product: products,
-                pricePaise: sql<number>`coalesce(${cityPrices.pricePaise}, ${products.pricePaise})`.mapWith(Number),
+                pricePaise: sql<number>`${sellPriceSql()}`.mapWith(Number),
             })
             .from(products)
-            .leftJoin(
-                cityPrices,
-                and(eq(cityPrices.productId, products.id), eq(cityPrices.cityId, cityId)),
-            )
-            .where(and(...conditions))
-            .orderBy(asc(products.name));
+            .leftJoin(cityPrices, join)
+            .where(where)
+            .orderBy(asc(products.name))
+            .limit(pagination.limit)
+            .offset(paginationOffset(pagination));
+
+        return {
+            items: rows,
+            total: Number(totalRow?.value ?? 0),
+        };
+    }
+
+    async listCategoryFacets(
+        cityId: string,
+        filter: Pick<PublicPricedFilter, "minPricePaise" | "maxPricePaise"> = {},
+    ): Promise<CategoryFacet[]> {
+        const conditions = publicPricedWhere(filter, { applyCategories: false });
+        const rows = await db
+            .select({
+                id: categories.id,
+                name: categories.name,
+                count: count(),
+            })
+            .from(products)
+            .innerJoin(categories, eq(products.categoryId, categories.id))
+            .leftJoin(cityPrices, cityPriceJoin(cityId))
+            .where(and(...conditions, eq(categories.isActive, true)))
+            .groupBy(categories.id, categories.name)
+            .orderBy(asc(categories.name));
+
+        return rows.map((row) => ({
+            id: row.id,
+            name: row.name,
+            count: Number(row.count),
+        }));
+    }
+
+    async priceRangeForCity(
+        cityId: string,
+        filter: Pick<PublicPricedFilter, "categoryIds"> = {},
+    ): Promise<PriceFacet> {
+        const conditions = publicPricedWhere({ categoryIds: filter.categoryIds });
+        const sell = sellPriceSql();
+        const [row] = await db
+            .select({
+                minPaise: sql<number>`coalesce(min(${sell}), 0)`.mapWith(Number),
+                maxPaise: sql<number>`coalesce(max(${sell}), 0)`.mapWith(Number),
+            })
+            .from(products)
+            .leftJoin(cityPrices, cityPriceJoin(cityId))
+            .where(and(...conditions));
+
+        return {
+            minPaise: Number(row?.minPaise ?? 0),
+            maxPaise: Number(row?.maxPaise ?? 0),
+        };
     }
 
     async findByIds(ids: string[]): Promise<Product[]> {
@@ -226,10 +352,7 @@ export class ProductRepository implements IProductRepository {
                 pricePaise: sql<number>`coalesce(${cityPrices.pricePaise}, ${products.pricePaise})`.mapWith(Number),
             })
             .from(products)
-            .leftJoin(
-                cityPrices,
-                and(eq(cityPrices.productId, products.id), eq(cityPrices.cityId, cityId)),
-            )
+            .leftJoin(cityPrices, cityPriceJoin(cityId))
             .where(and(...conditions));
     }
 }

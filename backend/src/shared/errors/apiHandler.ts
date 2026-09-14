@@ -2,25 +2,49 @@ import { ErrorRequestHandler } from "express";
 import { logger } from "@/utils/logger.js";
 import { ApiError } from "@/shared/errors/apiError.js";
 
-
-//error handling middleware
 export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
-    logger.error({ err, method: req.method, path: req.path, requestId: req.id })
+    const bodyParseError =
+        err instanceof SyntaxError ||
+        (typeof err === "object" &&
+            err !== null &&
+            "type" in err &&
+            (err as { type?: string }).type === "entity.parse.failed");
+    const operational = (err instanceof ApiError && err.isOperational) || bodyParseError;
+    const statusCode = err instanceof ApiError && err.isOperational
+        ? err.statusCode
+        : bodyParseError
+          ? 400
+          : 500;
+    res.err = err instanceof Error ? err : new Error(String(err));
 
-
-    if (err instanceof ApiError && err.isOperational) {
-        return res.status(err.statusCode).json({
-            success: false,
-            message: err.message,
-            errors: err.errors
-        })
+    const log = req.log ?? logger;
+    const payload = {
+        err,
+        method: req.method,
+        path: req.path,
+        requestId: req.id,
+        statusCode,
+    };
+    if (statusCode >= 500) {
+        log.error(payload, err instanceof Error ? err.message : "unhandled error");
+    } else {
+        log.warn(payload, err instanceof Error ? err.message : "request failed");
     }
 
-    //unexpectd crash
+    if (operational) {
+        const message =
+            err instanceof ApiError ? err.message : "invalid json body";
+        const errors = err instanceof ApiError ? err.errors : [];
+        return res.status(statusCode).json({
+            success: false,
+            message,
+            errors,
+        });
+    }
+
     res.status(500).json({
         success: false,
         message: "Internal Server Error",
-        errors: []
-    })
-
-}
+        errors: [],
+    });
+};

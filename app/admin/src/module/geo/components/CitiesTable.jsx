@@ -33,6 +33,7 @@ export function CitiesTable({ items, loading, onEdit, onToggleActive }) {
     <Table>
       <TableHeader>
         <TableRow>
+          <TableHead className="w-14">Image</TableHead>
           <TableHead>Name</TableHead>
           <TableHead>Slug</TableHead>
           <TableHead>State</TableHead>
@@ -44,6 +45,17 @@ export function CitiesTable({ items, loading, onEdit, onToggleActive }) {
       <TableBody>
         {items.map((city) => (
           <TableRow key={city.id}>
+            <TableCell>
+              {city.image?.url ? (
+                <img
+                  src={city.image.url}
+                  alt=""
+                  className="size-10 rounded-lg object-cover"
+                />
+              ) : (
+                <span className="text-muted-foreground text-xs">—</span>
+              )}
+            </TableCell>
             <TableCell className="font-medium">{city.name}</TableCell>
             <TableCell className="text-muted-foreground">{city.slug}</TableCell>
             <TableCell>{city.state}</TableCell>

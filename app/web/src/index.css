@@ -176,6 +176,27 @@
   }
 }
 
+@keyframes announcement-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.announcement-marquee {
+  width: max-content;
+  animation: announcement-marquee 28s linear infinite;
+}
+
+.announcement-marquee-track {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

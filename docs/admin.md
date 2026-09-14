@@ -1,6 +1,6 @@
 # Admin gateway
 
-Admin is a **surface**, not a domain. It has no tables. [`backend/src/modules/admin/admin.route.ts`](../backend/src/modules/admin/admin.route.ts) mounts geo, upload, and catalog admin routers.
+Admin is a **surface**, not a domain. It has no tables. [`backend/src/modules/admin/admin.route.ts`](../backend/src/modules/admin/admin.route.ts) mounts geo, upload, catalog, booking, identity, and ops settings admin routers.
 
 **Base:** `http://localhost:3000/api/v1/admin`
 
@@ -81,6 +81,16 @@ Errors: `401` `missing authorization header` / `user not found`; `403` `account 
 | GET | `/api/v1/admin/sections/:id/products` |
 | PUT | `/api/v1/admin/sections/:id/products` |
 | DELETE | `/api/v1/admin/sections/:id/city-overrides/:cityId` |
+
+### Settings — [notifications.md](notifications.md)
+
+| Method | Path |
+|---|---|
+| GET | `/api/v1/admin/settings/notifications` |
+| PATCH | `/api/v1/admin/settings/notifications` |
+| GET | `/api/v1/admin/notification-templates` |
+| PATCH | `/api/v1/admin/notification-templates/:id` |
+| POST | `/api/v1/admin/notification-templates/:id/versions` |
 
 Register `/colors` **before** `/:id` in Postman so `GET /addons/colors` is not parsed as an addon id. Register `/sections/:id/products` and `/city-overrides` before treating the rest as a bare section id.
 

@@ -8,6 +8,8 @@ import {
   ChevronRightIcon,
   ChevronUpIcon,
   CircleHelpIcon,
+  ClockIcon,
+  FlameIcon,
   MapPinIcon,
   PackageIcon,
   SparklesIcon,
@@ -26,7 +28,6 @@ import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { listAdmin as listAddons } from "@/api/addons.api"
 import { DecoryImageFallback } from "@/module/catalog/components/DecoryImageFallback"
 import { AddonThumb } from "@/module/catalog/components/AddonThumb"
@@ -34,13 +35,11 @@ import { ColorSwatch } from "@/module/catalog/components/AddonColorField"
 import { cn } from "@/lib/utils"
 
 const TIME_SLOTS = [
-  { id: "9-11", label: "9 AM – 11 AM" },
-  { id: "11-1", label: "11 AM – 1 PM" },
-  { id: "1-3", label: "1 PM – 3 PM" },
-  { id: "3-5", label: "3 PM – 5 PM" },
-  { id: "5-7", label: "5 PM – 7 PM" },
-  { id: "7-9", label: "7 PM – 9 PM" },
-  { id: "9-11pm", label: "9 PM – 11 PM", soldOut: true },
+  { id: "9-12", label: "9 AM – 12 PM" },
+  { id: "12-3", label: "12 PM – 3 PM" },
+  { id: "3-6", label: "3 PM – 6 PM", fillingFast: true },
+  { id: "6-9", label: "6 PM – 9 PM" },
+  { id: "9-11", label: "9 PM – 11 PM" },
 ]
 
 function imageSrc(item) {
@@ -203,10 +202,10 @@ function PreviewGallery({ images, title }) {
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="relative overflow-hidden rounded-4xl bg-muted">
+    <div className="flex min-w-0 flex-col gap-3">
+      <div className="relative min-w-0 overflow-hidden rounded-4xl bg-muted">
         {src ? (
-          <img src={src} alt={title} className="aspect-square w-full object-cover" />
+          <img src={src} alt={title} className="aspect-square w-full max-w-full object-cover" />
         ) : (
           <DecoryImageFallback className="aspect-square min-h-64" />
         )}
@@ -236,7 +235,7 @@ function PreviewGallery({ images, title }) {
         ) : null}
       </div>
       {images.length > 1 ? (
-        <div className="flex gap-2 overflow-x-auto">
+        <div className="flex min-w-0 w-full gap-2 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {images.map((item, index) => {
             const thumb = thumbSrc(item)
             return (
@@ -269,7 +268,7 @@ function PreviewSchedule() {
   const today = useMemo(() => startOfToday(), [])
   const dates = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(today, i)), [today])
   const [selectedDate, setSelectedDate] = useState(today)
-  const [slot, setSlot] = useState("9-11")
+  const [slot, setSlot] = useState("9-12")
   const [moreOpen, setMoreOpen] = useState(false)
   const inStrip = dates.some((date) => isSameDay(date, selectedDate))
 
@@ -284,7 +283,7 @@ function PreviewSchedule() {
           <p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
             Select date
           </p>
-          <div className="flex gap-2 overflow-x-auto">
+          <div className="flex min-w-0 w-full gap-2 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {dates.map((date) => {
               const selected = isSameDay(date, selectedDate)
               return (
@@ -334,34 +333,65 @@ function PreviewSchedule() {
           </div>
         </div>
 
-        <div>
-          <p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            Select time
-          </p>
-          <ToggleGroup
-            value={[slot]}
-            onValueChange={(value) => {
-              if (value?.[0]) setSlot(value[0])
-            }}
-            variant="outline"
-            className="flex w-full flex-wrap"
-          >
-            {TIME_SLOTS.map((item) => (
-              <ToggleGroupItem
-                key={item.id}
-                value={item.id}
-                disabled={item.soldOut}
-                className="min-w-[30%] flex-1 flex-col gap-0 py-4 aria-pressed:bg-primary aria-pressed:text-primary-foreground data-pressed:bg-primary data-pressed:text-primary-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
-              >
-                <span>{item.label}</span>
-                {item.soldOut ? (
-                  <span className="text-[10px] font-normal text-muted-foreground">Sold out</span>
-                ) : null}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Our team arrives and completes the setup within your selected time slot.
+        <div className="min-w-0">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              Select time
+            </p>
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <ClockIcon className="size-3.5" />
+              3-hr window
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {TIME_SLOTS.map((item) => {
+              const selected = slot === item.id
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setSlot(item.id)}
+                  className={cn(
+                    "flex w-full min-w-0 flex-col items-center justify-center gap-1 rounded-2xl border border-black/10 bg-background px-1 py-2 text-center shadow-none transition-colors dark:border-white/15",
+                    selected
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "hover:bg-muted/60",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "text-[11px] leading-none font-semibold whitespace-nowrap sm:text-xs",
+                      selected ? "text-primary-foreground" : "text-foreground",
+                    )}
+                  >
+                    {item.label}
+                  </span>
+                  {item.fillingFast ? (
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[8px] font-bold tracking-wide uppercase",
+                        selected
+                          ? "bg-white/20 text-primary-foreground"
+                          : "bg-rose-600 text-white",
+                      )}
+                    >
+                      <FlameIcon className="size-2.5" />
+                      Filling fast
+                    </span>
+                  ) : null}
+                </button>
+              )
+            })}
+          </div>
+          <p className="mt-2.5 flex items-start gap-2 text-xs text-muted-foreground">
+            <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
+              <CheckIcon className="size-2.5" strokeWidth={3} />
+            </span>
+            <span>
+              Our team <span className="font-medium text-foreground">arrives &amp; completes the setup</span>{" "}
+              within your selected time slot.
+            </span>
           </p>
         </div>
       </CardContent>
@@ -449,13 +479,13 @@ export function ProductPdpPreview({
   const cityLabel = (cityName ?? "").trim() || "City not set"
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <div className="flex flex-col gap-6">
+    <div className="grid min-w-0 gap-6 overflow-x-hidden lg:grid-cols-2">
+      <div className="flex min-w-0 flex-col gap-6">
         <PreviewGallery images={images} title={title} />
         <PreviewAddons mappedAddonIds={mappedAddonIds} />
       </div>
 
-      <div className="flex flex-col gap-4">
+      <div className="flex min-w-0 flex-col gap-4">
         <div className="flex flex-col gap-2">
           <h2 className="font-heading text-2xl font-medium tracking-tight">{title}</h2>
           <p className={cn("text-sm", copy ? "whitespace-pre-wrap text-foreground" : "text-muted-foreground")}>
@@ -478,17 +508,22 @@ export function ProductPdpPreview({
 
         <PreviewSchedule />
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex min-w-0 flex-wrap gap-2">
           <Button
             type="button"
             size="lg"
-            className="min-w-40 flex-1 bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white [&_svg]:size-5"
+            className="min-w-0 flex-1 bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white sm:min-w-40 [&_svg]:size-5"
             onClick={previewOnly}
           >
             <WhatsAppIcon />
             WhatsApp
           </Button>
-          <Button type="button" size="lg" className="min-w-40 flex-1 [&_svg]:size-5" onClick={previewOnly}>
+          <Button
+            type="button"
+            size="lg"
+            className="min-w-0 flex-1 sm:min-w-40 [&_svg]:size-5"
+            onClick={previewOnly}
+          >
             Book Now
           </Button>
         </div>

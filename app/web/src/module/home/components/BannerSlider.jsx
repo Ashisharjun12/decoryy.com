@@ -5,32 +5,97 @@ import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { DecoryImageFallback } from "@/components/decory-image-fallback";
-import { DEMO_SLIDES } from "@/module/home/data/demo-banner";
-
+import { hasBannerOverlay } from "@/module/cms/lib/banner-slide";
 const AUTOPLAY_MS = 6000;
 
-function SlideImage({ src, alt }) {
+function SlideImage({ src, alt, className }) {
   const [broken, setBroken] = useState(false);
   if (!src || broken) return <DecoryImageFallback />;
   return (
     <img
       src={src}
       alt={alt}
-      className="absolute inset-0 size-full object-contain md:object-cover"
+      className={cn("absolute inset-0 size-full object-contain md:object-cover", className)}
       onError={() => setBroken(true)}
     />
   );
 }
 
-export function BannerSlider({ slides = DEMO_SLIDES }) {
+function SlideOverlay({ item }) {
+  if (!hasBannerOverlay(item)) return null;
+
+  return (
+    <>
+      <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/25 to-transparent md:bg-linear-to-r md:from-black/92 md:via-black/55 md:to-transparent" />
+      <div className="relative z-10 flex h-full max-w-[640px] flex-col justify-end px-4 pb-8 md:justify-center md:px-16 md:pb-0">
+        {item.tag ? (
+          <span className="mb-1.5 inline-flex w-fit items-center rounded-[14px] bg-white/15 px-2.5 py-1 text-[10px] font-semibold text-white md:mb-[18px] md:px-[13px] md:py-1.5 md:text-xs">
+            {item.tag}
+          </span>
+        ) : null}
+        {item.title ? (
+          <h1 className="font-heading text-[1.35rem] leading-[1.15] font-extrabold tracking-tight text-white md:text-[clamp(1.85rem,4.2vw,2.875rem)]">
+            {item.title}
+          </h1>
+        ) : null}
+        {item.subtitle ? (
+          <p className="mt-4 mb-6 hidden max-w-[460px] text-[15px] leading-[1.65] text-white/75 md:block">
+            {item.subtitle}
+          </p>
+        ) : null}
+        {item.ctaLabel ? (
+          <div className="mt-3 hidden md:mt-0 md:flex md:flex-wrap md:items-center md:gap-4">
+            <Button
+              className="h-11 rounded-[22px] px-6 text-sm font-semibold"
+              nativeButton={false}
+              render={<Link to={item.href ?? "/decorations"} />}
+            >
+              {item.ctaLabel}
+            </Button>
+            {item.secondaryLabel ? (
+              <Button
+                variant="outline"
+                className="h-11 rounded-[22px] border-white/25 bg-transparent px-5 text-sm font-medium text-white hover:bg-white/10 hover:text-white"
+                nativeButton={false}
+                render={<Link to={item.secondaryHref ?? "/decorations"} />}
+              >
+                {item.secondaryLabel}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </>
+  );
+}
+
+function ImageOnlySlide({ item }) {
+  const image = <SlideImage src={item.imageUrl} alt={item.alt} />;
+  if (item.href) {
+    return (
+      <Link to={item.href} className="absolute inset-0 block size-full" aria-label={item.alt}>
+        {image}
+      </Link>
+    );
+  }
+  return image;
+}
+
+function SlideFrame({ item, children }) {
+  const imageOnly = !hasBannerOverlay(item);
+  return (
+    <div className="relative h-[200px] overflow-hidden rounded-[22px] border border-border bg-black md:h-[420px]">
+      {imageOnly ? <ImageOnlySlide item={item} /> : <SlideImage src={item.imageUrl} alt={item.alt} />}
+      {children}
+    </div>
+  );
+}
+
+export function BannerSlider({ slides = [] }) {
   const reduceMotion = useReducedMotion();
   const [current, setCurrent] = useState(0);
   const [paused, setPaused] = useState(false);
-  const total = slides.length;
-
-  function go(next) {
-    setCurrent((next + total) % total);
-  }
+  const total = slides?.length ?? 0;
 
   useEffect(() => {
     if (reduceMotion || paused || total < 2) return undefined;
@@ -39,6 +104,24 @@ export function BannerSlider({ slides = DEMO_SLIDES }) {
     }, AUTOPLAY_MS);
     return () => window.clearInterval(id);
   }, [paused, reduceMotion, total, current]);
+
+  if (!total) return null;
+
+  if (total === 1) {
+    const item = slides[0];
+    return (
+      <SlideFrame item={item}>
+        <SlideOverlay item={item} />
+      </SlideFrame>
+    );
+  }
+
+  function go(next) {
+    setCurrent((next + total) % total);
+  }
+
+  const currentSlide = slides[current];
+  const dotFillClass = hasBannerOverlay(currentSlide) ? "bg-white" : "bg-white";
 
   return (
     <div
@@ -55,38 +138,12 @@ export function BannerSlider({ slides = DEMO_SLIDES }) {
           )}
           aria-hidden={index !== current}
         >
-          <SlideImage src={item.imageUrl} alt={item.alt} />
-          <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/25 to-transparent md:bg-linear-to-r md:from-black/92 md:via-black/55 md:to-transparent" />
-          <div className="relative z-10 flex h-full max-w-[640px] flex-col justify-end px-4 pb-8 md:justify-center md:px-16 md:pb-0">
-            <span className="mb-1.5 inline-flex w-fit items-center rounded-[14px] bg-primary px-2.5 py-1 text-[10px] font-semibold text-primary-foreground md:mb-[18px] md:px-[13px] md:py-1.5 md:text-xs">
-              {item.tag}
-            </span>
-            <h1 className="font-heading text-[1.35rem] leading-[1.15] font-extrabold tracking-tight text-white md:text-[clamp(1.85rem,4.2vw,2.875rem)]">
-              {item.title}
-            </h1>
-            <p className="mt-4 mb-6 hidden max-w-[460px] text-[15px] leading-[1.65] text-white/75 md:block">
-              {item.subtitle}
-            </p>
-            <div className="mt-3 hidden flex-wrap items-center gap-4 md:mt-0 md:flex">
-              <Button
-                className="h-11 rounded-[22px] px-6 text-sm font-semibold"
-                nativeButton={false}
-                render={<Link to={item.href} />}
-              >
-                {item.ctaLabel}
-              </Button>
-              {item.secondaryLabel ? (
-                <Button
-                  variant="outline"
-                  className="h-11 rounded-[22px] border-white/25 bg-transparent px-5 text-sm font-medium text-white hover:bg-white/10 hover:text-white"
-                  nativeButton={false}
-                  render={<Link to={item.secondaryHref ?? "/c/birthday"} />}
-                >
-                  {item.secondaryLabel}
-                </Button>
-              ) : null}
-            </div>
-          </div>
+          {hasBannerOverlay(item) ? (
+            <SlideImage src={item.imageUrl} alt={item.alt} />
+          ) : (
+            <ImageOnlySlide item={item} />
+          )}
+          <SlideOverlay item={item} />
         </div>
       ))}
 
@@ -121,7 +178,8 @@ export function BannerSlider({ slides = DEMO_SLIDES }) {
                 <span
                   key={`${current}-${index}-${paused}`}
                   className={cn(
-                    "block h-full origin-left bg-primary",
+                    "block h-full origin-left",
+                    dotFillClass,
                     index < current && "scale-x-100",
                     index === current && !reduceMotion && !paused
                       ? "animate-[banner-fill_6s_linear_forwards]"

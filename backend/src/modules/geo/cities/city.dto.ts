@@ -4,6 +4,7 @@ export const createCityDto = z.object({
     name: z.string().min(2),
     state: z.string().min(2),
     slug: z.string().min(2).optional(),
+    imageUploadId: z.string().uuid().nullable().optional(),
     isActive: z.boolean().optional(),
 });
 
@@ -11,6 +12,7 @@ export const patchCityDto = z.object({
     name: z.string().min(2).optional(),
     state: z.string().min(2).optional(),
     slug: z.string().min(2).optional(),
+    imageUploadId: z.string().uuid().nullable().optional(),
     isActive: z.boolean().optional(),
 });
 
