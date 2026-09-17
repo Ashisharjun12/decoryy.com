@@ -1,5 +1,6 @@
 import { useAuthStore } from '@/store/auth.store';
-import { ActivityIndicator, View } from 'react-native';
+import { LoadingPlaceholder } from '@/components/shell';
+import { View } from 'react-native';
 import { Redirect, type Href } from 'expo-router';
 
 type AuthGateProps = {
@@ -21,7 +22,7 @@ export function AuthGate({ resolveRedirect, children }: AuthGateProps) {
   if (!hydrated) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
-        <ActivityIndicator />
+        <LoadingPlaceholder className="py-0" />
       </View>
     );
   }

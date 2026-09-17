@@ -12,11 +12,15 @@ export function isAuthenticated(accessToken: string | null, user: AuthUser | nul
   return Boolean(accessToken && user);
 }
 
+export function isStaffUser(user: AuthUser | null) {
+  return user?.role === 'vendor_staff';
+}
+
 export function getUnauthenticatedRedirect(hasSeenWelcome: boolean): Href {
   if (!hasSeenWelcome) {
     return '/(onboarding)/welcome' as Href;
   }
-  return '/(onboarding)/sign-in' as Href;
+  return '/(onboarding)/login-choice' as Href;
 }
 
 export function getAuthRedirectPath(state: AuthRedirectInput): Href | null {
@@ -26,20 +30,27 @@ export function getAuthRedirectPath(state: AuthRedirectInput): Href | null {
     return getUnauthenticatedRedirect(state.hasSeenWelcome);
   }
 
-  const vendor = state.user!.vendor;
+  const user = state.user!;
+
+  if (isStaffUser(user)) {
+    return user.partnerMembership ? '/(app)' as Href : '/(onboarding)/login-choice' as Href;
+  }
+
+  const vendor = user.vendor;
   if (!vendor) return '/(onboarding)/register' as Href;
   if (vendor.onboardingStatus === 'PENDING') return '/(gate)/pending' as Href;
   if (vendor.onboardingStatus === 'REJECTED') return '/(gate)/rejected' as Href;
   if (vendor.onboardingStatus === 'ACTIVE') return '/(app)' as Href;
 
-  return '/(onboarding)/sign-in' as Href;
+  return '/(onboarding)/login-choice' as Href;
 }
 
 export function getPostOtpRedirectPath(user: AuthUser): Href {
+  if (isStaffUser(user) && user.partnerMembership) return '/(app)' as Href;
   if (user.vendor?.onboardingStatus === 'ACTIVE') return '/(app)' as Href;
   if (user.vendor?.onboardingStatus === 'PENDING') return '/(gate)/pending' as Href;
   if (user.vendor?.onboardingStatus === 'REJECTED') return '/(gate)/rejected' as Href;
-  return '/(onboarding)/sign-in' as Href;
+  return '/(onboarding)/login-choice' as Href;
 }
 
 export function getAppAccessRedirect(
@@ -51,10 +62,14 @@ export function getAppAccessRedirect(
     return getUnauthenticatedRedirect(hasSeenWelcome);
   }
 
+  if (isStaffUser(user)) {
+    return user!.partnerMembership ? null : '/(onboarding)/login-choice' as Href;
+  }
+
   const status = user!.vendor?.onboardingStatus;
   if (status === 'PENDING') return '/(gate)/pending' as Href;
   if (status === 'REJECTED') return '/(gate)/rejected' as Href;
-  if (status !== 'ACTIVE') return '/(onboarding)/sign-in' as Href;
+  if (status !== 'ACTIVE') return '/(onboarding)/login-choice' as Href;
 
   return null;
 }
@@ -68,11 +83,15 @@ export function getGateAccessRedirect(
     return getUnauthenticatedRedirect(hasSeenWelcome);
   }
 
+  if (isStaffUser(user)) {
+    return user!.partnerMembership ? '/(app)' as Href : null;
+  }
+
   const status = user!.vendor?.onboardingStatus;
   if (status === 'ACTIVE') return '/(app)' as Href;
   if (status === 'PENDING' || status === 'REJECTED') return null;
 
-  return '/(onboarding)/sign-in' as Href;
+  return '/(onboarding)/login-choice' as Href;
 }
 
 export function getOnboardingAccessRedirect(
@@ -81,6 +100,10 @@ export function getOnboardingAccessRedirect(
 ): Href | null {
   if (!isAuthenticated(accessToken, user)) {
     return null;
+  }
+
+  if (isStaffUser(user)) {
+    return user!.partnerMembership ? '/(app)' as Href : null;
   }
 
   const status = user!.vendor?.onboardingStatus;

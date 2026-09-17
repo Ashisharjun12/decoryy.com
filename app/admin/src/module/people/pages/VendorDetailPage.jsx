@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Link, useNavigate, useParams } from "react-router-dom"
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { getApiError } from "@/api/api"
 import { getVendor, patchVendorStatus } from "@/api/vendors.api"
 import {
@@ -15,12 +15,14 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "@/components/ui/toast"
+import { Badge } from "@/components/ui/badge"
 import { PersonBookingsPanel } from "@/module/people/components/PersonBookingsPanel"
 import { VendorStatusBadge } from "@/module/people/components/VendorStatusBadge"
 import { VendorWalletCard } from "@/module/people/components/VendorWalletCard"
+import { VendorWorkersPanel } from "@/module/people/components/VendorWorkersPanel"
 import { formatJoinedDate } from "@/module/people/lib/people-format"
-import { Badge } from "@/components/ui/badge"
 
 const DIALOG_COPY = {
   approve: {
@@ -48,6 +50,12 @@ const DIALOG_COPY = {
   },
 }
 
+const VENDOR_TABS = ["overview", "workers"]
+
+function normalizeVendorTab(value) {
+  return VENDOR_TABS.includes(value) ? value : "overview"
+}
+
 function DetailRow({ label, value, mono = false }) {
   const text = value?.trim?.() ? value : value ?? "—"
   return (
@@ -61,11 +69,17 @@ function DetailRow({ label, value, mono = false }) {
 export function VendorDetailPage() {
   const { vendorId } = useParams()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = normalizeVendorTab(searchParams.get("tab"))
   const [vendor, setVendor] = useState(null)
   const [status, setStatus] = useState("loading")
   const [error, setError] = useState("")
   const [dialog, setDialog] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+
+  function onTabChange(next) {
+    setSearchParams({ tab: next }, { replace: true })
+  }
 
   useEffect(() => {
     if (!vendorId) {
@@ -92,6 +106,12 @@ export function VendorDetailPage() {
       cancelled = true
     }
   }, [vendorId])
+
+  useEffect(() => {
+    if (vendor?.onboardingStatus !== "ACTIVE" && tab === "workers") {
+      setSearchParams({ tab: "overview" }, { replace: true })
+    }
+  }, [vendor?.onboardingStatus, tab, setSearchParams])
 
   async function confirmDialog() {
     if (!dialog || !vendor) return
@@ -135,6 +155,7 @@ export function VendorDetailPage() {
 
   const activeDialog = dialog ? DIALOG_COPY[dialog] : null
   const location = [vendor.cityName, vendor.state].filter(Boolean).join(", ")
+  const showWorkersTab = vendor.onboardingStatus === "ACTIVE"
 
   return (
     <div className="max-w-5xl space-y-6">
@@ -191,58 +212,81 @@ export function VendorDetailPage() {
         </Button>
       </div>
 
-      {vendor.onboardingStatus === "ACTIVE" ? <VendorWalletCard vendorId={vendor.id} /> : null}
+      <Tabs value={tab} onValueChange={onTabChange} className="space-y-6">
+        <TabsList variant="line">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          {showWorkersTab ? <TabsTrigger value="workers">Workers</TabsTrigger> : null}
+        </TabsList>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Registration details</CardTitle>
-          <CardDescription>Information submitted during vendor onboarding.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <dl className="space-y-4">
-            <DetailRow label="Name" value={vendor.name} />
-            <DetailRow label="Email" value={vendor.email} />
-            <DetailRow label="Phone" value={vendor.phone} mono />
-            <DetailRow label="Alt. phone" value={vendor.altPhone} mono />
-            <DetailRow label="City" value={location} />
-            <DetailRow label="Shop address" value={vendor.shopAddress} />
-            <DetailRow label="Pincode" value={vendor.pincode} mono />
-            {vendor.onboardingStatus === "ACTIVE" ? (
-              <>
-                <DetailRow
-                  label="Duty status"
-                  value={vendor.isOnDuty ? "Online" : "Offline"}
+        <TabsContent value="overview" className="space-y-6">
+          {vendor.onboardingStatus === "ACTIVE" ? <VendorWalletCard vendorId={vendor.id} /> : null}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Registration details</CardTitle>
+              <CardDescription>Information submitted during vendor onboarding.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <dl className="space-y-4">
+                <DetailRow label="Name" value={vendor.name} />
+                <DetailRow label="Email" value={vendor.email} />
+                <DetailRow label="Phone" value={vendor.phone} mono />
+                <DetailRow label="Alt. phone" value={vendor.altPhone} mono />
+                <DetailRow label="City" value={location} />
+                <DetailRow label="Shop address" value={vendor.shopAddress} />
+                <DetailRow label="Pincode" value={vendor.pincode} mono />
+                {vendor.onboardingStatus === "ACTIVE" ? (
+                  <>
+                    <DetailRow
+                      label="Duty status"
+                      value={vendor.isOnDuty ? "Online" : "Offline"}
+                    />
+                    <DetailRow
+                      label="Last duty change"
+                      value={
+                        vendor.dutyChangedAt ? formatJoinedDate(vendor.dutyChangedAt) : "—"
+                      }
+                    />
+                  </>
+                ) : null}
+              </dl>
+            </CardContent>
+          </Card>
+
+          {vendor.shopImageUrl ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Shop photo</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <img
+                  src={vendor.shopImageUrl}
+                  alt={`${vendor.name} shop`}
+                  className="max-h-80 w-full rounded-lg border object-cover object-center"
                 />
-                <DetailRow
-                  label="Last duty change"
-                  value={
-                    vendor.dutyChangedAt
-                      ? formatJoinedDate(vendor.dutyChangedAt)
-                      : "—"
-                  }
-                />
-              </>
-            ) : null}
-          </dl>
-        </CardContent>
-      </Card>
+              </CardContent>
+            </Card>
+          ) : null}
 
-      {vendor.shopImageUrl ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Shop photo</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <img
-              src={vendor.shopImageUrl}
-              alt={`${vendor.name} shop`}
-              className="max-h-80 w-full rounded-lg border object-cover object-center"
-            />
-          </CardContent>
-        </Card>
-      ) : null}
+          <PersonBookingsPanel vendorId={vendor.id} title="Assigned bookings" />
+        </TabsContent>
 
-      <PersonBookingsPanel vendorId={vendor.id} title="Assigned bookings" />
+        {showWorkersTab ? (
+          <TabsContent value="workers">
+            <Card>
+              <CardHeader>
+                <CardTitle>Field workers</CardTitle>
+                <CardDescription>
+                  Workers invited by this shop owner in the partner app (read-only).
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <VendorWorkersPanel vendorId={vendor.id} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        ) : null}
+      </Tabs>
 
       <AlertDialog
         open={Boolean(dialog)}

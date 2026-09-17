@@ -100,6 +100,9 @@ export function ProductMediaPickerDialog({
   disabled,
   max = Number.POSITIVE_INFINITY,
   kinds = ["all", "image", "video"],
+  resolveRootFolder = ensureProductsFolder,
+  dialogTitle = "Select media",
+  dialogDescription = "Upload to Media or pick existing files. New uploads go in the current folder (default Products).",
 }) {
   const fileInputRef = useRef(null)
   const attachedRef = useRef(attached)
@@ -192,7 +195,7 @@ export function ProductMediaPickerDialog({
       setUploadQueue([])
       setPath([])
       try {
-        const folder = await ensureProductsFolder()
+        const folder = await resolveRootFolder()
         if (cancelled) return
         setPath([folder])
         setReady(true)
@@ -208,7 +211,7 @@ export function ProductMediaPickerDialog({
     return () => {
       cancelled = true
     }
-  }, [open])
+  }, [open, resolveRootFolder])
 
   useEffect(() => {
     if (!open || !ready) return
@@ -344,10 +347,8 @@ export function ProductMediaPickerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[85vh] flex-col gap-4 overflow-hidden sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>Select media</DialogTitle>
-          <DialogDescription>
-            Upload to Media or pick existing files. New uploads go in the current folder (default Products).
-          </DialogDescription>
+          <DialogTitle>{dialogTitle}</DialogTitle>
+          <DialogDescription>{dialogDescription}</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -547,7 +548,7 @@ export function ProductMediaPickerDialog({
               Cancel
             </Button>
             <Button type="button" disabled={selectedCount === 0 || disabled} onClick={confirmAdd}>
-              Add
+              {max === 1 ? "Use selected" : "Add"}
             </Button>
           </div>
         </DialogFooter>

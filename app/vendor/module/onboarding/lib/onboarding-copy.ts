@@ -1,3 +1,6 @@
+export const LOGIN_CHOICE_IMAGE_URL =
+  'https://ik.imagekit.io/aevhlnk0h/undraw_team-up_qeem.png';
+
 export const ONBOARDING_SLIDES = [
   {
     id: '1',

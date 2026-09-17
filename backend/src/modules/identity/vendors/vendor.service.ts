@@ -19,6 +19,8 @@ import type { IVendorRepository } from "@/modules/identity/vendors/vendor.reposi
 import type { NewVendor, Vendor, VendorOnboardingStatus } from "@/modules/identity/vendors/vendor.schema.js";
 import type { User } from "@/modules/identity/users/user.schema.js";
 import type { IUserService } from "@/modules/identity/users/user.service.js";
+import { auditService } from "@/modules/ops/audit/audit.service.js";
+import { VendorMemberRepository } from "@/modules/identity/vendor-members/vendor-member.repository.js";
 
 export interface IVendorService {
     findByUserId(userId: string): Promise<Vendor | undefined>;
@@ -39,8 +41,35 @@ export interface IVendorService {
         total: number;
     }>;
     getAdminDetail(id: string): Promise<AdminVendorDetail>;
-    updateOnboardingStatus(id: string, status: VendorOnboardingStatus): Promise<AdminVendorDetail>;
+    updateOnboardingStatus(
+        id: string,
+        status: VendorOnboardingStatus,
+        actorId: string,
+    ): Promise<AdminVendorDetail>;
+    listTeamWorkersAdmin(
+        vendorId: string,
+        query: {
+            page?: unknown;
+            limit?: unknown;
+            q?: string;
+            status?: "active" | "invited" | "disabled";
+        },
+    ): Promise<{
+        items: Array<{
+            id: string;
+            displayName: string;
+            phone: string;
+            kind: string;
+            status: string;
+            userId: string | null;
+        }>;
+        page: number;
+        limit: number;
+        total: number;
+        statusCounts: { all: number; active: number; invited: number; disabled: number };
+    }>;
     getDuty(userId: string): Promise<PublicVendorProfile>;
+    getShopDutyByVendorId(vendorId: string): Promise<PublicVendorProfile>;
     setDuty(userId: string, isOnDuty: boolean): Promise<PublicVendorProfile>;
     reapply(userId: string, input: VendorReapplyInput): Promise<void>;
     presignProfileAvatar(
@@ -52,6 +81,8 @@ export interface IVendorService {
 }
 
 export class VendorService implements IVendorService {
+    private readonly members = new VendorMemberRepository();
+
     constructor(
         private readonly vendors: IVendorRepository,
         private readonly media: IMediaService,
@@ -159,7 +190,11 @@ export class VendorService implements IVendorService {
         return vendor;
     }
 
-    async updateOnboardingStatus(id: string, status: VendorOnboardingStatus) {
+    async updateOnboardingStatus(
+        id: string,
+        status: VendorOnboardingStatus,
+        actorId: string,
+    ) {
         const existing = await this.vendors.findAdminDetail(id);
         if (!existing) {
             throw ApiError.notFound("vendor not found");
@@ -175,12 +210,43 @@ export class VendorService implements IVendorService {
             await this.users.updateStatus(existing.userId, "blocked");
         } else if (status === "ACTIVE") {
             await this.users.updateStatus(existing.userId, "active");
+            if (existing.phone) {
+                await this.members.upsertOwnerForVendor({
+                    vendorId: id,
+                    userId: existing.userId,
+                    invitedPhone: existing.phone,
+                    displayName: existing.name,
+                });
+            }
         }
+
+        await auditService.log({
+            actorId,
+            action: "vendor.status_changed",
+            entityType: "vendor",
+            entityId: id,
+            summary: `Vendor ${existing.name} status changed to ${status}`,
+            before: { onboardingStatus: existing.onboardingStatus },
+            after: { onboardingStatus: status },
+        });
+
         return this.getAdminDetail(id);
     }
 
     async getDuty(userId: string): Promise<PublicVendorProfile> {
         const profile = await this.vendors.findPublicProfileByUserId(userId);
+        if (!profile) {
+            throw ApiError.notFound("vendor not found");
+        }
+        return profile;
+    }
+
+    async getShopDutyByVendorId(vendorId: string): Promise<PublicVendorProfile> {
+        const vendor = await this.vendors.findById(vendorId);
+        if (!vendor) {
+            throw ApiError.notFound("vendor not found");
+        }
+        const profile = await this.vendors.findPublicProfileByUserId(vendor.userId);
         if (!profile) {
             throw ApiError.notFound("vendor not found");
         }
@@ -329,5 +395,42 @@ export class VendorService implements IVendorService {
             name: input.name.trim(),
             email,
         });
+    }
+
+    async listTeamWorkersAdmin(
+        vendorId: string,
+        query: {
+            page?: unknown;
+            limit?: unknown;
+            q?: string;
+            status?: "active" | "invited" | "disabled";
+        },
+    ) {
+        const vendor = await this.vendors.findById(vendorId);
+        if (!vendor) {
+            throw ApiError.notFound("vendor not found");
+        }
+        const pagination = parsePagination(query);
+        const [listed, statusCounts] = await Promise.all([
+            this.members.listWorkersPaginated(vendorId, pagination, {
+                q: query.q,
+                status: query.status,
+            }),
+            this.members.workerStatusCounts(vendorId, query.q),
+        ]);
+        return {
+            items: listed.items.map((row) => ({
+                id: row.id,
+                displayName: row.displayName,
+                phone: row.invitedPhone,
+                kind: row.kind,
+                status: row.status,
+                userId: row.userId,
+            })),
+            page: pagination.page,
+            limit: pagination.limit,
+            total: listed.total,
+            statusCounts,
+        };
     }
 }

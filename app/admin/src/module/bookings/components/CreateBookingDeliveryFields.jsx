@@ -55,7 +55,7 @@ export function CreateBookingDeliveryFields({ form, packageCityName, onCityResol
         if (packageCityId && packageCityId !== pincodeCity.id) {
           const packageLabel = packageCityName || "the selected package city"
           setMismatchError(
-            `Pincode is in ${pincodeCity.name}, but package is priced for ${packageLabel}.`,
+            `Pincode is in ${pincodeCity.name}, but setup city is ${packageLabel}.`,
           )
           return
         }

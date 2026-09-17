@@ -55,6 +55,13 @@ export const adminVendorIdParamsDto = z.object({
     id: z.string().uuid(),
 });
 
+export const adminVendorMembersQueryDto = z.object({
+    page: z.coerce.number().int().positive().optional(),
+    limit: z.coerce.number().int().positive().max(100).optional(),
+    q: z.string().trim().max(80).optional(),
+    status: z.enum(["active", "invited", "disabled"]).optional(),
+});
+
 export const adminVendorPatchDto = z.object({
     onboardingStatus: z.enum(["ACTIVE", "REJECTED", "BLOCKED"]),
 });

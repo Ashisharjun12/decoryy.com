@@ -14,7 +14,8 @@ import {
   type WalletActivityDatePreset,
 } from '@/module/payouts/lib/wallet-activity-date';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { AppSpinner } from '@/components/ui/app-spinner';
+import { View } from 'react-native';
 
 type WalletActivityTab = 'earnings' | 'cod' | 'withdrawals';
 
@@ -123,7 +124,7 @@ export function WalletActivitySection() {
                 scaleTo={0.98}>
                 <View className="items-center justify-center rounded-full border border-border/60 py-3">
                   {isLoadingMore ? (
-                    <ActivityIndicator size="small" />
+                    <AppSpinner size="sm" />
                   ) : (
                     <Text className="text-foreground text-sm font-medium">View more</Text>
                   )}

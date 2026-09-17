@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom"
 import { UserCheckIcon, UserPlusIcon } from "lucide-react"
 import { getApiError } from "@/api/api"
 import { getBooking } from "@/api/bookings.api"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AssignVendorDialog } from "@/module/bookings/components/AssignVendorDialog"
@@ -94,6 +95,9 @@ export function BookingDetailPage() {
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <h1 className="font-heading text-2xl font-medium tracking-tight">{order.reference}</h1>
             <BookingStatusBadge status={order.status} />
+            {order.isCustomPackage ? (
+              <Badge variant="secondary">Custom package</Badge>
+            ) : null}
           </div>
         </div>
         {showAssign ? (

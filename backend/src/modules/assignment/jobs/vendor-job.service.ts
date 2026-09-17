@@ -13,8 +13,10 @@ import {
     saveDeliveryCode,
 } from "@/modules/booking/delivery/delivery-code.store.js";
 import { BOOKING_STATUS_EVENT } from "@/modules/booking/lib/booking.events.js";
+import { VENDOR_JOB_UPDATED_EVENT } from "@/modules/assignment/lib/assignment.events.js";
 import type { IVendorRepository } from "@/modules/identity/vendors/vendor.repository.js";
 import type { INotificationService } from "@/modules/notifications/notification.service.js";
+import { cancelBookingReminders } from "@/modules/assignment/jobs/assignment-reminder.service.js";
 import { bookingTrackUrl } from "@/modules/notifications/lib/render.js";
 import { formatBookingSchedule } from "@/modules/notifications/templates/email/booking-confirmed.render.js";
 import type { RealtimePort } from "@/infrastructure/realtime/realtime.port.js";
@@ -22,6 +24,13 @@ import type { PaginationQuery } from "@/shared/http/pagination.js";
 import { logger } from "@/utils/logger.js";
 import type { IVendorJobRepository, VendorJobRow } from "@/modules/assignment/jobs/vendor-job.repository.js";
 import type { IBookingChatService } from "@/modules/chat/services/booking-chat.service.js";
+import type { PartnerContext } from "@/modules/identity/partner/partner-context.js";
+import {
+    OrderFieldAssignmentRepository,
+    type FieldAssignmentWithMember,
+} from "@/modules/assignment/field-assignments/order-field-assignment.repository.js";
+import { auditService } from "@/modules/ops/audit/audit.service.js";
+import { VendorMemberRepository } from "@/modules/identity/vendor-members/vendor-member.repository.js";
 import { getQueues } from "@/infrastructure/queue/bull.connection.js";
 import { orderFinancialService } from "@/modules/payments/order-financials/order-financial.service.js";
 import { ledgerService } from "@/modules/payments/ledger/ledger.service.js";
@@ -73,17 +82,25 @@ export type VendorJobDetail = VendorJobSummary & {
 
 export interface IVendorJobService {
     listJobs(
-        userId: string,
+        partner: PartnerContext,
         filter: "today" | "upcoming" | "completed" | "action" | undefined,
         pagination: PaginationQuery,
+        search?: string,
     ): Promise<{ items: VendorJobSummary[]; total: number }>;
-    getJob(userId: string, orderId: string): Promise<VendorJobDetail>;
-    acceptJob(userId: string, orderId: string): Promise<VendorJobDetail>;
-    declineJob(userId: string, orderId: string): Promise<void>;
-    markEnRoute(userId: string, orderId: string): Promise<VendorJobDetail>;
-    markOnSite(userId: string, orderId: string): Promise<VendorJobDetail>;
-    sendDeliveryCode(userId: string, orderId: string): Promise<VendorJobDetail>;
-    completeJob(userId: string, orderId: string, code: string): Promise<VendorJobDetail>;
+    getJob(partner: PartnerContext, orderId: string): Promise<VendorJobDetail>;
+    acceptJob(partner: PartnerContext, orderId: string): Promise<VendorJobDetail>;
+    declineJob(partner: PartnerContext, orderId: string): Promise<void>;
+    markEnRoute(partner: PartnerContext, orderId: string): Promise<VendorJobDetail>;
+    markOnSite(partner: PartnerContext, orderId: string): Promise<VendorJobDetail>;
+    sendDeliveryCode(partner: PartnerContext, orderId: string): Promise<VendorJobDetail>;
+    completeJob(partner: PartnerContext, orderId: string, code: string): Promise<VendorJobDetail>;
+    listFieldAssignments(partner: PartnerContext, orderId: string): Promise<FieldAssignmentWithMember[]>;
+    setFieldAssignments(
+        partner: PartnerContext,
+        orderId: string,
+        memberIds: string[],
+    ): Promise<FieldAssignmentWithMember[]>;
+    assignSelfToJob(partner: PartnerContext, orderId: string): Promise<FieldAssignmentWithMember[]>;
 }
 
 function toSummary(row: VendorJobRow): VendorJobSummary {
@@ -109,6 +126,9 @@ function toSummary(row: VendorJobRow): VendorJobSummary {
 const TRIP_BLOCKED_STATUSES = new Set(["CANCELLED", "COMPLETED", "DISPUTED"]);
 
 export class VendorJobService implements IVendorJobService {
+    private readonly fieldAssignments = new OrderFieldAssignmentRepository();
+    private readonly vendorMembers = new VendorMemberRepository();
+
     constructor(
         private readonly jobs: IVendorJobRepository,
         private readonly vendors: IVendorRepository,
@@ -120,12 +140,24 @@ export class VendorJobService implements IVendorJobService {
         private readonly realtime?: RealtimePort,
     ) {}
 
-    private async vendorIdForUser(userId: string): Promise<string> {
-        const vendor = await this.vendors.findByUserId(userId);
-        if (!vendor || vendor.onboardingStatus !== "ACTIVE") {
-            throw ApiError.forbidden("vendor access required");
+    private assertOwnerMode(partner: PartnerContext) {
+        if (partner.mode !== "owner" || !partner.isShopOwner) {
+            throw ApiError.forbidden("owner mode required");
         }
-        return vendor.id;
+    }
+
+    private async assertFieldModeJob(partner: PartnerContext, orderId: string) {
+        if (partner.mode !== "field") {
+            throw ApiError.forbidden("switch to worker mode to perform this action");
+        }
+        const vendor = await this.vendors.findById(partner.vendorId);
+        if (!vendor?.isOnDuty) {
+            throw ApiError.conflict("shop is offline");
+        }
+        const assigned = await this.fieldAssignments.isMemberAssigned(partner.memberId, orderId);
+        if (!assigned) {
+            throw ApiError.forbidden("job not assigned to you");
+        }
     }
 
     private async assertActiveVendorJob(vendorId: string, orderId: string): Promise<Order> {
@@ -201,6 +233,21 @@ export class VendorJobService implements IVendorJobService {
         }
     }
 
+    private async publishVendorJobUpdated(vendorId: string, orderId: string, status: string) {
+        if (!this.realtime) return;
+        try {
+            const vendor = await this.vendors.findById(vendorId);
+            if (!vendor?.userId) return;
+            await this.realtime.publish({
+                userId: vendor.userId,
+                event: VENDOR_JOB_UPDATED_EVENT,
+                payload: { orderId, status },
+            });
+        } catch (err) {
+            logger.error({ err, orderId, status }, "vendor job updated realtime publish failed");
+        }
+    }
+
     private formatDeliveryAddress(order: PublicOrder): string {
         const parts = [order.delivery.address];
         if (order.delivery.landmark) {
@@ -254,29 +301,50 @@ export class VendorJobService implements IVendorJobService {
     }
 
     async listJobs(
-        userId: string,
+        partner: PartnerContext,
         filter: "today" | "upcoming" | "completed" | "action" | undefined,
         pagination: PaginationQuery,
+        search?: string,
     ) {
-        const vendorId = await this.vendorIdForUser(userId);
-        const result = await this.jobs.listForVendor(vendorId, filter, pagination);
+        const vendorId = partner.vendorId;
+        let orderIds: string[] | undefined;
+        if (partner.mode === "field") {
+            if (filter === "action") {
+                return { items: [], total: 0 };
+            }
+            orderIds = await this.fieldAssignments.listOrderIdsForMember(partner.memberId);
+        }
+        const result = await this.jobs.listForVendor(
+            vendorId,
+            filter,
+            pagination,
+            orderIds,
+            search,
+        );
         return {
             items: result.items.map(toSummary),
             total: result.total,
         };
     }
 
-    async getJob(userId: string, orderId: string): Promise<VendorJobDetail> {
-        const vendorId = await this.vendorIdForUser(userId);
+    async getJob(partner: PartnerContext, orderId: string): Promise<VendorJobDetail> {
+        const vendorId = partner.vendorId;
         const row = await this.jobs.findJobForVendor(vendorId, orderId);
         if (!row) {
             throw ApiError.notFound("job not found");
         }
+        if (partner.mode === "field") {
+            const assigned = await this.fieldAssignments.isMemberAssigned(partner.memberId, orderId);
+            if (!assigned) {
+                throw ApiError.notFound("job not found");
+            }
+        }
         return this.buildJobDetail(vendorId, orderId, row);
     }
 
-    async acceptJob(userId: string, orderId: string): Promise<VendorJobDetail> {
-        const vendorId = await this.vendorIdForUser(userId);
+    async acceptJob(partner: PartnerContext, orderId: string): Promise<VendorJobDetail> {
+        this.assertOwnerMode(partner);
+        const vendorId = partner.vendorId;
         const vendor = await this.vendors.findById(vendorId);
         if (!vendor?.isOnDuty) {
             throw ApiError.conflict("go online to accept bookings");
@@ -344,11 +412,12 @@ export class VendorJobService implements IVendorJobService {
             logger.error({ err, orderId }, "ensure booking conversation failed");
         }
 
-        return this.getJob(userId, orderId);
+        return this.getJob(partner, orderId);
     }
 
-    async declineJob(userId: string, orderId: string): Promise<void> {
-        const vendorId = await this.vendorIdForUser(userId);
+    async declineJob(partner: PartnerContext, orderId: string): Promise<void> {
+        this.assertOwnerMode(partner);
+        const vendorId = partner.vendorId;
         const assignment = await this.assignments.findActiveByOrderId(orderId);
         if (!assignment || assignment.vendorId !== vendorId || assignment.vendorResponse !== "pending") {
             throw ApiError.conflict("assignment is not pending for this vendor");
@@ -364,12 +433,13 @@ export class VendorJobService implements IVendorJobService {
         }
     }
 
-    async markEnRoute(userId: string, orderId: string): Promise<VendorJobDetail> {
-        const vendorId = await this.vendorIdForUser(userId);
+    async markEnRoute(partner: PartnerContext, orderId: string): Promise<VendorJobDetail> {
+        await this.assertFieldModeJob(partner, orderId);
+        const vendorId = partner.vendorId;
         const order = await this.assertActiveVendorJob(vendorId, orderId);
 
         if (order.status === "EN_ROUTE") {
-            return this.getJob(userId, orderId);
+            return this.getJob(partner, orderId);
         }
 
         assertTransition(order.status, "EN_ROUTE");
@@ -388,16 +458,18 @@ export class VendorJobService implements IVendorJobService {
             { vendorName, vendorPhone },
         );
         await this.publishBookingStatus(order.userId, orderId, "EN_ROUTE");
+        await this.publishVendorJobUpdated(vendorId, orderId, "EN_ROUTE");
 
-        return this.getJob(userId, orderId);
+        return this.getJob(partner, orderId);
     }
 
-    async markOnSite(userId: string, orderId: string): Promise<VendorJobDetail> {
-        const vendorId = await this.vendorIdForUser(userId);
+    async markOnSite(partner: PartnerContext, orderId: string): Promise<VendorJobDetail> {
+        await this.assertFieldModeJob(partner, orderId);
+        const vendorId = partner.vendorId;
         const order = await this.assertActiveVendorJob(vendorId, orderId);
 
         if (order.status === "ON_SITE") {
-            return this.getJob(userId, orderId);
+            return this.getJob(partner, orderId);
         }
 
         assertTransition(order.status, "ON_SITE");
@@ -416,12 +488,14 @@ export class VendorJobService implements IVendorJobService {
             { vendorName, vendorPhone },
         );
         await this.publishBookingStatus(order.userId, orderId, "ON_SITE");
+        await this.publishVendorJobUpdated(vendorId, orderId, "ON_SITE");
 
-        return this.getJob(userId, orderId);
+        return this.getJob(partner, orderId);
     }
 
-    async sendDeliveryCode(userId: string, orderId: string): Promise<VendorJobDetail> {
-        const vendorId = await this.vendorIdForUser(userId);
+    async sendDeliveryCode(partner: PartnerContext, orderId: string): Promise<VendorJobDetail> {
+        await this.assertFieldModeJob(partner, orderId);
+        const vendorId = partner.vendorId;
         const order = await this.assertActiveVendorJob(vendorId, orderId);
 
         if (order.status !== "ON_SITE") {
@@ -446,15 +520,16 @@ export class VendorJobService implements IVendorJobService {
             { vendorName, vendorPhone, code },
         );
 
-        return this.getJob(userId, orderId);
+        return this.getJob(partner, orderId);
     }
 
-    async completeJob(userId: string, orderId: string, code: string): Promise<VendorJobDetail> {
-        const vendorId = await this.vendorIdForUser(userId);
+    async completeJob(partner: PartnerContext, orderId: string, code: string): Promise<VendorJobDetail> {
+        await this.assertFieldModeJob(partner, orderId);
+        const vendorId = partner.vendorId;
         const order = await this.assertActiveVendorJob(vendorId, orderId);
 
         if (order.status === "COMPLETED") {
-            return this.getJob(userId, orderId);
+            return this.getJob(partner, orderId);
         }
 
         if (order.status !== "ON_SITE") {
@@ -473,6 +548,8 @@ export class VendorJobService implements IVendorJobService {
             throw ApiError.conflict("order could not be completed");
         }
 
+        await cancelBookingReminders(orderId);
+
         const publicOrder = await this.reloadOrder(orderId);
         const { vendorName, vendorPhone } = await this.vendorContact(vendorId);
         await this.notifyTripEvent(
@@ -483,6 +560,7 @@ export class VendorJobService implements IVendorJobService {
             { vendorName, vendorPhone },
         );
         await this.publishBookingStatus(order.userId, orderId, "COMPLETED");
+        await this.publishVendorJobUpdated(vendorId, orderId, "COMPLETED");
 
         try {
             await this.bookingChat?.closeBookingConversation(orderId);
@@ -509,7 +587,93 @@ export class VendorJobService implements IVendorJobService {
             }
         }
 
-        return this.getJob(userId, orderId);
+        return this.getJob(partner, orderId);
+    }
+
+    async listFieldAssignments(partner: PartnerContext, orderId: string) {
+        this.assertOwnerMode(partner);
+        const assignment = await this.assignments.findActiveByOrderId(orderId);
+        if (!assignment || assignment.vendorId !== partner.vendorId) {
+            throw ApiError.notFound("job not found");
+        }
+        return this.fieldAssignments.listForOrder(partner.vendorId, orderId);
+    }
+
+    async setFieldAssignments(partner: PartnerContext, orderId: string, memberIds: string[]) {
+        this.assertOwnerMode(partner);
+        const assignment = await this.assignments.findActiveByOrderId(orderId);
+        if (!assignment || assignment.vendorId !== partner.vendorId) {
+            throw ApiError.notFound("job not found");
+        }
+        if (assignment.vendorResponse !== "accepted") {
+            throw ApiError.conflict("accept the job before assigning workers");
+        }
+        const uniqueIds = [...new Set(memberIds)];
+        if (uniqueIds.length > 1) {
+            throw ApiError.badRequest("only one worker per job");
+        }
+        for (const memberId of uniqueIds) {
+            const member = await this.vendorMembers.findByIdForVendor(partner.vendorId, memberId);
+            if (!member || member.status !== "active") {
+                throw ApiError.badRequest("invalid team member");
+            }
+            if (!member.userId) {
+                throw ApiError.badRequest("worker must accept invite before assignment");
+            }
+        }
+        const rows = await this.fieldAssignments.replaceForOrder(
+            partner.vendorId,
+            orderId,
+            uniqueIds,
+            partner.userId,
+        );
+        await auditService.log({
+            actorId: partner.userId,
+            action: "order.field_assigned",
+            entityType: "order",
+            entityId: orderId,
+            summary: `Assigned ${uniqueIds.length} worker(s) to job`,
+            after: { memberIds: uniqueIds },
+        });
+        await this.notifyFieldAssignees(orderId, rows);
+        try {
+            await this.bookingChat?.syncBookingFieldWorker(orderId, partner.vendorId);
+        } catch (err) {
+            logger.error({ err, orderId }, "sync booking chat field worker failed");
+        }
+        return rows;
+    }
+
+    async assignSelfToJob(partner: PartnerContext, orderId: string) {
+        this.assertOwnerMode(partner);
+        if (!partner.memberId) {
+            throw ApiError.conflict("owner membership required");
+        }
+        return this.setFieldAssignments(partner, orderId, [partner.memberId]);
+    }
+
+    private async notifyFieldAssignees(orderId: string, rows: FieldAssignmentWithMember[]) {
+        const order = await this.orders.findById(orderId);
+        if (!order) return;
+        for (const row of rows) {
+            if (!row.userId) continue;
+            try {
+                await this.notifications.notify({
+                    event: "VENDOR_JOB_ASSIGNED",
+                    userId: row.userId,
+                    data: {
+                        event: "VENDOR_JOB_ASSIGNED",
+                        audience: "field",
+                        orderId,
+                        orderRef: order.reference,
+                        bookingId: orderId,
+                    },
+                    idempotencyKey: `vendor-job-assigned:${orderId}:${row.memberId}`,
+                });
+            } catch (err) {
+                logger.error({ err, orderId, memberId: row.memberId }, "field assign notify failed");
+            }
+        }
     }
 
     private async getVendorName(vendorId: string): Promise<string> {

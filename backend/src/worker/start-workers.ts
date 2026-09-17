@@ -14,6 +14,7 @@ import { processRelayJob } from "@/modules/notifications/jobs/relay.job.js";
 import { processOptimizeJob } from "@/modules/upload/media/optimize.job.js";
 import { processLedgerPostOnCompleteJob } from "@/modules/payments/jobs/ledger-post-on-complete.job.js";
 import { processPaymentWebhookRetryJob } from "@/modules/payments/jobs/payment-webhook-retry.job.js";
+import { processAssignmentReminderJob } from "@/modules/assignment/jobs/assignment.job.js";
 import { processSettlementSweepJob } from "@/modules/payments/jobs/settlement.job.js";
 import { logger } from "@/utils/logger.js";
 
@@ -67,6 +68,10 @@ export async function startNotificationWorkers(): Promise<void> {
             connection,
             concurrency: 2,
         }),
+        new Worker(QUEUE_NAMES.assignmentReminder, processAssignmentReminderJob, {
+            connection,
+            concurrency: 2,
+        }),
     ];
 
     for (const worker of workers) {
@@ -97,6 +102,7 @@ export async function startNotificationWorkers(): Promise<void> {
                 QUEUE_NAMES.imageOptimize,
                 QUEUE_NAMES.paymentsWebhookRetry,
                 QUEUE_NAMES.ledgerPostOnComplete,
+                QUEUE_NAMES.assignmentReminder,
             ],
         },
         "Decory notification workers started",

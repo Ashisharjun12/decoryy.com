@@ -3,6 +3,7 @@ import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { ArrowLeftIcon, EyeIcon } from "lucide-react"
+import { getAiPolicy } from "@/api/settings.api"
 import { createProduct, deleteCityPrice, getAdmin, patchProduct, setCityPrice } from "@/api/products.api"
 import { listAdmin as listCategories } from "@/api/categories.api"
 import { listAdmin as listCities } from "@/api/cities.api"
@@ -52,6 +53,8 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { Spinner } from "@/components/ui/spinner"
 import { Skeleton } from "@/components/ui/skeleton"
+import { ProductAiGenerateButton } from "@/module/catalog/components/ProductAiGenerateButton"
+import { ProductAiGenerateDialog } from "@/module/catalog/components/ProductAiGenerateDialog"
 
 const CATALOG_PRODUCTS = "/catalog?tab=products"
 
@@ -80,6 +83,7 @@ export function ProductFormPage() {
   const parentCategoryId = form.watch("parentCategoryId")
   const categoryId = form.watch("categoryId")
   const nameValue = form.watch("name")
+  const slugValue = form.watch("slug")
   const descriptionValue = form.watch("description")
   const createReady =
     !isNew ||
@@ -102,6 +106,21 @@ export function ProductFormPage() {
   const [error, setError] = useState("")
   const [productName, setProductName] = useState("")
   const [platformPay, setPlatformPay] = useState({ cod: true, online: false })
+  const [aiPolicy, setAiPolicy] = useState(null)
+  const [aiPolicyLoading, setAiPolicyLoading] = useState(true)
+  const [loadedCategoryName, setLoadedCategoryName] = useState("")
+  const [aiDialogOpen, setAiDialogOpen] = useState(false)
+
+  const refreshAiPolicy = useCallback(async () => {
+    try {
+      const policy = await getAiPolicy()
+      setAiPolicy(policy)
+      return policy
+    } catch {
+      setAiPolicy(null)
+      return null
+    }
+  }, [])
 
   const loadChildren = useCallback(async (parentId) => {
     if (!parentId) {
@@ -123,6 +142,31 @@ export function ProductFormPage() {
 
   useEffect(() => {
     let cancelled = false
+    setAiPolicyLoading(true)
+    refreshAiPolicy().finally(() => {
+      if (!cancelled) setAiPolicyLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [refreshAiPolicy])
+
+  useEffect(() => {
+    function onFocus() {
+      refreshAiPolicy()
+    }
+    window.addEventListener("focus", onFocus)
+    return () => window.removeEventListener("focus", onFocus)
+  }, [refreshAiPolicy])
+
+  useEffect(() => {
+    if (aiDialogOpen) {
+      refreshAiPolicy()
+    }
+  }, [aiDialogOpen, refreshAiPolicy])
+
+  useEffect(() => {
+    let cancelled = false
 
     async function load() {
       try {
@@ -141,6 +185,7 @@ export function ProductFormPage() {
         })
 
         if (isNew) {
+          setLoadedCategoryName("")
           form.setValue("paymentCod", payData?.cod !== false)
           form.setValue("paymentOnline", Boolean(payData?.online))
           setLoading(false)
@@ -163,6 +208,7 @@ export function ProductFormPage() {
           categoryId = ""
         }
         setProductName(product.name)
+        setLoadedCategoryName(product.category?.name ?? "")
         form.reset({
           name: product.name ?? "",
           slug: product.slug ?? "",
@@ -267,6 +313,21 @@ export function ProductFormPage() {
       }
     }
     setSavedPriceCityIds([...selectedIds])
+  }
+
+  const selectedCategory = children.find((row) => row.id === categoryId)
+  const selectedParent = parents.find((row) => row.id === parentCategoryId)
+  const resolvedCategoryName = selectedCategory?.name || loadedCategoryName
+  function applyAiCopy(copy) {
+    form.setValue("description", copy.description ?? "")
+    if (copy.slug) {
+      form.setValue("slug", copy.slug)
+    }
+    setIncludes(copy.includes ?? [])
+    setDeliverySetup(copy.deliverySetup ?? [])
+    setCareInstructions(copy.careInstructions ?? [])
+    setFaqs(toFaqRows(copy.faqs ?? []))
+    toast.add({ title: "AI copy applied — review and save", type: "success" })
   }
 
   async function persist(values) {
@@ -412,9 +473,21 @@ export function ProductFormPage() {
 
       <form className="flex flex-col gap-6" noValidate>
           <Card>
-            <CardHeader>
-              <CardTitle>Product details</CardTitle>
-              <CardDescription>Name and copy shown on the booking menu.</CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
+              <div>
+                <CardTitle>Product details</CardTitle>
+                <CardDescription>Name and copy shown on the booking menu.</CardDescription>
+              </div>
+              <ProductAiGenerateButton
+                aiPolicy={aiPolicy}
+                name={nameValue}
+                parentCategoryId={parentCategoryId}
+                categoryId={categoryId}
+                categoryName={resolvedCategoryName}
+                loading={aiPolicyLoading}
+                submitting={submitting}
+                onClick={() => setAiDialogOpen(true)}
+              />
             </CardHeader>
             <CardContent>
               <FieldGroup>
@@ -737,6 +810,16 @@ export function ProductFormPage() {
             </Button>
           </div>
       </form>
+
+      <ProductAiGenerateDialog
+        open={aiDialogOpen}
+        onOpenChange={setAiDialogOpen}
+        name={(nameValue ?? "").trim()}
+        categoryName={resolvedCategoryName}
+        parentCategoryName={selectedParent?.name}
+        currentSlug={slugValue}
+        onApply={applyAiCopy}
+      />
     </div>
   )
 }

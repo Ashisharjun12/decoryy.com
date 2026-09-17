@@ -5,7 +5,12 @@ import type {
   VendorJobsResponse,
 } from '@/module/bookings/lib/booking.types';
 
-export function listVendorJobs(params?: { filter?: JobFilter; page?: number; limit?: number }) {
+export function listVendorJobs(params?: {
+  filter?: JobFilter;
+  page?: number;
+  limit?: number;
+  q?: string;
+}) {
   return api.get('/vendor/jobs', { params }).then(unwrap<VendorJobsResponse>);
 }
 

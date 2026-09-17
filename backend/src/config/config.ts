@@ -57,6 +57,9 @@ const {
     WHATSAPP_PROVIDER,
     WEB_APP_ORIGIN,
     API_PUBLIC_URL,
+    AI_CATALOG_RATE_LIMIT_PER_HOUR,
+    AI_LLM_TIMEOUT_MS,
+    ADMIN_CUSTOM_PRODUCT_ID,
 } = process.env
 
 export const _config = {
@@ -115,4 +118,7 @@ export const _config = {
     WEB_APP_ORIGIN: WEB_APP_ORIGIN || "http://localhost:5173",
     API_PUBLIC_URL,
     CASHFREE_ENV: CASHFREE_ENV || "sandbox",
+    AI_CATALOG_RATE_LIMIT_PER_HOUR,
+    AI_LLM_TIMEOUT_MS,
+    ADMIN_CUSTOM_PRODUCT_ID,
 }

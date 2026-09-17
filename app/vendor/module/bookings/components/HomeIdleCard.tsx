@@ -1,5 +1,7 @@
 import { FadeInView } from '@/components/motion';
+import { IconWell } from '@/components/shell';
 import { Text } from '@/components/ui/text';
+import { CalendarClock, Power } from 'lucide-react-native';
 import { View } from 'react-native';
 
 type HomeIdleCardVariant = 'online_idle' | 'offline';
@@ -27,11 +29,14 @@ type HomeIdleCardProps = {
 export function HomeIdleCard({ variant }: HomeIdleCardProps) {
   const copy = COPY[variant];
 
+  const icon = variant === 'online_idle' ? CalendarClock : Power;
+
   return (
     <FadeInView delay={80}>
-      <View className="rounded-3xl bg-muted/70 px-5 py-8">
+      <View className="items-center gap-3 rounded-3xl bg-muted/70 px-5 py-8">
+        <IconWell icon={icon} size="lg" className="bg-muted" iconClassName="text-muted-foreground" />
         <Text className="text-foreground text-center font-medium">{copy.title}</Text>
-        <Text className="text-muted-foreground mt-1 text-center text-sm">{copy.body}</Text>
+        <Text className="text-muted-foreground text-center text-sm leading-5">{copy.body}</Text>
       </View>
     </FadeInView>
   );

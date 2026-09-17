@@ -9,8 +9,8 @@ export class VendorJobController {
     constructor(private readonly jobs: IVendorJobService) {}
 
     list = asyncHandler(async (req, res) => {
-        const userId = req.actor?.id;
-        if (!userId) throw ApiError.unauthorized();
+        const partner = req.partner;
+        if (!partner) throw ApiError.forbidden("partner context required");
         const pagination = parsePagination(req.query);
         const filter = req.query.filter as
             | "today"
@@ -18,65 +18,91 @@ export class VendorJobController {
             | "completed"
             | "action"
             | undefined;
-        const data = await this.jobs.listJobs(userId, filter, pagination);
+        const q = typeof req.query.q === "string" ? req.query.q.trim() : undefined;
+        const data = await this.jobs.listJobs(partner, filter, pagination, q || undefined);
         res.status(200).json(new ApiResponse(200, data, "ok"));
     });
 
     get = asyncHandler(async (req, res) => {
-        const userId = req.actor?.id;
-        if (!userId) throw ApiError.unauthorized();
+        const partner = req.partner;
+        if (!partner) throw ApiError.forbidden("partner context required");
         const orderId = paramOrderId(req);
-        const data = await this.jobs.getJob(userId, orderId);
+        const data = await this.jobs.getJob(partner, orderId);
         res.status(200).json(new ApiResponse(200, data, "ok"));
     });
 
     accept = asyncHandler(async (req, res) => {
-        const userId = req.actor?.id;
-        if (!userId) throw ApiError.unauthorized();
+        const partner = req.partner;
+        if (!partner) throw ApiError.forbidden("partner context required");
         const orderId = paramOrderId(req);
-        const data = await this.jobs.acceptJob(userId, orderId);
+        const data = await this.jobs.acceptJob(partner, orderId);
         res.status(200).json(new ApiResponse(200, data, "job accepted"));
     });
 
     decline = asyncHandler(async (req, res) => {
-        const userId = req.actor?.id;
-        if (!userId) throw ApiError.unauthorized();
+        const partner = req.partner;
+        if (!partner) throw ApiError.forbidden("partner context required");
         const orderId = paramOrderId(req);
-        await this.jobs.declineJob(userId, orderId);
+        await this.jobs.declineJob(partner, orderId);
         res.status(200).json(new ApiResponse(200, { ok: true }, "job declined"));
     });
 
     markEnRoute = asyncHandler(async (req, res) => {
-        const userId = req.actor?.id;
-        if (!userId) throw ApiError.unauthorized();
+        const partner = req.partner;
+        if (!partner) throw ApiError.forbidden("partner context required");
         const orderId = paramOrderId(req);
-        const data = await this.jobs.markEnRoute(userId, orderId);
+        const data = await this.jobs.markEnRoute(partner, orderId);
         res.status(200).json(new ApiResponse(200, data, "marked en route"));
     });
 
     markOnSite = asyncHandler(async (req, res) => {
-        const userId = req.actor?.id;
-        if (!userId) throw ApiError.unauthorized();
+        const partner = req.partner;
+        if (!partner) throw ApiError.forbidden("partner context required");
         const orderId = paramOrderId(req);
-        const data = await this.jobs.markOnSite(userId, orderId);
+        const data = await this.jobs.markOnSite(partner, orderId);
         res.status(200).json(new ApiResponse(200, data, "marked on site"));
     });
 
     sendDeliveryCode = asyncHandler(async (req, res) => {
-        const userId = req.actor?.id;
-        if (!userId) throw ApiError.unauthorized();
+        const partner = req.partner;
+        if (!partner) throw ApiError.forbidden("partner context required");
         const orderId = paramOrderId(req);
-        const data = await this.jobs.sendDeliveryCode(userId, orderId);
+        const data = await this.jobs.sendDeliveryCode(partner, orderId);
         res.status(200).json(new ApiResponse(200, data, "delivery code sent"));
     });
 
     complete = asyncHandler(async (req, res) => {
-        const userId = req.actor?.id;
-        if (!userId) throw ApiError.unauthorized();
+        const partner = req.partner;
+        if (!partner) throw ApiError.forbidden("partner context required");
         const orderId = paramOrderId(req);
         const code = String(req.body?.code ?? "");
-        const data = await this.jobs.completeJob(userId, orderId, code);
+        const data = await this.jobs.completeJob(partner, orderId, code);
         res.status(200).json(new ApiResponse(200, data, "job completed"));
+    });
+
+    listAssignments = asyncHandler(async (req, res) => {
+        const partner = req.partner;
+        if (!partner) throw ApiError.forbidden("partner context required");
+        const orderId = paramOrderId(req);
+        const data = await this.jobs.listFieldAssignments(partner, orderId);
+        res.status(200).json(new ApiResponse(200, data, "ok"));
+    });
+
+    setAssignments = asyncHandler(async (req, res) => {
+        const partner = req.partner;
+        if (!partner) throw ApiError.forbidden("partner context required");
+        const orderId = paramOrderId(req);
+        const memberIds = Array.isArray(req.body?.memberIds) ? req.body.memberIds : [];
+        const data = await this.jobs.setFieldAssignments(partner, orderId, memberIds);
+        res.status(200).json(new ApiResponse(200, data, "assignments updated"));
+    });
+
+    assignSelf = asyncHandler(async (req, res) => {
+        const partner = req.partner;
+        if (!partner) throw ApiError.forbidden("partner context required");
+        const orderId = paramOrderId(req);
+        const data = await this.jobs.assignSelfToJob(partner, orderId);
+        res.status(200).json(new ApiResponse(200, data, "assigned"));
     });
 }
 

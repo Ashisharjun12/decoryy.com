@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, isNull, lt, ne, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/postgres-client.js";
 import { assignments } from "@/modules/assignment/assignments/assignment.schema.js";
 import {
@@ -35,6 +35,8 @@ export interface IVendorJobRepository {
         vendorId: string,
         filter: "today" | "upcoming" | "completed" | "action" | undefined,
         pagination: PaginationQuery,
+        orderIds?: string[],
+        search?: string,
     ): Promise<{ items: VendorJobRow[]; total: number }>;
     findJobForVendor(vendorId: string, orderId: string): Promise<VendorJobRow | undefined>;
     loadOrderItems(orderId: string): Promise<
@@ -76,7 +78,13 @@ export class VendorJobRepository implements IVendorJobRepository {
         vendorId: string,
         filter: "today" | "upcoming" | "completed" | "action" | undefined,
         pagination: PaginationQuery,
+        orderIds?: string[],
+        search?: string,
     ): Promise<{ items: VendorJobRow[]; total: number }> {
+        if (orderIds && orderIds.length === 0) {
+            return { items: [], total: 0 };
+        }
+
         const conditions = [
             eq(assignments.vendorId, vendorId),
             inArray(assignments.vendorResponse, ["pending", "accepted"]),
@@ -86,6 +94,10 @@ export class VendorJobRepository implements IVendorJobRepository {
 
         const todayStart = startOfTodayIst();
         const todayEnd = endOfTodayIst();
+
+        if (orderIds) {
+            conditions.push(inArray(orders.id, orderIds));
+        }
 
         if (filter === "action") {
             conditions.push(eq(assignments.vendorResponse, "pending"));
@@ -98,6 +110,20 @@ export class VendorJobRepository implements IVendorJobRepository {
         } else if (filter === "upcoming") {
             conditions.push(gte(orders.scheduledAt, todayEnd));
             conditions.push(ne(orders.status, "COMPLETED"));
+        }
+
+        const term = search?.trim();
+        if (term) {
+            const pattern = `%${term}%`;
+            conditions.push(
+                or(
+                    ilike(orders.customerName, pattern),
+                    ilike(orders.customerPhone, pattern),
+                    ilike(orders.reference, pattern),
+                    ilike(orders.addressLine, pattern),
+                    ilike(orders.cityName, pattern),
+                )!,
+            );
         }
 
         const whereClause = and(...conditions);

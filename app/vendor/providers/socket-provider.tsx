@@ -1,7 +1,10 @@
 import type { ChatMessage } from '@/api/chat.api';
 import { getSocketUrl } from '@/lib/socket-url';
 import { patchReadStatus } from '@/module/chat/lib/chat-utils';
-import { VENDOR_JOB_ASSIGNED_EVENT } from '@/module/bookings/lib/vendor-jobs.events';
+import {
+  VENDOR_JOB_ASSIGNED_EVENT,
+  VENDOR_JOB_UPDATED_EVENT,
+} from '@/module/bookings/lib/vendor-jobs.events';
 import { vendorJobsKeys } from '@/module/bookings/hooks/use-vendor-jobs';
 import { notificationQueryKeys } from '@/module/notifications/lib/notification-query-keys';
 import { useAuthStore } from '@/store/auth.store';
@@ -11,10 +14,16 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 
 function attachVendorJobListeners(socket: Socket, queryClient: QueryClient) {
-  socket.on(VENDOR_JOB_ASSIGNED_EVENT, () => {
+  const refreshJobs = (payload?: { orderId?: string }) => {
     void queryClient.invalidateQueries({ queryKey: vendorJobsKeys.all });
     void queryClient.invalidateQueries({ queryKey: notificationQueryKeys.all });
-  });
+    if (payload?.orderId) {
+      void queryClient.invalidateQueries({ queryKey: vendorJobsKeys.detail(payload.orderId) });
+    }
+  };
+
+  socket.on(VENDOR_JOB_ASSIGNED_EVENT, () => refreshJobs());
+  socket.on(VENDOR_JOB_UPDATED_EVENT, (payload: { orderId?: string }) => refreshJobs(payload));
 }
 
 type SocketContextValue = {

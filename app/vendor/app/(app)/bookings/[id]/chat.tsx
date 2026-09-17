@@ -1,8 +1,10 @@
 import { FadeInView, PressableScale } from '@/components/motion';
 import { triggerHaptic } from '@/components/motion/haptics';
-import { Surface } from '@/components/shell';
+import { LoadingPlaceholder, Surface } from '@/components/shell';
+import { AppSpinner } from '@/components/ui/app-spinner';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
+import type { VendorJobDetail } from '@/module/bookings/lib/booking.types';
 import { ChatAttachmentBubble } from '@/module/chat/components/ChatAttachmentBubble';
 import { ChatAttachmentSheet } from '@/module/chat/components/ChatAttachmentSheet';
 import { useChatAttachment } from '@/module/chat/hooks/use-chat-attachment';
@@ -14,11 +16,10 @@ import { useBookingChatThread } from '@/module/chat/hooks/use-chat-thread';
 import { formatMessageTime } from '@/module/chat/lib/chat-utils';
 import type { ChatMessage } from '@/api/chat.api';
 import * as Haptics from 'expo-haptics';
-import { router, useLocalSearchParams } from 'expo-router';
+import { Href, router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Phone, Plus, Send } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Keyboard,
   LayoutAnimation,
@@ -38,7 +39,44 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 export default function BookingChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const orderId = String(id ?? '');
-  const { data: job, isLoading: jobLoading } = useVendorJob(orderId);
+  const { data: job, isLoading: jobLoading, isError: jobError } = useVendorJob(orderId);
+
+  useEffect(() => {
+    if (jobLoading || !job) return;
+    if (!job.canChat) {
+      router.replace(`/(app)/bookings/${orderId}` as Href);
+    }
+  }, [job, jobLoading, orderId]);
+
+  if (jobLoading || (job && !job.canChat)) {
+    return (
+      <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+        <View className="flex-1 items-center justify-center">
+          <LoadingPlaceholder className="py-0" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (jobError || !job) {
+    return (
+      <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+        <View className="flex-1 items-center justify-center px-6">
+          <Text className="text-muted-foreground text-center text-sm">
+            Could not open chat for this booking.
+          </Text>
+          <PressableScale onPress={() => router.back()} className="mt-4">
+            <Text className="text-primary text-sm font-semibold">Go back</Text>
+          </PressableScale>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return <BookingChatContent orderId={orderId} job={job} />;
+}
+
+function BookingChatContent({ orderId, job }: { orderId: string; job: VendorJobDetail }) {
   const {
     conversation,
     messages,
@@ -52,8 +90,7 @@ export default function BookingChatScreen() {
   const [attachOpen, setAttachOpen] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const { sendAttachment, isUploading } = useChatAttachment(conversation?.id);
-  const chatClosed = job ? !job.canChat : false;
-  const canSend = draft.trim().length > 0 && !isSending && !isUploading && !chatClosed;
+  const canSend = draft.trim().length > 0 && !isSending && !isUploading;
   const { otherTyping } = useConversationTyping(conversation?.id, draft, 'vendor');
 
   useEffect(() => {
@@ -100,10 +137,10 @@ export default function BookingChatScreen() {
 
   const keyboardOffset =
     keyboardHeight > 0 ? Math.max(0, keyboardHeight - insets.bottom) : 0;
-  const isLoading = jobLoading || chatLoading;
+  const isLoading = chatLoading;
   const customerOnline =
     conversation?.participants?.find((p) => p.role === 'customer')?.isOnline ?? false;
-  const customerPhone = job?.customer.phone?.trim() ?? '';
+  const customerPhone = job.customer.phone?.trim() ?? '';
 
   function handleCallCustomer() {
     if (!customerPhone) return;
@@ -128,7 +165,7 @@ export default function BookingChatScreen() {
         </PressableScale>
         <View className="min-w-0 flex-1">
           <Text className="text-foreground text-lg font-semibold" numberOfLines={1}>
-            {job?.customer.name ?? 'Customer'}
+            {job.customer.name}
           </Text>
           {customerOnline ? (
             <Text className="text-muted-foreground text-xs">Online</Text>
@@ -146,16 +183,9 @@ export default function BookingChatScreen() {
       </View>
 
       <View className="flex-1" style={{ paddingBottom: keyboardOffset }}>
-        {chatClosed ? (
-          <View className="border-b border-border bg-muted/50 px-4 py-2.5">
-            <Text className="text-center text-sm text-muted-foreground">
-              Chat closed for completed orders. You can still read past messages.
-            </Text>
-          </View>
-        ) : null}
         {isLoading ? (
           <View className="flex-1 items-center justify-center">
-            <ActivityIndicator />
+            <LoadingPlaceholder className="py-0" />
           </View>
         ) : (
           <FlatList
@@ -215,54 +245,52 @@ export default function BookingChatScreen() {
           />
         )}
 
-        {!chatClosed ? (
-          <View
-            className="border-t border-border bg-background px-4 pt-3"
-            style={{ paddingBottom: keyboardHeight > 0 ? 8 : Math.max(insets.bottom, 12) }}>
-            <View className="flex-row items-end gap-2">
-              <View className="min-h-11 flex-1 flex-row items-end rounded-2xl border border-border bg-background px-3 py-2">
-                <TextInput
-                  className="max-h-24 flex-1 py-1.5 text-base text-foreground"
-                  placeholder="Type a message..."
-                  placeholderTextColor="#9CA3AF"
-                  value={draft}
-                  onChangeText={setDraft}
-                  onFocus={() => {
-                    setTimeout(() => {
-                      listRef.current?.scrollToEnd({ animated: true });
-                    }, 100);
-                  }}
-                  multiline
-                  textAlignVertical="center"
-                />
-                <Pressable
-                  onPress={() => {
-                    if (isUploading) return;
-                    Keyboard.dismiss();
-                    setAttachOpen(true);
-                  }}
-                  hitSlop={8}
-                  className="mb-0.5 p-1.5"
-                  accessibilityLabel="Attach file">
-                  {isUploading ? (
-                    <ActivityIndicator size="small" />
-                  ) : (
-                    <Plus size={22} color="#111827" />
-                  )}
-                </Pressable>
-              </View>
-
-              {canSend ? (
-                <PressableScale
-                  onPress={handleSend}
-                  className="mb-0.5 size-11 items-center justify-center rounded-full bg-primary"
-                  accessibilityLabel="Send message">
-                  <Send size={18} color="#FFFFFF" />
-                </PressableScale>
-              ) : null}
+        <View
+          className="border-t border-border bg-background px-4 pt-3"
+          style={{ paddingBottom: keyboardHeight > 0 ? 8 : Math.max(insets.bottom, 12) }}>
+          <View className="flex-row items-end gap-2">
+            <View className="min-h-11 flex-1 flex-row items-end rounded-2xl border border-border bg-background px-3 py-2">
+              <TextInput
+                className="max-h-24 flex-1 py-1.5 text-base text-foreground"
+                placeholder="Type a message..."
+                placeholderTextColor="#9CA3AF"
+                value={draft}
+                onChangeText={setDraft}
+                onFocus={() => {
+                  setTimeout(() => {
+                    listRef.current?.scrollToEnd({ animated: true });
+                  }, 100);
+                }}
+                multiline
+                textAlignVertical="center"
+              />
+              <Pressable
+                onPress={() => {
+                  if (isUploading) return;
+                  Keyboard.dismiss();
+                  setAttachOpen(true);
+                }}
+                hitSlop={8}
+                className="mb-0.5 p-1.5"
+                accessibilityLabel="Attach file">
+                {isUploading ? (
+                  <AppSpinner size="sm" variant="inverse" />
+                ) : (
+                  <Plus size={22} color="#111827" />
+                )}
+              </Pressable>
             </View>
+
+            {canSend ? (
+              <PressableScale
+                onPress={handleSend}
+                className="mb-0.5 size-11 items-center justify-center rounded-full bg-primary"
+                accessibilityLabel="Send message">
+                <Send size={18} color="#FFFFFF" />
+              </PressableScale>
+            ) : null}
           </View>
-        ) : null}
+        </View>
       </View>
 
       <ChatAttachmentSheet

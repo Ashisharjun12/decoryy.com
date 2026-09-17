@@ -1,6 +1,7 @@
 import { db } from "@/db/postgres-client.js";
 import { ApiError } from "@/shared/errors/apiError.js";
 import type { IAssignmentRepository } from "@/modules/assignment/assignments/assignment.repository.js";
+import type { IOrderFieldAssignmentRepository } from "@/modules/assignment/field-assignments/order-field-assignment.repository.js";
 import type { IOrderRepository } from "@/modules/booking/orders/order.repository.js";
 import type { IVendorRepository } from "@/modules/identity/vendors/vendor.repository.js";
 import type { IUserRepository } from "@/modules/identity/users/user.repository.js";
@@ -16,6 +17,12 @@ import type { UserRole } from "@/modules/identity/users/user.schema.js";
 import type { IMessageRepository } from "@/modules/chat/messages/message.repository.js";
 import { presenceStore } from "@/infrastructure/realtime/presence.store.js";
 
+export type ChatPeerView = {
+    name: string;
+    phone: string | null;
+    kind: "shop" | "worker";
+};
+
 export type ConversationView = {
     id: string;
     type: ConversationType;
@@ -30,6 +37,7 @@ export type ConversationView = {
     participants: Array<{ userId: string; role: string; name: string; isOnline: boolean }>;
     orderRef?: string | null;
     assignedAdminId?: string | null;
+    chatPeer?: ChatPeerView | null;
 };
 
 export interface IConversationService {
@@ -80,6 +88,7 @@ export class ConversationService implements IConversationService {
         private readonly vendors: IVendorRepository,
         private readonly orders: IOrderRepository,
         private readonly assignments: IAssignmentRepository,
+        private readonly fieldAssignments: IOrderFieldAssignmentRepository,
     ) {}
 
     async getForActor(userId: string, role: UserRole, conversationId: string): Promise<ConversationView> {
@@ -467,6 +476,16 @@ export class ConversationService implements IConversationService {
             orderRef = order?.reference ?? null;
         }
 
+        let chatPeer: ChatPeerView | null = null;
+        if (
+            role === "user" &&
+            conversation.type === "booking" &&
+            conversation.contextType === "order" &&
+            conversation.contextId
+        ) {
+            chatPeer = await this.resolveBookingChatPeer(conversation.contextId);
+        }
+
         return {
             id: conversation.id,
             type: conversation.type,
@@ -481,6 +500,34 @@ export class ConversationService implements IConversationService {
             participants: participantViews,
             orderRef,
             assignedAdminId: conversation.assignedAdminId ?? null,
+            chatPeer,
+        };
+    }
+
+    private async resolveBookingChatPeer(orderId: string): Promise<ChatPeerView | null> {
+        const assignment = await this.assignments.findActiveByOrderId(orderId);
+        if (!assignment) return null;
+
+        const vendor = await this.vendors.findById(assignment.vendorId);
+        if (!vendor) return null;
+
+        const fieldRows = await this.fieldAssignments.listForOrder(assignment.vendorId, orderId);
+        const worker = fieldRows[0];
+        if (worker?.userId) {
+            const workerUser = await this.users.findById(worker.userId);
+            return {
+                kind: "worker",
+                name: worker.displayName || workerUser?.name || "Your decorator",
+                phone: workerUser?.phone ?? null,
+            };
+        }
+
+        const shopDetail = await this.vendors.findAdminDetail(vendor.id);
+        const shopUser = await this.users.findById(vendor.userId);
+        return {
+            kind: "shop",
+            name: shopDetail?.name ?? shopUser?.name ?? "Your decorator",
+            phone: shopDetail?.phone ?? shopUser?.phone ?? null,
         };
     }
 }

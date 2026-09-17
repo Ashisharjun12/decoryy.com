@@ -5,7 +5,8 @@ import { cn } from '@/lib/utils';
 import * as Haptics from 'expo-haptics';
 import { ChevronRight } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, View, type LayoutChangeEvent } from 'react-native';
+import { AppSpinner } from '@/components/ui/app-spinner';
+import { View, type LayoutChangeEvent } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -168,7 +169,7 @@ export function SwipeToConfirmButton({
               thumbStyle,
             ]}>
             {loading ? (
-              <ActivityIndicator color={styles.spinner} size="small" />
+              <AppSpinner size="sm" variant="inverse" />
             ) : (
               <Icon as={ChevronRight} className={cn('size-6', styles.icon)} />
             )}

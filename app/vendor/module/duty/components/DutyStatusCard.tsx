@@ -5,7 +5,8 @@ import { Switch } from '@/components/ui/switch';
 import { Text } from '@/components/ui/text';
 import { useVendorDuty } from '@/module/duty/hooks/use-vendor-duty';
 import { cn } from '@/lib/utils';
-import { ActivityIndicator, Pressable, View } from 'react-native';
+import { AppSpinner } from '@/components/ui/app-spinner';
+import { Pressable, View } from 'react-native';
 
 type DutyStatusCardProps = {
   variant?: 'full' | 'compact';
@@ -69,7 +70,7 @@ export function DutyStatusCard({
           <Text className="text-foreground text-sm font-medium">{title}</Text>
         </View>
         {isUpdating ? (
-          <ActivityIndicator size="small" />
+          <AppSpinner size="sm" />
         ) : (
           <Switch
             size="lg"
@@ -99,7 +100,7 @@ export function DutyStatusCard({
             <Text className="text-muted-foreground text-sm">{subtitle}</Text>
           </View>
           {isUpdating ? (
-            <ActivityIndicator />
+            <AppSpinner />
           ) : (
             <Switch
               size="lg"

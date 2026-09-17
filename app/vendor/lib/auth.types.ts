@@ -14,6 +14,19 @@ export type VendorProfile = {
   dutyChangedAt: string | null;
 };
 
+export type PartnerMembership = {
+  vendorId: string;
+  memberId: string;
+  kind: 'OWNER' | 'WORKER';
+  shopName?: string;
+};
+
+export type PartnerCapabilities = {
+  isShopOwner: boolean;
+  isFieldWorker: boolean;
+  canSwitchToFieldMode: boolean;
+};
+
 export type AuthUser = {
   id: string;
   phone: string | null;
@@ -24,6 +37,8 @@ export type AuthUser = {
   status: string;
   linkedGoogle: boolean;
   vendor?: VendorProfile;
+  partnerMembership?: PartnerMembership;
+  capabilities: PartnerCapabilities;
 };
 
 export type AuthSessionPayload = {

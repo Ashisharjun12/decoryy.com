@@ -1,4 +1,4 @@
-import { integer, pgEnum, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { boolean, integer, pgEnum, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import { users } from "@/modules/identity/users/user.schema.js";
 import { cities } from "@/modules/geo/cities/city.schema.js";
 import { products } from "@/modules/catalog/products/product.schema.js";
@@ -32,6 +32,7 @@ export const orders = pgTable(
             onDelete: "set null",
         }),
         adminNotes: text("admin_notes"),
+        isCustomPackage: boolean("is_custom_package").notNull().default(false),
         cityId: uuid("city_id")
             .notNull()
             .references(() => cities.id, { onDelete: "restrict" }),

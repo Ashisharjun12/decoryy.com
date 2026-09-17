@@ -1,7 +1,7 @@
 export function resolveNotificationTarget(data = {}) {
   if (data.event === "CHAT_MESSAGE") {
     if (data.conversationType === "booking" && data.orderId) {
-      return `/account/bookings/${data.orderId}/chat`
+      return `/account/bookings/${data.orderId}`
     }
     if (data.conversationType === "complaint" && data.orderId) {
       return `/account/bookings/${data.orderId}/complaint`

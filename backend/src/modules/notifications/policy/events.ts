@@ -13,6 +13,8 @@ export const NOTIFICATION_EVENTS = [
     "DELIVERY_CODE",
     "BOOKING_COMPLETED",
     "VENDOR_NEW_JOB",
+    "VENDOR_JOB_ASSIGNED",
+    "BOOKING_REMINDER",
     "CHAT_MESSAGE",
     "PAYOUT_PAID",
     "PAYOUT_FAILED",
@@ -170,6 +172,49 @@ export const EVENT_POLICIES: Record<NotificationEvent, EventPolicy> = {
             {
                 templateKey: "vendor_new_job",
                 channel: "sms",
+                type: "transactional",
+                priority: "standard",
+                required: false,
+            },
+        ],
+    },
+    VENDOR_JOB_ASSIGNED: {
+        channels: [
+            {
+                templateKey: "vendor_job_assigned",
+                channel: "push",
+                type: "transactional",
+                priority: "standard",
+                required: false,
+            },
+            {
+                templateKey: "vendor_job_assigned",
+                channel: "in_app",
+                type: "transactional",
+                priority: "standard",
+                required: false,
+            },
+        ],
+    },
+    BOOKING_REMINDER: {
+        channels: [
+            {
+                templateKey: "booking_reminder",
+                channel: "sms",
+                type: "transactional",
+                priority: "standard",
+                required: false,
+            },
+            {
+                templateKey: "booking_reminder",
+                channel: "push",
+                type: "transactional",
+                priority: "standard",
+                required: false,
+            },
+            {
+                templateKey: "booking_reminder",
+                channel: "in_app",
                 type: "transactional",
                 priority: "standard",
                 required: false,

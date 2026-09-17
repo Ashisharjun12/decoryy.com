@@ -13,12 +13,15 @@ import {
     sendMessageDto,
 } from "@/modules/chat/chat.dto.js";
 import { authRequired } from "@/shared/middlewares/auth.middleware.js";
-import { requireRole } from "@/shared/middlewares/requireRole.middleware.js";
+import {
+    attachPartnerContext,
+    requirePartnerRole,
+} from "@/shared/middlewares/partner.middleware.js";
 import { validate } from "@/shared/middlewares/validate.middleware.js";
 
 export function createVendorChatRouter(controller: VendorChatController) {
     const router = Router();
-    router.use(authRequired, requireRole("vendor"));
+    router.use(authRequired, requirePartnerRole, attachPartnerContext);
 
     router.get(
         "/conversations",

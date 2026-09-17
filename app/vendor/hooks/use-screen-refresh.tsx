@@ -1,4 +1,6 @@
+import { NAV_THEME } from '@/lib/theme';
 import { useFocusEffect } from 'expo-router';
+import { useColorScheme } from 'nativewind';
 import { useCallback, useMemo, useState } from 'react';
 import { RefreshControl } from 'react-native';
 
@@ -10,6 +12,8 @@ type RefetchFn = () => Promise<unknown> | unknown;
  * - Pull down: native spinner until refetch completes.
  */
 export function useScreenRefresh(refetch: RefetchFn) {
+  const { colorScheme } = useColorScheme();
+  const theme = NAV_THEME[colorScheme ?? 'light'];
   const [refreshing, setRefreshing] = useState(false);
 
   useFocusEffect(
@@ -28,8 +32,16 @@ export function useScreenRefresh(refetch: RefetchFn) {
   }, [refetch]);
 
   const refreshControl = useMemo(
-    () => <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />,
-    [refreshing, onRefresh],
+    () => (
+      <RefreshControl
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        tintColor={theme.colors.primary}
+        colors={[theme.colors.primary]}
+        progressBackgroundColor={theme.colors.card}
+      />
+    ),
+    [refreshing, onRefresh, theme.colors.card, theme.colors.primary],
   );
 
   return { refreshing, onRefresh, refreshControl };

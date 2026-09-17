@@ -3,6 +3,7 @@ import type { VendorAdminController, VendorController } from "@/modules/identity
 import {
     adminVendorIdParamsDto,
     adminVendorListQueryDto,
+    adminVendorMembersQueryDto,
     adminVendorPatchDto,
     vendorCompleteShopImageParamsDto,
     vendorPresignShopImageDto,
@@ -31,9 +32,22 @@ import { createPayoutMethodRouter } from "@/modules/payments/payout-methods/payo
 import type { WalletController } from "@/modules/payments/wallets/wallet.controller.js";
 import { createWalletRouter } from "@/modules/payments/wallets/wallet.route.js";
 import type { VendorNotificationController } from "@/modules/notifications/vendor-notification.controller.js";
+import type { VendorTeamController } from "@/modules/identity/vendor-members/vendor-team.controller.js";
+import {
+    inviteTeamMemberDto,
+    listTeamQueryDto,
+    patchTeamMemberDto,
+    putJobAssignmentsDto,
+    teamMemberIdParamsDto,
+} from "@/modules/identity/vendor-members/vendor-team.dto.js";
 import { validate } from "@/shared/middlewares/validate.middleware.js";
 import { authRequired } from "@/shared/middlewares/auth.middleware.js";
 import { requireRole } from "@/shared/middlewares/requireRole.middleware.js";
+import {
+    attachPartnerContext,
+    requireOwnerMode,
+    requirePartnerRole,
+} from "@/shared/middlewares/partner.middleware.js";
 
 export function createVendorRouter(
     vendorController: VendorController,
@@ -42,8 +56,12 @@ export function createVendorRouter(
     collectionController: CollectionController,
     walletController: WalletController,
     payoutMethodController: PayoutMethodController,
+    vendorTeamController: VendorTeamController,
 ) {
     const router = Router();
+    const partner = [authRequired, requirePartnerRole, attachPartnerContext];
+    const owner = [...partner, requireOwnerMode];
+
     router.post(
         "/register/presign-shop-image",
         validate(vendorPresignShopImageDto),
@@ -62,12 +80,8 @@ export function createVendorRouter(
         validate(vendorReapplyDto),
         vendorController.reapply,
     );
-    router.get(
-        "/duty",
-        authRequired,
-        requireRole("vendor"),
-        vendorController.getDuty,
-    );
+    router.get("/duty", authRequired, requireRole("vendor"), vendorController.getDuty);
+    router.get("/shop-duty", ...partner, vendorController.getShopDuty);
     router.patch(
         "/duty",
         authRequired,
@@ -98,134 +112,148 @@ export function createVendorRouter(
     );
     router.post(
         "/devices",
-        authRequired,
-        requireRole("vendor"),
+        ...partner,
         validate(registerPushDeviceDto),
         vendorNotificationController.registerDevice,
     );
     router.delete(
         "/devices",
-        authRequired,
-        requireRole("vendor"),
+        ...partner,
         validate(unregisterPushDeviceDto),
         vendorNotificationController.unregisterDevice,
     );
     router.get(
         "/notifications",
-        authRequired,
-        requireRole("vendor"),
+        ...partner,
         validate(vendorNotificationsQueryDto, "query"),
         vendorNotificationController.listInbox,
     );
     router.patch(
         "/notifications/read-all",
-        authRequired,
-        requireRole("vendor"),
+        ...partner,
         vendorNotificationController.markAllRead,
     );
     router.patch(
         "/notifications/:id/read",
-        authRequired,
-        requireRole("vendor"),
+        ...partner,
         validate(vendorNotificationIdParamsDto, "params"),
         vendorNotificationController.markRead,
     );
+    router.get("/team", ...owner, validate(listTeamQueryDto, "query"), vendorTeamController.list);
+    router.post("/team", ...owner, validate(inviteTeamMemberDto), vendorTeamController.invite);
+    router.patch(
+        "/team/:memberId",
+        ...owner,
+        validate(teamMemberIdParamsDto, "params"),
+        validate(patchTeamMemberDto),
+        vendorTeamController.patch,
+    );
+    router.delete(
+        "/team/:memberId",
+        ...owner,
+        validate(teamMemberIdParamsDto, "params"),
+        vendorTeamController.disable,
+    );
     router.get(
         "/jobs",
-        authRequired,
-        requireRole("vendor"),
+        ...partner,
         validate(vendorJobsQueryDto, "query"),
         vendorJobController.list,
     );
     router.get(
         "/jobs/:orderId",
-        authRequired,
-        requireRole("vendor"),
+        ...partner,
         validate(vendorJobOrderParamsDto, "params"),
         vendorJobController.get,
     );
+    router.get(
+        "/jobs/:orderId/assignments",
+        ...owner,
+        validate(vendorJobOrderParamsDto, "params"),
+        vendorJobController.listAssignments,
+    );
+    router.put(
+        "/jobs/:orderId/assignments",
+        ...owner,
+        validate(vendorJobOrderParamsDto, "params"),
+        validate(putJobAssignmentsDto),
+        vendorJobController.setAssignments,
+    );
+    router.post(
+        "/jobs/:orderId/assignments/self",
+        ...owner,
+        validate(vendorJobOrderParamsDto, "params"),
+        vendorJobController.assignSelf,
+    );
     router.post(
         "/jobs/:orderId/accept",
-        authRequired,
-        requireRole("vendor"),
+        ...owner,
         validate(vendorJobOrderParamsDto, "params"),
         vendorJobController.accept,
     );
     router.post(
         "/jobs/:orderId/decline",
-        authRequired,
-        requireRole("vendor"),
+        ...owner,
         validate(vendorJobOrderParamsDto, "params"),
         vendorJobController.decline,
     );
     router.post(
         "/jobs/:orderId/en-route",
-        authRequired,
-        requireRole("vendor"),
+        ...partner,
         validate(vendorJobOrderParamsDto, "params"),
         vendorJobController.markEnRoute,
     );
     router.post(
         "/jobs/:orderId/on-site",
-        authRequired,
-        requireRole("vendor"),
+        ...partner,
         validate(vendorJobOrderParamsDto, "params"),
         vendorJobController.markOnSite,
     );
     router.post(
         "/jobs/:orderId/send-delivery-code",
-        authRequired,
-        requireRole("vendor"),
+        ...partner,
         validate(vendorJobOrderParamsDto, "params"),
         vendorJobController.sendDeliveryCode,
     );
     router.post(
         "/jobs/:orderId/complete",
-        authRequired,
-        requireRole("vendor"),
+        ...partner,
         validate(vendorJobOrderParamsDto, "params"),
         validate(completeVendorJobDto),
         vendorJobController.complete,
     );
     router.get(
         "/jobs/:orderId/collect/status",
-        authRequired,
-        requireRole("vendor"),
+        ...partner,
         validate(vendorJobOrderParamsDto, "params"),
         collectionController.status,
     );
     router.post(
         "/jobs/:orderId/collect/cash",
-        authRequired,
-        requireRole("vendor"),
+        ...partner,
         validate(vendorJobOrderParamsDto, "params"),
         collectionController.collectCash,
     );
     router.post(
         "/jobs/:orderId/collect/online",
-        authRequired,
-        requireRole("vendor"),
+        ...partner,
         validate(vendorJobOrderParamsDto, "params"),
         collectionController.collectOnline,
     );
-    router.use(
-        "/wallet",
-        authRequired,
-        requireRole("vendor"),
-        createWalletRouter(walletController),
-    );
-    router.use(
-        "/payout-methods",
-        authRequired,
-        requireRole("vendor"),
-        createPayoutMethodRouter(payoutMethodController),
-    );
+    router.use("/wallet", ...owner, createWalletRouter(walletController));
+    router.use("/payout-methods", ...owner, createPayoutMethodRouter(payoutMethodController));
     return router;
 }
 
 export function createVendorAdminRouter(vendorAdminController: VendorAdminController) {
     const router = Router();
     router.get("/", validate(adminVendorListQueryDto, "query"), vendorAdminController.list);
+    router.get(
+        "/:id/members",
+        validate(adminVendorIdParamsDto, "params"),
+        validate(adminVendorMembersQueryDto, "query"),
+        vendorAdminController.listMembers,
+    );
     router.get("/:id", validate(adminVendorIdParamsDto, "params"), vendorAdminController.get);
     router.patch(
         "/:id",

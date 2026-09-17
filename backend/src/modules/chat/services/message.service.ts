@@ -5,6 +5,9 @@ import type { IDeliveryRouter } from "@/modules/notifications/delivery/delivery-
 import type { INotificationService } from "@/modules/notifications/notification.service.js";
 import type { IOrderRepository } from "@/modules/booking/orders/order.repository.js";
 import type { IUserRepository } from "@/modules/identity/users/user.repository.js";
+import type { IVendorRepository } from "@/modules/identity/vendors/vendor.repository.js";
+import type { IAssignmentRepository } from "@/modules/assignment/assignments/assignment.repository.js";
+import type { IOrderFieldAssignmentRepository } from "@/modules/assignment/field-assignments/order-field-assignment.repository.js";
 import type { Conversation } from "@/modules/chat/conversations/conversation.schema.js";
 import type { IConversationRepository } from "@/modules/chat/conversations/conversation.repository.js";
 import type { IMessageRepository } from "@/modules/chat/messages/message.repository.js";
@@ -75,6 +78,9 @@ export class MessageService implements IMessageService {
         private readonly conversationService: IConversationService,
         private readonly users: IUserRepository,
         private readonly orders: IOrderRepository,
+        private readonly assignments: IAssignmentRepository,
+        private readonly vendors: IVendorRepository,
+        private readonly fieldAssignments: IOrderFieldAssignmentRepository,
         private readonly notifications: INotificationService,
         private readonly realtime: RealtimePort,
         private readonly deliveryRouter: IDeliveryRouter,
@@ -278,6 +284,14 @@ export class MessageService implements IMessageService {
         for (const p of participants) {
             if (p.userId === senderUserId) continue;
 
+            if (
+                conversation.type === "booking" &&
+                conversation.contextId &&
+                (await this.shouldSkipBookingChatNotify(p.userId, conversation.contextId))
+            ) {
+                continue;
+            }
+
             await this.realtime.publish({
                 userId: p.userId,
                 event: CHAT_MESSAGE_EVENT,
@@ -299,6 +313,7 @@ export class MessageService implements IMessageService {
                     userId: p.userId,
                     channels: plan === "in_app" ? ["in_app"] : ["push"],
                     data: {
+                        event: "CHAT_MESSAGE",
                         senderName: sender?.name ?? "Someone",
                         preview,
                         conversationId: conversation.id,
@@ -312,6 +327,21 @@ export class MessageService implements IMessageService {
                 // non-blocking
             }
         }
+    }
+
+    private async shouldSkipBookingChatNotify(
+        recipientUserId: string,
+        orderId: string,
+    ): Promise<boolean> {
+        const assignment = await this.assignments.findActiveByOrderId(orderId);
+        if (!assignment) return false;
+
+        const vendor = await this.vendors.findById(assignment.vendorId);
+        if (!vendor || recipientUserId !== vendor.userId) return false;
+
+        const fieldRows = await this.fieldAssignments.listForOrder(assignment.vendorId, orderId);
+        const workerUserId = fieldRows[0]?.userId;
+        return Boolean(workerUserId && workerUserId !== vendor.userId);
     }
 }
 

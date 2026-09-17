@@ -10,9 +10,7 @@ import { usePushRegistration } from '@/hooks/use-push-registration';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import * as Notifications from 'expo-notifications';
 import { Href, router } from 'expo-router';
-import { useEffect, useRef } from 'react';
-
-let coldStartHandled = false;
+import { useEffect } from 'react';
 
 function navigateFromNotificationData(data: Record<string, unknown> | undefined) {
   const parsed = extractNotificationData(data);
@@ -39,24 +37,9 @@ function invalidateForNotificationData(
 export function useNotificationListeners() {
   usePushRegistration();
   const queryClient = useQueryClient();
-  const mountedRef = useRef(false);
 
   useEffect(() => {
     configureForegroundNotifications();
-
-    if (!mountedRef.current) {
-      mountedRef.current = true;
-
-      if (!coldStartHandled) {
-        coldStartHandled = true;
-        void Notifications.getLastNotificationResponseAsync().then((response) => {
-          if (!response) return;
-          navigateFromNotificationData(
-            response.notification.request.content.data as Record<string, unknown>,
-          );
-        });
-      }
-    }
 
     const receivedSub = Notifications.addNotificationReceivedListener((notification) => {
       invalidateForNotificationData(

@@ -35,6 +35,7 @@ export interface IParticipantRepository {
         tx?: DbTx,
     ): Promise<void>;
     totalUnreadForUser(userId: string): Promise<number>;
+    removeParticipant(conversationId: string, userId: string, tx?: DbTx): Promise<void>;
 }
 
 export class ParticipantRepository implements IParticipantRepository {
@@ -131,5 +132,17 @@ export class ParticipantRepository implements IParticipantRepository {
             .from(conversationParticipants)
             .where(eq(conversationParticipants.userId, userId));
         return row?.total ?? 0;
+    }
+
+    async removeParticipant(conversationId: string, userId: string, tx?: DbTx): Promise<void> {
+        const client = tx ?? db;
+        await client
+            .delete(conversationParticipants)
+            .where(
+                and(
+                    eq(conversationParticipants.conversationId, conversationId),
+                    eq(conversationParticipants.userId, userId),
+                ),
+            );
     }
 }

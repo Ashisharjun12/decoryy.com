@@ -21,7 +21,7 @@ export default function RejectedScreen() {
     setSigningOut(true);
     try {
       await signOut();
-      router.replace('/(onboarding)/sign-in' as Href);
+      router.replace('/(onboarding)/login-choice' as Href);
     } finally {
       setSigningOut(false);
     }

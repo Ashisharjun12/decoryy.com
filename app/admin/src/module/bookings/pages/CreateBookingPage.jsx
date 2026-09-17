@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useNavigate } from "react-router-dom"
@@ -18,6 +18,7 @@ import { CreateBookingSummary } from "@/module/bookings/components/CreateBooking
 import { useBookingOrderPreview } from "@/module/bookings/hooks/use-booking-order-preview"
 import {
   createBookingSchema,
+  isCustomBookingReady,
   toCreateBookingPayload,
 } from "@/module/bookings/schema/create-booking.schema"
 
@@ -33,18 +34,27 @@ export function CreateBookingPage() {
 
   const form = useForm({
     resolver: zodResolver(createBookingSchema),
+    mode: "onChange",
+    reValidateMode: "onChange",
     defaultValues: {
+      orderKind: "catalog",
       customer: { name: "", phone: "", email: "" },
       delivery: { pincode: "", address: "", landmark: "", cityId: "" },
       scheduledAt: "",
       productId: "",
       quantity: 1,
       addonIds: [],
+      customName: "",
+      customPriceRupees: "",
+      customImageUploadId: "",
+      customImagePreviewUrl: "",
       paymentMethod: "prepaid",
       adminNotes: "",
     },
   })
 
+  const orderKind = form.watch("orderKind")
+  const formValues = form.watch()
   const cityId = form.watch("delivery.cityId")
   const quantity = form.watch("quantity") || 1
   const addonIds = form.watch("addonIds") ?? []
@@ -65,12 +75,24 @@ export function CreateBookingPage() {
   }, [orderSelection])
 
   const preview = useBookingOrderPreview({
+    enabled: orderKind !== "custom",
     productId: orderSelection?.productId ?? "",
     cityId: orderSelection?.cityId ?? cityId,
     addonIds: orderSelection?.addonIds ?? addonIds,
     quantity: orderSelection?.quantity ?? quantity,
     fallback: previewFallback,
   })
+
+  const orderReady =
+    orderKind === "custom" ? isCustomBookingReady(formValues) : Boolean(orderSelection)
+
+  useEffect(() => {
+    if (!resolvedCity?.id || !cityId) {
+      setPincodeMismatch(false)
+      return
+    }
+    setPincodeMismatch(resolvedCity.id !== cityId)
+  }, [resolvedCity, cityId])
 
   async function onSubmit(values) {
     if (
@@ -79,7 +101,9 @@ export function CreateBookingPage() {
       resolvedCity.id !== values.delivery.cityId
     ) {
       setError(
-        `Delivery pincode is in ${resolvedCity.name}, but the package is priced for ${packageCity?.name || "another city"}.`,
+        orderKind === "custom"
+          ? `Delivery pincode is in ${resolvedCity.name}, but the setup city is ${packageCity?.name || "another city"}.`
+          : `Delivery pincode is in ${resolvedCity.name}, but the package is priced for ${packageCity?.name || "another city"}.`,
       )
       return
     }
@@ -143,7 +167,7 @@ export function CreateBookingPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Order</CardTitle>
-              <CardDescription>Select city, package, setup slot, and add-ons</CardDescription>
+              <CardDescription>Platform catalog package or a custom customer-specific setup</CardDescription>
             </CardHeader>
             <CardContent>
               <CreateBookingOrderCard
@@ -196,7 +220,7 @@ export function CreateBookingPage() {
           <Button
             type="submit"
             className="w-full"
-            disabled={submitting || !orderSelection || pincodeMismatch}
+            disabled={submitting || !orderReady || pincodeMismatch}
           >
             {submitting ? <Spinner className="size-4" /> : null}
             Create booking

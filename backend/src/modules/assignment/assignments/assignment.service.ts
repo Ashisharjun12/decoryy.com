@@ -9,6 +9,7 @@ import type { RealtimePort } from "@/infrastructure/realtime/realtime.port.js";
 import type { IVendorRepository } from "@/modules/identity/vendors/vendor.repository.js";
 import type { INotificationService } from "@/modules/notifications/notification.service.js";
 import { formatBookingSchedule } from "@/modules/notifications/templates/email/booking-confirmed.render.js";
+import { auditService } from "@/modules/ops/audit/audit.service.js";
 import { settingService } from "@/modules/ops/index.js";
 import { ledgerService } from "@/modules/payments/ledger/ledger.service.js";
 import { logger } from "@/utils/logger.js";
@@ -113,6 +114,9 @@ export class AssignmentService implements IAssignmentService {
             throw ApiError.conflict("already assigned to this vendor");
         }
 
+        const previousVendorId = existing?.vendorId ?? null;
+        const isReassign = Boolean(existing && previousVendorId !== input.vendorId);
+
         const assignment = await db.transaction(async (tx) => {
             if (order.status === "ASSIGNED") {
                 const reverted = await this.orders.markConfirmed(orderId, tx);
@@ -131,6 +135,24 @@ export class AssignmentService implements IAssignmentService {
                 },
                 tx,
             );
+        });
+
+        await auditService.log({
+            actorId: adminUserId,
+            action: isReassign ? "order.vendor_reassigned" : "order.vendor_assigned",
+            entityType: "order",
+            entityId: orderId,
+            summary: isReassign
+                ? `Reassigned order ${order.reference} to vendor ${input.vendorId}`
+                : `Assigned order ${order.reference} to vendor ${input.vendorId}`,
+            before: {
+                vendorId: previousVendorId,
+                orderStatus: order.status,
+            },
+            after: {
+                vendorId: input.vendorId,
+                assignmentId: assignment.id,
+            },
         });
 
         const assignedOrder = await reloadOrder(orderId);

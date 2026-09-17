@@ -11,7 +11,7 @@ export class SettingController {
     });
 
     patchNotifications = asyncHandler(async (req, res) => {
-        const data = await this.settings.patchNotificationChannels(req.body);
+        const data = await this.settings.patchNotificationChannels(req.body, req.actor!.id);
         res.status(200).json(new ApiResponse(200, data, "notification channels updated"));
     });
 
@@ -21,7 +21,7 @@ export class SettingController {
     });
 
     patchPayments = asyncHandler(async (req, res) => {
-        const data = await this.settings.patchPaymentMethods(req.body);
+        const data = await this.settings.patchPaymentMethods(req.body, req.actor!.id);
         res.status(200).json(new ApiResponse(200, data, "payment methods updated"));
     });
 
@@ -31,7 +31,17 @@ export class SettingController {
     });
 
     patchPayoutPolicy = asyncHandler(async (req, res) => {
-        const data = await this.settings.patchPayoutPolicy(req.body);
+        const data = await this.settings.patchPayoutPolicy(req.body, req.actor!.id);
         res.status(200).json(new ApiResponse(200, data, "payout policy updated"));
+    });
+
+    getBookingPolicy = asyncHandler(async (_req, res) => {
+        const data = await this.settings.getBookingPolicy();
+        res.status(200).json(new ApiResponse(200, data, "ok"));
+    });
+
+    patchBookingPolicy = asyncHandler(async (req, res) => {
+        const data = await this.settings.patchBookingPolicy(req.body, req.actor!.id);
+        res.status(200).json(new ApiResponse(200, data, "booking policy updated"));
     });
 }

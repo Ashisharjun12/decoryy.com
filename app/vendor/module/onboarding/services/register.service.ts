@@ -20,9 +20,15 @@ function fileNameFromUri(uri: string) {
   return parts[parts.length - 1] || 'shop.jpg';
 }
 
+export type VendorRegistrationOtpResult = {
+  phone: string;
+  otp?: string;
+  shopImageUploadId?: string;
+};
+
 export async function submitVendorRegistration(
   payload: VendorRegisterPayload & { shopImageUri?: string }
-) {
+): Promise<VendorRegistrationOtpResult> {
   let shopImageUploadId = payload.shopImageUploadId;
 
   if (payload.shopImageUri) {
@@ -37,7 +43,7 @@ export async function submitVendorRegistration(
     shopImageUploadId = completed.uploadId;
   }
 
-  return registerVendor({
+  const otpResult = await registerVendor({
     name: payload.name,
     email: payload.email,
     phone: payload.phone,
@@ -48,6 +54,8 @@ export async function submitVendorRegistration(
     shopImageUploadId,
     androidAppHash: await getAndroidOtpAppHash(),
   });
+
+  return { ...otpResult, shopImageUploadId };
 }
 
 type ReapplyPayload = {

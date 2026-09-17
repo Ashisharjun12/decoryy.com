@@ -24,7 +24,8 @@ function newClientMessageId() {
   });
 }
 
-export function useBookingChatThread(orderId: string) {
+export function useBookingChatThread(orderId: string, options?: { enabled?: boolean }) {
+  const chatEnabled = options?.enabled !== false && Boolean(orderId);
   const queryClient = useQueryClient();
   const userId = useAuthStore((s) => s.user?.id);
   const setActiveConversation = useChatStore((s) => s.setActiveConversation);
@@ -33,7 +34,7 @@ export function useBookingChatThread(orderId: string) {
   const conversationQuery = useQuery({
     queryKey: ['chat', 'booking', orderId],
     queryFn: () => chatApi.getBookingConversation(orderId),
-    enabled: Boolean(orderId),
+    enabled: chatEnabled,
     refetchInterval: 15000,
   });
 

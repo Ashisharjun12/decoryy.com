@@ -30,6 +30,19 @@ export function getVendor(id) {
   return api.get(`/admin/vendors/${id}`).then(unwrap);
 }
 
+export function listVendorWorkers(id, { page = 1, limit = 20, q, status } = {}) {
+  return api
+    .get(`/admin/vendors/${id}/members`, {
+      params: {
+        page,
+        limit,
+        ...(q ? { q } : {}),
+        ...(status ? { status } : {}),
+      },
+    })
+    .then(unwrap);
+}
+
 export function patchVendorStatus(id, onboardingStatus) {
   return api.patch(`/admin/vendors/${id}`, { onboardingStatus }).then(unwrap);
 }

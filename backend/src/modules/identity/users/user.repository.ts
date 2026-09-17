@@ -4,6 +4,7 @@ import {
     users,
     type NewUser,
     type User,
+    type UserRole,
     type UserStatus,
 } from "@/modules/identity/users/user.schema.js";
 
@@ -25,6 +26,7 @@ export interface IUserRepository {
     updateName(id: string, name: string): Promise<void>;
     setEmail(id: string, email: string): Promise<User>;
     updateStatus(id: string, status: UserStatus): Promise<User>;
+    updateRole(id: string, role: UserRole): Promise<User>;
 }
 
 export class UserRepository implements IUserRepository {
@@ -170,6 +172,18 @@ export class UserRepository implements IUserRepository {
             .returning();
         if (!row) {
             throw new Error("failed to update user status");
+        }
+        return row;
+    }
+
+    async updateRole(id: string, role: UserRole): Promise<User> {
+        const [row] = await db
+            .update(users)
+            .set({ role, updatedAt: new Date() })
+            .where(eq(users.id, id))
+            .returning();
+        if (!row) {
+            throw new Error("failed to update user role");
         }
         return row;
     }

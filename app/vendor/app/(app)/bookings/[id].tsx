@@ -1,7 +1,7 @@
 import { FadeInView, PressableScale, SlideInBottom } from '@/components/motion';
 import { triggerHaptic } from '@/components/motion/haptics';
 import * as Haptics from 'expo-haptics';
-import { IconWell, SoftSection, Surface } from '@/components/shell';
+import { IconWell, LoadingPlaceholder, SoftSection, Surface } from '@/components/shell';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
@@ -38,6 +38,9 @@ import {
 import { useVendorDuty } from '@/module/duty/hooks/use-vendor-duty';
 import { useNotificationJobPreview } from '@/module/notifications/hooks/use-notification-job-preview';
 import { useAuthStore } from '@/store/auth.store';
+import { AssignedWorkerChip } from '@/module/team/components/AssignedWorkerChip';
+import { JobAssignSection } from '@/module/team/components/JobAssignSection';
+import { selectIsFieldShell, usePartnerModeStore } from '@/store/partner-mode.store';
 import { Href, router, useLocalSearchParams } from 'expo-router';
 import {
   ArrowLeft,
@@ -49,7 +52,6 @@ import {
 } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Image,
   Linking,
@@ -226,6 +228,10 @@ export default function BookingDetailScreen() {
   const insets = useSafeAreaInsets();
   const preview = useNotificationJobPreview(orderId);
   const { data: booking, isLoading, isError } = useVendorJob(orderId);
+  const user = useAuthStore((s) => s.user);
+  const partnerMode = usePartnerModeStore((s) => s.mode);
+  const isFieldShell = selectIsFieldShell(partnerMode, user);
+  const isOwnerShell = !isFieldShell;
   const acceptMutation = useAcceptVendorJob(orderId);
   const declineMutation = useDeclineVendorJob(orderId);
   const enRouteMutation = useMarkEnRoute(orderId);
@@ -285,7 +291,7 @@ export default function BookingDetailScreen() {
   if (isLoading) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-background">
-        <ActivityIndicator />
+        <LoadingPlaceholder className="py-0" />
       </SafeAreaView>
     );
   }
@@ -448,6 +454,9 @@ export default function BookingDetailScreen() {
               status={booking.needsAction ? 'CONFIRMED' : booking.status}
               className="self-start"
             />
+            {isOwnerShell && booking.vendorResponse === 'accepted' ? (
+              <AssignedWorkerChip orderId={orderId} />
+            ) : null}
           </View>
         </FadeInView>
 
@@ -524,6 +533,12 @@ export default function BookingDetailScreen() {
             </View>
           </SoftSection>
         </FadeInView>
+
+        {isOwnerShell && booking.vendorResponse === 'accepted' ? (
+          <FadeInView delay={160}>
+            <JobAssignSection orderId={orderId} accepted />
+          </FadeInView>
+        ) : null}
 
         <FadeInView delay={180}>
           <BookingItemsList
@@ -604,7 +619,7 @@ export default function BookingDetailScreen() {
         subtotalPaise={booking.subtotalPaise}
       />
 
-      {booking.needsAction ? (
+      {isOwnerShell && booking.needsAction ? (
         <BottomActionBar bottom={actionBottom}>
           <BookingAcceptActions
             showSwipe={isOnDuty}
@@ -619,7 +634,7 @@ export default function BookingDetailScreen() {
             primaryLoading={dutyUpdating}
           />
         </BottomActionBar>
-      ) : booking.status === 'COMPLETED' ? null : (
+      ) : !isFieldShell || booking.status === 'COMPLETED' ? null : (
         <BottomActionBar bottom={actionBottom}>
           <View className="gap-2">
             {booking.status === 'ASSIGNED' ? (

@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { formatUnreadBadgeCount } from '@/module/notifications/lib/notification-format';
 import { router } from 'expo-router';
 import { Bell } from 'lucide-react-native';
+import type { ReactNode } from 'react';
 import { View } from 'react-native';
 
 type ScreenHeaderProps = {
@@ -12,6 +13,8 @@ type ScreenHeaderProps = {
   subtitle?: string;
   showBell?: boolean;
   unreadCount?: number;
+  /** Replaces the notifications bell when set (e.g. Team add button). */
+  trailing?: ReactNode;
   className?: string;
 };
 
@@ -20,6 +23,7 @@ export function ScreenHeader({
   subtitle,
   showBell = true,
   unreadCount = 0,
+  trailing,
   className,
 }: ScreenHeaderProps) {
   const badgeLabel = formatUnreadBadgeCount(unreadCount);
@@ -30,7 +34,8 @@ export function ScreenHeader({
         <Text className="text-2xl font-semibold text-foreground">{title}</Text>
         {subtitle ? <Text className="text-muted-foreground text-sm">{subtitle}</Text> : null}
       </View>
-      {showBell ? (
+      {trailing ?? null}
+      {!trailing && showBell ? (
         <PressableScale
           className="relative size-11 items-center justify-center rounded-full bg-muted"
           onPress={() => router.push('/(app)/notifications')}

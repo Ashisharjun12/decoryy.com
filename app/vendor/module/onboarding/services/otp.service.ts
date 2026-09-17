@@ -8,7 +8,8 @@ export async function sendSignInOtp(phone: string) {
 }
 
 export async function verifySignInOtp(phone: string, otp: string) {
-  const result = await verifyOtp(phone, otp);
+  const loginIntent = useAuthStore.getState().pendingLoginIntent ?? undefined;
+  const result = await verifyOtp(phone, otp, loginIntent);
   await useAuthStore.getState().setSession(result);
   return result;
 }

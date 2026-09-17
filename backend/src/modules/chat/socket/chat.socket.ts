@@ -3,6 +3,7 @@ import type { AppState } from "@/infrastructure/realtime/session-context.store.j
 import { sessionContextStore } from "@/infrastructure/realtime/session-context.store.js";
 import { RealtimeFactory } from "@/infrastructure/realtime/realtime.factory.js";
 import { AssignmentRepository } from "@/modules/assignment/assignments/assignment.repository.js";
+import { OrderFieldAssignmentRepository } from "@/modules/assignment/field-assignments/order-field-assignment.repository.js";
 import { OrderRepository } from "@/modules/booking/orders/order.repository.js";
 import { ConversationRepository } from "@/modules/chat/conversations/conversation.repository.js";
 import { ParticipantRepository } from "@/modules/chat/participants/participant.repository.js";
@@ -17,6 +18,7 @@ import {
     attachChatTypingHandler,
 } from "@/modules/chat/services/typing.service.js";
 import { VendorRepository } from "@/modules/identity/vendors/vendor.repository.js";
+import { VendorMemberRepository } from "@/modules/identity/vendor-members/vendor-member.repository.js";
 
 let typingService: TypingService | null = null;
 
@@ -31,6 +33,8 @@ function getTypingService(): TypingService {
                 new OrderRepository(),
                 new AssignmentRepository(),
                 new VendorRepository(),
+                new OrderFieldAssignmentRepository(),
+                new VendorMemberRepository(),
             ),
             RealtimeFactory.getProvider(),
         );

@@ -1,7 +1,6 @@
 import { FadeInView, PressableScale } from '@/components/motion';
 import { triggerHaptic } from '@/components/motion/haptics';
-import { Screen } from '@/components/shell';
-import { Surface } from '@/components/shell';
+import { LoadingPlaceholder, Screen, Surface } from '@/components/shell';
 import { Text } from '@/components/ui/text';
 import { useSupportChatThread } from '@/module/chat/hooks/use-chat-thread';
 import type { ChatMessage } from '@/api/chat.api';
@@ -9,12 +8,7 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { Send } from 'lucide-react-native';
 import { useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  TextInput,
-  View,
-} from 'react-native';
+import { FlatList, TextInput, View } from 'react-native';
 
 export default function SupportChatScreen() {
   const { messages, isLoading, sendMessage, isSending } = useSupportChatThread();
@@ -42,9 +36,7 @@ export default function SupportChatScreen() {
       </View>
 
       {isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator />
-        </View>
+        <LoadingPlaceholder className="flex-1" />
       ) : (
         <FlatList
           ref={listRef}

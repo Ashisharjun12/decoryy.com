@@ -1,5 +1,7 @@
 import { me, refresh } from '@/api/auth.api';
-import { registerAccessTokenGetter } from '@/api/client';
+import { registerAccessTokenGetter, registerPartnerModeGetter } from '@/api/client';
+import type { PartnerLoginIntent } from '@/lib/login-intent';
+import { usePartnerModeStore } from '@/store/partner-mode.store';
 import { clearPushRegistration } from '@/lib/push-registration';
 import type { AuthSessionPayload, AuthUser, VendorProfile } from '@/lib/auth.types';
 import {
@@ -32,6 +34,7 @@ export type RegisterLocationPayload = {
   shopAddress: string;
   pincode: string;
   shopImageUri?: string;
+  shopImageUploadId?: string;
 };
 
 export type RegisterPayload = RegisterBasicPayload & RegisterLocationPayload;
@@ -46,13 +49,22 @@ type AuthState = {
   pendingRegistration: RegisterPayload | null;
   pendingOtpPhone: string | null;
   pendingOtpMode: 'register' | 'sign-in' | null;
+  pendingLoginIntent: PartnerLoginIntent | null;
+  registerOtpRequested: boolean;
   lastDevOtp: string | null;
   isReapplyMode: boolean;
   hydrate: () => Promise<void>;
   completeWelcome: () => Promise<void>;
   setRegisterDraft: (data: RegisterBasicPayload) => void;
   setPendingRegistration: (data: RegisterPayload) => void;
-  setPendingOtp: (input: { phone: string; mode: 'register' | 'sign-in'; devOtp?: string }) => void;
+  setPendingOtp: (input: {
+    phone: string;
+    mode: 'register' | 'sign-in';
+    devOtp?: string;
+    loginIntent?: PartnerLoginIntent | null;
+    registerOtpRequested?: boolean;
+  }) => void;
+  setPendingLoginIntent: (intent: PartnerLoginIntent | null) => void;
   setSession: (payload: AuthSessionPayload) => Promise<void>;
   refreshSession: () => Promise<AuthUser | null>;
   clearPendingOtp: () => void;
@@ -76,6 +88,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   pendingRegistration: null,
   pendingOtpPhone: null,
   pendingOtpMode: null,
+  pendingLoginIntent: null,
+  registerOtpRequested: false,
   lastDevOtp: null,
   isReapplyMode: false,
 
@@ -93,6 +107,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const payload = await refresh(refreshToken);
       await saveTokens(payload.accessToken, payload.refreshToken);
+      await usePartnerModeStore.getState().resetForUser(payload.user);
       set({
         hydrated: true,
         hasSeenWelcome,
@@ -134,16 +149,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       pendingOtpMode: null,
     }),
 
-  setPendingOtp: ({ phone, mode, devOtp }) =>
+  setPendingOtp: ({ phone, mode, devOtp, loginIntent, registerOtpRequested }) =>
     set({
       pendingOtpPhone: phone,
       pendingOtpMode: mode,
+      pendingLoginIntent:
+        loginIntent !== undefined ? loginIntent : mode === 'sign-in' ? get().pendingLoginIntent : null,
+      registerOtpRequested: mode === 'register' ? (registerOtpRequested ?? false) : false,
       lastDevOtp: devOtp ?? null,
       pendingRegistration: mode === 'register' ? get().pendingRegistration : null,
     }),
 
+  setPendingLoginIntent: (intent) => set({ pendingLoginIntent: intent }),
+
   setSession: async (payload) => {
     await saveTokens(payload.accessToken, payload.refreshToken);
+    await usePartnerModeStore.getState().resetForUser(payload.user);
     set({
       accessToken: payload.accessToken,
       refreshToken: payload.refreshToken ?? get().refreshToken,
@@ -151,6 +172,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       pendingRegistration: null,
       pendingOtpPhone: null,
       pendingOtpMode: null,
+      pendingLoginIntent: null,
+      registerOtpRequested: false,
       lastDevOtp: null,
       registerDraft: null,
       isReapplyMode: false,
@@ -185,6 +208,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({
       pendingOtpPhone: null,
       pendingOtpMode: null,
+      pendingLoginIntent: null,
+      registerOtpRequested: false,
       lastDevOtp: null,
       pendingRegistration: null,
     }),
@@ -227,6 +252,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     }
     await clearTokens();
+    await usePartnerModeStore.getState().clear();
     set({
       accessToken: null,
       refreshToken: null,
@@ -234,6 +260,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       pendingRegistration: null,
       pendingOtpPhone: null,
       pendingOtpMode: null,
+      pendingLoginIntent: null,
+      registerOtpRequested: false,
       lastDevOtp: null,
       isReapplyMode: false,
     });
@@ -298,3 +326,4 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 }));
 
 registerAccessTokenGetter(() => useAuthStore.getState().accessToken);
+registerPartnerModeGetter(() => usePartnerModeStore.getState().mode);

@@ -10,10 +10,15 @@ import {
   parseNotificationData,
   type VendorInboxNotification,
 } from '@/module/notifications/lib/notification-types';
+import { usePartnerNotificationsEnabled } from '@/module/partner/shared/use-partner-notifications-enabled';
+import { selectIsFieldShell, usePartnerModeStore } from '@/store/partner-mode.store';
 import { useAuthStore } from '@/store/auth.store';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
+
+const FIELD_HIDDEN_EVENTS = new Set(['VENDOR_NEW_JOB', 'PAYOUT_PAID', 'PAYOUT_FAILED']);
+const OWNER_HIDDEN_EVENTS = new Set(['VENDOR_JOB_ASSIGNED']);
 
 function mapNotification(item: VendorNotification): VendorInboxNotification {
   return {
@@ -24,8 +29,10 @@ function mapNotification(item: VendorNotification): VendorInboxNotification {
 
 export function useVendorNotifications() {
   const accessToken = useAuthStore((s) => s.accessToken);
-  const vendorStatus = useAuthStore((s) => s.user?.vendor?.onboardingStatus ?? null);
-  const enabled = Boolean(accessToken) && vendorStatus === 'ACTIVE';
+  const user = useAuthStore((s) => s.user);
+  const partnerMode = usePartnerModeStore((s) => s.mode);
+  const isFieldShell = selectIsFieldShell(partnerMode, user);
+  const enabled = usePartnerNotificationsEnabled(accessToken, user);
 
   const query = useInfiniteQuery({
     queryKey: notificationQueryKeys.list(),
@@ -80,10 +87,11 @@ export function useVendorNotifications() {
     },
   });
 
-  const notifications = useMemo(
-    () => query.data?.pages.flatMap((page) => page.items) ?? [],
-    [query.data?.pages],
-  );
+  const notifications = useMemo(() => {
+    const all = query.data?.pages.flatMap((page) => page.items) ?? [];
+    const hidden = isFieldShell ? FIELD_HIDDEN_EVENTS : OWNER_HIDDEN_EVENTS;
+    return all.filter((item) => !hidden.has(item.data.event ?? ''));
+  }, [query.data?.pages, isFieldShell]);
   const total = query.data?.pages[0]?.total ?? 0;
   const hasMore = Boolean(query.hasNextPage);
   const unreadCount = useMemo(

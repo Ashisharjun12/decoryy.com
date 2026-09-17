@@ -1,5 +1,7 @@
 export * from "../modules/identity/users/user.schema.js";
 export * from "../modules/identity/vendors/vendor.schema.js";
+export * from "../modules/identity/vendor-members/vendor-member.schema.js";
+export * from "../modules/assignment/field-assignments/order-field-assignment.schema.js";
 export * from "../modules/identity/sessions/session.schema.js";
 export * from "../modules/geo/cities/city.schema.js";
 export * from "../modules/geo/pincodes/pincode.schema.js";
@@ -12,6 +14,7 @@ export * from "../modules/catalog/sections/section.schema.js";
 export * from "../modules/booking/carts/cart.schema.js";
 export * from "../modules/booking/orders/order.schema.js";
 export * from "../modules/ops/settings/setting.schema.js";
+export * from "../modules/ops/audit/audit-log.schema.js";
 export * from "../modules/notifications/schema.js";
 export * from "../modules/notifications/devices/device.schema.js";
 export * from "../modules/payments/intents/payment-intent.schema.js";

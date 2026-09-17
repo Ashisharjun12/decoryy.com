@@ -13,8 +13,10 @@ import { useNotificationNavigation } from '@/module/notifications/hooks/use-noti
 import { useVendorNotifications } from '@/module/notifications/hooks/use-vendor-notifications';
 import { groupNotificationsByDate } from '@/module/notifications/lib/group-notifications-by-date';
 import type { VendorInboxNotification } from '@/module/notifications/lib/notification-types';
+import { useScreenRefresh } from '@/hooks/use-screen-refresh';
 import { useCallback, useMemo } from 'react';
-import { ActivityIndicator, SectionList, View } from 'react-native';
+import { AppSpinner } from '@/components/ui/app-spinner';
+import { SectionList, View } from 'react-native';
 
 export default function NotificationsScreen() {
   const {
@@ -30,6 +32,8 @@ export default function NotificationsScreen() {
     markAllRead,
     isMarkingAllRead,
   } = useVendorNotifications();
+  const refetchAll = useCallback(() => refetch(), [refetch]);
+  const { refreshControl } = useScreenRefresh(refetchAll);
   const handlePress = useNotificationNavigation({ markRead });
 
   const sections = useMemo(() => groupNotificationsByDate(notifications), [notifications]);
@@ -61,7 +65,7 @@ export default function NotificationsScreen() {
     if (!isLoadingMore) return <View className="h-4" />;
     return (
       <View className="items-center py-4">
-        <ActivityIndicator size="small" />
+        <AppSpinner size="sm" />
       </View>
     );
   }, [isLoadingMore]);
@@ -121,6 +125,7 @@ export default function NotificationsScreen() {
       ) : (
         <SectionList
           className="flex-1"
+          refreshControl={refreshControl}
           sections={sections}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}

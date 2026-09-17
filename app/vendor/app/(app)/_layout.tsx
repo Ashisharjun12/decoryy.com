@@ -3,11 +3,14 @@ import { AuthGate } from '@/module/auth/components/AuthGate';
 import { getAppAccessRedirect } from '@/module/auth/lib/auth-routing';
 import { useAppSessionState } from '@/module/chat/hooks/use-app-session-state';
 import { usePermissionsSetupPrompt } from '@/module/permissions/hooks/use-permissions-setup-prompt';
+import { useAuthStore } from '@/store/auth.store';
+import { selectIsFieldShell, usePartnerModeStore } from '@/store/partner-mode.store';
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs, usePathname } from 'expo-router';
 import { useColorScheme } from 'nativewind';
 import { useEffect } from 'react';
-import { ActivityIndicator, Platform, View } from 'react-native';
+import { LoadingPlaceholder } from '@/components/shell';
+import { Platform, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 type TabIconName = keyof typeof Ionicons.glyphMap;
@@ -45,6 +48,9 @@ function TabBarIcon({
 function AppTabs() {
   const { colorScheme } = useColorScheme();
   const theme = NAV_THEME[colorScheme ?? 'light'];
+  const user = useAuthStore((s) => s.user);
+  const partnerMode = usePartnerModeStore((s) => s.mode);
+  const isFieldShell = selectIsFieldShell(partnerMode, user);
   const { pendingRoute, isLoading } = usePermissionsSetupPrompt();
   const pathname = usePathname();
   const onSetupScreen =
@@ -54,7 +60,7 @@ function AppTabs() {
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
-        <ActivityIndicator />
+        <LoadingPlaceholder className="py-0" />
       </View>
     );
   }
@@ -90,7 +96,7 @@ function AppTabs() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: isFieldShell ? 'Today' : 'Home',
           tabBarIcon: ({ color, focused, size }) => (
             <TabBarIcon
               focused={focused}
@@ -105,7 +111,7 @@ function AppTabs() {
       <Tabs.Screen
         name="bookings"
         options={{
-          title: 'Bookings',
+          title: isFieldShell ? 'My jobs' : 'Bookings',
           tabBarIcon: ({ color, focused, size }) => (
             <TabBarIcon
               focused={focused}
@@ -118,9 +124,26 @@ function AppTabs() {
         }}
       />
       <Tabs.Screen
+        name="messages"
+        options={{
+          title: 'Messages',
+          href: isFieldShell ? undefined : null,
+          tabBarIcon: ({ color, focused, size }) => (
+            <TabBarIcon
+              focused={focused}
+              color={color}
+              size={size}
+              activeIcon="chatbubbles"
+              inactiveIcon="chatbubbles-outline"
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="payouts"
         options={{
           title: 'Wallet',
+          href: isFieldShell ? null : undefined,
           tabBarIcon: ({ color, focused, size }) => (
             <TabBarIcon
               focused={focused}
@@ -158,6 +181,7 @@ function AppTabs() {
       <Tabs.Screen name="add-bank-account" options={{ href: null }} />
       <Tabs.Screen name="upi-ids" options={{ href: null }} />
       <Tabs.Screen name="add-upi-id" options={{ href: null }} />
+      <Tabs.Screen name="team" options={{ href: null }} />
     </Tabs>
   );
 }

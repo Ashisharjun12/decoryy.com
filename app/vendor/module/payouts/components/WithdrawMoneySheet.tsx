@@ -6,7 +6,8 @@ import { formatInr } from '@/module/bookings/lib/booking-format';
 import { WithdrawPayoutMethodPicker } from '@/module/payouts/components/WithdrawPayoutMethodPicker';
 import { CheckCircle2, Clock3 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, View } from 'react-native';
+import { AppSpinner } from '@/components/ui/app-spinner';
+import { Modal, Pressable, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -109,7 +110,7 @@ export function WithdrawMoneySheet({
                     disabled={loading || !selectedMethodId}
                     onPress={() => void handleConfirm()}>
                     {loading ? (
-                      <ActivityIndicator color="#fff" />
+                      <AppSpinner size="sm" variant="inverse" />
                     ) : (
                       <Text className="text-base font-semibold text-white">Confirm withdrawal</Text>
                     )}

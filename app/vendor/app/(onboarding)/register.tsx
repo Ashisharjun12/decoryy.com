@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/button';
+import { OnboardingButton } from '@/module/onboarding/components/OnboardingButton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Text } from '@/components/ui/text';
@@ -170,18 +170,17 @@ export default function RegisterScreen() {
         </ScrollView>
 
         <View className="gap-3 px-8 pb-10 pt-4">
-          <Button
-            className="h-12 rounded-2xl"
+          <OnboardingButton
             disabled={!isValid || isSubmitting}
             onPress={handleSubmit(onSubmit)}>
             <Text>Continue</Text>
-          </Button>
+          </OnboardingButton>
           {!isReapplyMode ? (
             <View className="flex-row items-center justify-center gap-1">
               <Text className="text-muted-foreground text-sm">Already registered?</Text>
               <Text
                 className="text-foreground text-sm font-semibold underline"
-                onPress={() => router.push('/(onboarding)/sign-in' as Href)}>
+                onPress={() => router.push('/(onboarding)/login-choice' as Href)}>
                 Sign in
               </Text>
             </View>

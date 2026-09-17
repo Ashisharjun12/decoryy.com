@@ -1,33 +1,21 @@
 import { useEffect, useState } from "react"
-import { useParams } from "react-router-dom"
+import { Navigate, useParams } from "react-router-dom"
 import { getOrder } from "@/api/orders.api"
 import { AccountChatPanel } from "@/module/chat/components/AccountChatPanel"
 import { ChatThreadView } from "@/module/chat/components/ChatThreadView"
 import { useBookingChatThread } from "@/module/chat/hooks/use-booking-chat-thread"
+import { Spinner } from "@/components/ui/spinner"
 
-const READ_ONLY_ORDER_STATUSES = new Set(["COMPLETED", "CANCELLED"])
+const ENDED_ORDER_STATUSES = new Set(["COMPLETED", "CANCELLED"])
 
-export function BookingChatPage() {
-  const { orderId } = useParams()
+function BookingChatActive({ orderId }) {
   const thread = useBookingChatThread(orderId)
-  const [orderStatus, setOrderStatus] = useState(null)
-
-  useEffect(() => {
-    if (!orderId) return
-    void getOrder(orderId)
-      .then((order) => setOrderStatus(order.status))
-      .catch(() => {})
-  }, [orderId])
-
+  const chatPeer = thread.conversation?.chatPeer
   const vendorParticipant = thread.conversation?.participants?.find((p) => p.role === "vendor")
-  const title = vendorParticipant?.name || "Decorator"
+  const title = chatPeer?.name || vendorParticipant?.name || "Decorator"
   const subtitle = thread.conversation?.orderRef
     ? `Order ${thread.conversation.orderRef}`
     : undefined
-
-  const chatClosed =
-    (orderStatus && READ_ONLY_ORDER_STATUSES.has(orderStatus)) ||
-    thread.conversation?.status === "closed"
 
   return (
     <AccountChatPanel
@@ -36,19 +24,48 @@ export function BookingChatPage() {
       subtitle={subtitle}
       peerOnline={vendorParticipant?.isOnline}
     >
-      {chatClosed ? (
-        <div className="shrink-0 border-b border-border bg-muted/50 px-4 py-2.5">
-          <p className="text-center text-sm text-muted-foreground">
-            Chat is closed for this booking. You can still read past messages.
-          </p>
-        </div>
-      ) : null}
       <ChatThreadView
         {...thread}
         ownRole="customer"
         placeholder="Message your decorator..."
-        composerDisabled={chatClosed}
+        composerDisabled={false}
       />
     </AccountChatPanel>
   )
+}
+
+export function BookingChatPage() {
+  const { orderId } = useParams()
+  const [orderStatus, setOrderStatus] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!orderId) {
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    void getOrder(orderId)
+      .then((order) => setOrderStatus(order.status))
+      .catch(() => setOrderStatus(null))
+      .finally(() => setLoading(false))
+  }, [orderId])
+
+  if (!orderId) {
+    return <Navigate to="/account/bookings" replace />
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-48 items-center justify-center">
+        <Spinner className="size-8" />
+      </div>
+    )
+  }
+
+  if (orderStatus && ENDED_ORDER_STATUSES.has(orderStatus)) {
+    return <Navigate to={`/account/bookings/${orderId}`} replace />
+  }
+
+  return <BookingChatActive orderId={orderId} />
 }

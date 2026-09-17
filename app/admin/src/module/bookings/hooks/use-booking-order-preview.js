@@ -22,7 +22,14 @@ function mapAddonRow(addon) {
   }
 }
 
-export function useBookingOrderPreview({ productId, cityId, addonIds, quantity = 1, fallback }) {
+export function useBookingOrderPreview({
+  enabled = true,
+  productId,
+  cityId,
+  addonIds,
+  quantity = 1,
+  fallback,
+}) {
   const addonKey = useMemo(() => (addonIds ?? []).join(","), [addonIds])
   const [loading, setLoading] = useState(false)
   const [fetched, setFetched] = useState({
@@ -34,6 +41,18 @@ export function useBookingOrderPreview({ productId, cityId, addonIds, quantity =
   })
 
   useEffect(() => {
+    if (!enabled) {
+      setFetched({
+        productName: "",
+        coverUrl: "",
+        price: null,
+        addons: [],
+        totalPaise: null,
+      })
+      setLoading(false)
+      return
+    }
+
     if (!productId) {
       setFetched({
         productName: "",
@@ -97,7 +116,7 @@ export function useBookingOrderPreview({ productId, cityId, addonIds, quantity =
     return () => {
       cancelled = true
     }
-  }, [productId, cityId, addonKey, quantity])
+  }, [enabled, productId, cityId, addonKey, quantity])
 
   const productName = fetched.productName || fallback?.productName || ""
   const coverUrl = fetched.coverUrl || fallback?.coverUrl || ""

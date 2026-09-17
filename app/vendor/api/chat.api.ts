@@ -28,6 +28,23 @@ export type Conversation = {
   orderRef?: string | null;
 };
 
+export type ConversationListResponse = {
+  items: Conversation[];
+  total: number;
+  page: number;
+  limit: number;
+};
+
+export async function listConversations(params?: {
+  type?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const res = await api.get('/vendor/chat/conversations', { params });
+  return unwrap<ConversationListResponse>(res);
+}
+
 export async function getBookingConversation(orderId: string) {
   const res = await api.get(`/vendor/chat/orders/${orderId}/conversation`);
   return unwrap<Conversation>(res);

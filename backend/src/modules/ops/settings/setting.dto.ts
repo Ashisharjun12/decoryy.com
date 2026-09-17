@@ -33,3 +33,20 @@ export const patchPayoutPolicyDto = z
     .refine((value) => Object.keys(value).length > 0, {
         message: "at least one payout policy field is required",
     });
+
+export const patchBookingPolicyDto = z
+    .object({
+        acceptingBookings: z.boolean().optional(),
+        operatingHoursStart: z
+            .string()
+            .regex(/^([01]\d|2[0-3]):([0-5]\d)$/)
+            .optional(),
+        operatingHoursEnd: z
+            .string()
+            .regex(/^([01]\d|2[0-3]):([0-5]\d)$/)
+            .optional(),
+        minLeadHours: z.number().int().min(0).max(72).optional(),
+    })
+    .refine((value) => Object.keys(value).length > 0, {
+        message: "at least one booking policy field is required",
+    });

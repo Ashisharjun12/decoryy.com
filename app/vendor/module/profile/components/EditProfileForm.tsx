@@ -8,7 +8,8 @@ import { useUpdateVendorProfile } from '@/module/profile/hooks/use-update-vendor
 import { useAuthStore } from '@/store/auth.store';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, View } from 'react-native';
+import { AppSpinner } from '@/components/ui/app-spinner';
+import { Alert, View } from 'react-native';
 
 export function EditProfileForm() {
   const user = useAuthStore((s) => s.user);
@@ -80,7 +81,7 @@ export function EditProfileForm() {
         onPress={() => void handleSave()}>
         {updateProfile.isPending ? (
           <View className="flex-row items-center gap-2">
-            <ActivityIndicator size="small" color="#fff" />
+            <AppSpinner size="sm" variant="inverse" />
             <Text>Saving…</Text>
           </View>
         ) : (

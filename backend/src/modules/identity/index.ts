@@ -24,6 +24,9 @@ import {
 } from "@/modules/identity/vendors/vendor.route.js";
 import { vendors } from "@/modules/identity/vendors/vendor.schema.js";
 import { VendorService } from "@/modules/identity/vendors/vendor.service.js";
+import { VendorTeamController } from "@/modules/identity/vendor-members/vendor-team.controller.js";
+import { VendorTeamService } from "@/modules/identity/vendor-members/vendor-team.service.js";
+import { VendorMemberRepository } from "@/modules/identity/vendor-members/vendor-member.repository.js";
 import {
     AssignmentRepository,
     VendorJobController,
@@ -94,6 +97,12 @@ const vendorJobService = new VendorJobService(
     RealtimeFactory.getProvider(),
 );
 const vendorJobController = new VendorJobController(vendorJobService);
+const vendorTeamService = new VendorTeamService(
+    new VendorMemberRepository(),
+    vendorRepository,
+    userService,
+);
+const vendorTeamController = new VendorTeamController(vendorTeamService);
 const collectionController = new CollectionController(collectionService);
 const walletController = new WalletController(walletService);
 const payoutMethodController = new PayoutMethodController();
@@ -111,6 +120,7 @@ export const vendorRouter = createVendorRouter(
     collectionController,
     walletController,
     payoutMethodController,
+    vendorTeamController,
 );
 export const vendorAdminRouter = createVendorAdminRouter(vendorAdminController);
 export const customerAdminRouter = createCustomerAdminRouter(customerAdminController);

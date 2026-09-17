@@ -4,6 +4,7 @@ import { ProfileHeaderRow } from '@/module/profile/components/ProfileHeaderRow';
 import { ProfileSettingsSection } from '@/module/profile/components/ProfileSettingsSection';
 import { useAppTheme } from '@/module/settings/hooks/use-app-theme';
 import { useAuthStore } from '@/store/auth.store';
+import { selectIsFieldShell, usePartnerModeStore } from '@/store/partner-mode.store';
 import { router } from 'expo-router';
 import {
   Bell,
@@ -12,7 +13,9 @@ import {
   Palette,
   Shield,
   User,
+  Users,
   Wallet,
+  Wrench,
 } from 'lucide-react-native';
 import { Alert, Pressable, View } from 'react-native';
 
@@ -20,6 +23,10 @@ export default function ProfileScreen() {
   const user = useAuthStore((s) => s.user);
   const vendor = user?.vendor;
   const signOut = useAuthStore((s) => s.signOut);
+  const partnerMode = usePartnerModeStore((s) => s.mode);
+  const setPartnerMode = usePartnerModeStore((s) => s.setMode);
+  const isFieldShell = selectIsFieldShell(partnerMode, user);
+  const canSwitchMode = user?.capabilities?.canSwitchToFieldMode;
   const { themeLabel } = useAppTheme();
 
   const displayName = user?.name ?? 'Partner';
@@ -33,6 +40,28 @@ export default function ProfileScreen() {
   }
 
   const settingsItems = [
+    ...(canSwitchMode
+      ? [
+          {
+            id: 'worker-mode',
+            label: isFieldShell ? 'Switch to owner mode' : 'Switch to worker mode',
+            icon: Wrench,
+            onPress: () => {
+              void setPartnerMode(isFieldShell ? 'owner' : 'field');
+            },
+          },
+        ]
+      : []),
+    ...(user?.capabilities?.isShopOwner && !isFieldShell
+      ? [
+          {
+            id: 'team',
+            label: 'Team',
+            icon: Users,
+            onPress: () => router.push('/(app)/team'),
+          },
+        ]
+      : []),
     {
       id: 'personal',
       label: 'Personal information',
@@ -58,12 +87,16 @@ export default function ProfileScreen() {
       icon: Bell,
       onPress: () => router.push('/(app)/notifications'),
     },
-    {
-      id: 'wallet',
-      label: 'Payments & payouts',
-      icon: Wallet,
-      onPress: () => router.push('/(app)/payouts'),
-    },
+    ...(!isFieldShell
+      ? [
+          {
+            id: 'wallet',
+            label: 'Payments & payouts',
+            icon: Wallet,
+            onPress: () => router.push('/(app)/payouts'),
+          },
+        ]
+      : []),
     {
       id: 'bank',
       label: 'Bank details',

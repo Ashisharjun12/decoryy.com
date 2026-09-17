@@ -1,5 +1,5 @@
 import type { IUserRepository } from "@/modules/identity/users/user.repository.js";
-import type { NewUser, User, UserStatus } from "@/modules/identity/users/user.schema.js";
+import type { NewUser, User, UserRole, UserStatus } from "@/modules/identity/users/user.schema.js";
 
 export interface IUserService {
     findById(id: string): Promise<User | undefined>;
@@ -17,6 +17,8 @@ export interface IUserService {
     setAvatar(id: string, avatar: string): Promise<User>;
     updateProfile(id: string, input: { name: string; email: string }): Promise<User>;
     updateStatus(id: string, status: UserStatus): Promise<User>;
+    updateRole(id: string, role: UserRole): Promise<User>;
+    updateName(id: string, name: string): Promise<void>;
 }
 
 export class UserService implements IUserService {
@@ -71,5 +73,13 @@ export class UserService implements IUserService {
 
     updateStatus(id: string, status: UserStatus) {
         return this.users.updateStatus(id, status);
+    }
+
+    updateRole(id: string, role: UserRole) {
+        return this.users.updateRole(id, role);
+    }
+
+    updateName(id: string, name: string) {
+        return this.users.updateName(id, name);
     }
 }

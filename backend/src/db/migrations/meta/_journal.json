@@ -8,6 +8,27 @@
       "when": 1789344634034,
       "tag": "0000_chilly_shooting_star",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789348719128,
+      "tag": "0001_lucky_colleen_wing",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789350000000,
+      "tag": "0002_vendor_staff_and_members",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789351000000,
+      "tag": "0003_admin_custom_package_orders",
+      "breakpoints": true
     }
   ]
 }

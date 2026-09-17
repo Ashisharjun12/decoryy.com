@@ -4,6 +4,8 @@ import type { IOrderRepository } from "@/modules/booking/orders/order.repository
 import type { IVendorRepository } from "@/modules/identity/vendors/vendor.repository.js";
 import type { Conversation, ConversationType } from "@/modules/chat/conversations/conversation.schema.js";
 import type { IParticipantRepository } from "@/modules/chat/participants/participant.repository.js";
+import type { IOrderFieldAssignmentRepository } from "@/modules/assignment/field-assignments/order-field-assignment.repository.js";
+import type { IVendorMemberRepository } from "@/modules/identity/vendor-members/vendor-member.repository.js";
 import type { UserRole } from "@/modules/identity/users/user.schema.js";
 
 const READ_ONLY_ORDER_STATUSES = new Set(["CANCELLED", "COMPLETED"]);
@@ -21,6 +23,8 @@ export class ChatAclService implements IChatAclService {
         private readonly orders: IOrderRepository,
         private readonly assignments: IAssignmentRepository,
         private readonly vendors: IVendorRepository,
+        private readonly fieldAssignments: IOrderFieldAssignmentRepository,
+        private readonly vendorMembers: IVendorMemberRepository,
     ) {}
 
     canAdminAccessType(type: ConversationType): boolean {
@@ -30,6 +34,10 @@ export class ChatAclService implements IChatAclService {
     async assertCanRead(userId: string, role: UserRole, conversation: Conversation): Promise<void> {
         if (role === "admin" && this.canAdminAccessType(conversation.type)) {
             return;
+        }
+
+        if (conversation.type === "booking" && conversation.contextId) {
+            await this.assertBookingChatReadable(conversation.contextId, role);
         }
 
         const participant = await this.participants.findByConversationAndUser(conversation.id, userId);
@@ -69,8 +77,17 @@ export class ChatAclService implements IChatAclService {
         const participant = await this.participants.findByConversationAndUser(conversation.id, userId);
         if (participant?.role === "vendor") return "vendor";
         if (participant?.role === "customer") return "customer";
-        if (role === "vendor") return "vendor";
+        if (role === "vendor" || role === "vendor_staff") return "vendor";
         return "customer";
+    }
+
+    private async assertBookingChatReadable(orderId: string, role: UserRole): Promise<void> {
+        if (role === "admin") return;
+        const order = await this.orders.findById(orderId);
+        if (!order) throw ApiError.notFound("order not found");
+        if (READ_ONLY_ORDER_STATUSES.has(order.status)) {
+            throw ApiError.forbidden("booking chat is no longer available");
+        }
     }
 
     private async assertBookingChatAllowed(
@@ -97,6 +114,18 @@ export class ChatAclService implements IChatAclService {
             const vendor = await this.vendors.findByUserId(userId);
             if (!vendor || vendor.id !== assignment.vendorId) {
                 throw ApiError.forbidden("not assigned to this order");
+            }
+            return;
+        }
+
+        if (role === "vendor_staff") {
+            const member = await this.vendorMembers.findActiveByUserId(userId);
+            if (!member || member.vendorId !== assignment.vendorId) {
+                throw ApiError.forbidden("not assigned to this order");
+            }
+            const assigned = await this.fieldAssignments.isMemberAssigned(member.id, orderId);
+            if (!assigned) {
+                throw ApiError.forbidden("job not assigned to you");
             }
         }
     }

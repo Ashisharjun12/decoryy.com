@@ -41,6 +41,16 @@ export class VendorController {
         res.status(200).json(new ApiResponse(200, vendor, "ok"));
     });
 
+    getShopDuty = asyncHandler(async (req, res) => {
+        const vendorId = req.partner?.vendorId;
+        if (!vendorId) {
+            res.status(403).json(new ApiResponse(403, null, "partner context required"));
+            return;
+        }
+        const vendor = await this.vendorService.getShopDutyByVendorId(vendorId);
+        res.status(200).json(new ApiResponse(200, vendor, "ok"));
+    });
+
     setDuty = asyncHandler(async (req, res) => {
         const vendor = await this.vendorService.setDuty(req.actor!.id, req.body.isOnDuty);
         const user = await this.authService.me(req.actor!.id);
@@ -82,7 +92,13 @@ export class VendorAdminController {
         const data = await this.vendorService.updateOnboardingStatus(
             String(req.params.id),
             req.body.onboardingStatus,
+            req.actor!.id,
         );
         res.status(200).json(new ApiResponse(200, data, "vendor updated"));
+    });
+
+    listMembers = asyncHandler(async (req, res) => {
+        const data = await this.vendorService.listTeamWorkersAdmin(String(req.params.id), req.query);
+        res.status(200).json(new ApiResponse(200, data, "ok"));
     });
 }

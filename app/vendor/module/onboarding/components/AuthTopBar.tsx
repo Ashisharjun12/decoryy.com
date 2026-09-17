@@ -9,14 +9,20 @@ type AuthTopBarProps = {
   onBackPress?: () => void;
   backHref?: Href;
   onHelpPress?: () => void;
+  trailingLabel?: string;
+  onTrailingPress?: () => void;
   showBack?: boolean;
+  showHelp?: boolean;
 };
 
 export function AuthTopBar({
   onBackPress,
   backHref,
   onHelpPress = showAuthHelp,
+  trailingLabel,
+  onTrailingPress,
   showBack = true,
+  showHelp = true,
 }: AuthTopBarProps) {
   function handleBack() {
     if (onBackPress) {
@@ -46,14 +52,27 @@ export function AuthTopBar({
       ) : (
         <View style={styles.iconButton} />
       )}
-      <Pressable
-        onPress={onHelpPress}
-        accessibilityRole="button"
-        accessibilityLabel="Help"
-        hitSlop={8}
-        style={({ pressed }) => [styles.helpButton, pressed && styles.pressed]}>
-        <Text style={styles.helpText}>Help</Text>
-      </Pressable>
+      {trailingLabel && onTrailingPress ? (
+        <Pressable
+          onPress={onTrailingPress}
+          accessibilityRole="button"
+          accessibilityLabel={trailingLabel}
+          hitSlop={8}
+          style={({ pressed }) => [styles.helpButton, pressed && styles.pressed]}>
+          <Text style={styles.helpText}>{trailingLabel}</Text>
+        </Pressable>
+      ) : showHelp ? (
+        <Pressable
+          onPress={onHelpPress}
+          accessibilityRole="button"
+          accessibilityLabel="Help"
+          hitSlop={8}
+          style={({ pressed }) => [styles.helpButton, pressed && styles.pressed]}>
+          <Text style={styles.helpText}>Help</Text>
+        </Pressable>
+      ) : (
+        <View style={styles.trailingPlaceholder} />
+      )}
     </View>
   );
 }
@@ -68,6 +87,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  trailingPlaceholder: {
+    height: 40,
+    minWidth: 72,
   },
   helpButton: {
     height: 40,

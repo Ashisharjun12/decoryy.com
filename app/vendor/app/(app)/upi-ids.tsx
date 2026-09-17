@@ -5,7 +5,8 @@ import { PayoutSubscreenHeader } from '@/module/payouts/components/PayoutSubscre
 import { UpiIdRow } from '@/module/payouts/components/UpiIdRow';
 import { usePayoutMethods } from '@/module/payouts/hooks/use-payout-methods';
 import { router } from 'expo-router';
-import { ActivityIndicator, View } from 'react-native';
+import { LoadingPlaceholder } from '@/components/shell';
+import { View } from 'react-native';
 
 function ListDivider() {
   return <View className="h-px bg-border/40" />;
@@ -25,7 +26,7 @@ export default function UpiIdsScreen() {
         />
 
         {isLoading ? (
-          <ActivityIndicator className="py-8" />
+          <LoadingPlaceholder />
         ) : upiIds.length === 0 ? (
           <View className="gap-3 rounded-3xl bg-muted/50 px-5 py-8">
             <Text className="text-foreground text-center text-base font-medium">No UPI IDs yet</Text>

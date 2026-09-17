@@ -12,11 +12,14 @@ export const otpRequestDto = z.object({
         .optional(),
 });
 
+export const partnerLoginIntentSchema = z.enum(["owner", "staff"]);
+
 export const otpVerifyDto = z.object({
     phone: z.string().min(10),
     otp: z.string().length(6),
     clientType: clientTypeSchema,
     device: deviceSchema,
+    loginIntent: partnerLoginIntentSchema.optional(),
 });
 
 export const googleLoginDto = z.object({

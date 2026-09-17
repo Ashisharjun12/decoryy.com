@@ -1,6 +1,6 @@
 import { getApiError } from '@/api/client';
 import { formatIndiaPhoneDisplay } from '@/lib/phone';
-import { Button } from '@/components/ui/button';
+import { OnboardingButton } from '@/module/onboarding/components/OnboardingButton';
 import { Text } from '@/components/ui/text';
 import { AuthTopBar } from '@/module/onboarding/components/AuthTopBar';
 import { OtpInput } from '@/module/onboarding/components/OtpInput';
@@ -10,13 +10,15 @@ import { submitVendorRegistration } from '@/module/onboarding/services/register.
 import { getPostOtpRedirectPath, useAuthStore } from '@/store/auth.store';
 import { Href, router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BackHandler, KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
+import { BackHandler, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function VerifyOtpScreen() {
   const pendingRegistration = useAuthStore((s) => s.pendingRegistration);
   const pendingOtpPhone = useAuthStore((s) => s.pendingOtpPhone);
   const pendingOtpMode = useAuthStore((s) => s.pendingOtpMode);
+  const pendingLoginIntent = useAuthStore((s) => s.pendingLoginIntent);
+  const registerOtpRequested = useAuthStore((s) => s.registerOtpRequested);
   const setPendingOtp = useAuthStore((s) => s.setPendingOtp);
   const clearPendingOtp = useAuthStore((s) => s.clearPendingOtp);
   const restoreRegisterDraftFromPending = useAuthStore((s) => s.restoreRegisterDraftFromPending);
@@ -25,8 +27,9 @@ export default function VerifyOtpScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
+  const [otpReady, setOtpReady] = useState(false);
   const autoVerifyRef = useRef('');
-  const otpRequestRef = useRef<string | null>(null);
+  const otpSendRef = useRef(0);
 
   const phone = pendingOtpPhone ?? pendingRegistration?.phone;
   const phoneDisplay = phone ? formatIndiaPhoneDisplay(phone) : 'your number';
@@ -34,7 +37,7 @@ export default function VerifyOtpScreen() {
 
   const handleVerify = useCallback(
     async (code: string) => {
-      if (!phone || code.length !== 6 || submitting) return;
+      if (!phone || code.length !== 6 || submitting || !otpReady) return;
 
       setSubmitting(true);
       setError('');
@@ -49,7 +52,7 @@ export default function VerifyOtpScreen() {
         setSubmitting(false);
       }
     },
-    [phone, isSignIn, submitting]
+    [phone, isSignIn, submitting, otpReady],
   );
 
   const handleOtpAutofill = useCallback((code: string) => {
@@ -62,30 +65,50 @@ export default function VerifyOtpScreen() {
   useEffect(() => {
     if (!phone || !pendingOtpMode) return;
 
-    const requestKey = `${pendingOtpMode}:${phone}`;
-    if (otpRequestRef.current === requestKey) return;
-    otpRequestRef.current = requestKey;
+    if (pendingOtpMode === 'register' && registerOtpRequested) {
+      setOtpReady(true);
+      return;
+    }
 
+    const sendId = ++otpSendRef.current;
     let cancelled = false;
     setSendingOtp(true);
+    setOtpReady(false);
     setError('');
 
     void (async () => {
       try {
         if (pendingOtpMode === 'sign-in') {
           await sendSignInOtp(phone);
-          return;
+        } else {
+          const registration = useAuthStore.getState().pendingRegistration;
+          if (!registration) {
+            throw new Error('Registration details missing. Go back and try again.');
+          }
+          const result = await submitVendorRegistration(registration);
+          setPendingOtp({
+            phone,
+            mode: 'register',
+            devOtp: result.otp,
+            registerOtpRequested: true,
+          });
+          if (result.shopImageUploadId) {
+            useAuthStore.getState().setPendingRegistration({
+              ...registration,
+              shopImageUploadId: result.shopImageUploadId,
+              shopImageUri: undefined,
+            });
+          }
         }
-        if (pendingRegistration) {
-          await submitVendorRegistration(pendingRegistration);
+        if (!cancelled && sendId === otpSendRef.current) {
+          setOtpReady(true);
         }
       } catch (err) {
-        if (!cancelled) {
+        if (!cancelled && sendId === otpSendRef.current) {
           setError(getApiError(err));
-          otpRequestRef.current = null;
         }
       } finally {
-        if (!cancelled) {
+        if (!cancelled && sendId === otpSendRef.current) {
           setSendingOtp(false);
         }
       }
@@ -94,19 +117,19 @@ export default function VerifyOtpScreen() {
     return () => {
       cancelled = true;
     };
-  }, [phone, pendingOtpMode, pendingRegistration]);
+  }, [phone, pendingOtpMode, registerOtpRequested, setPendingOtp]);
 
   useEffect(() => {
-    if (otp.length !== 6 || submitting || sendingOtp) return;
+    if (otp.length !== 6 || submitting || sendingOtp || !otpReady) return;
     if (autoVerifyRef.current === otp) return;
     autoVerifyRef.current = otp;
     void handleVerify(otp);
-  }, [otp, submitting, sendingOtp, handleVerify]);
+  }, [otp, submitting, sendingOtp, otpReady, handleVerify]);
 
   function handleBack() {
     if (isSignIn) {
       clearPendingOtp();
-      router.replace('/(onboarding)/sign-in' as Href);
+      router.replace('/(onboarding)/login-choice' as Href);
       return;
     }
 
@@ -121,9 +144,9 @@ export default function VerifyOtpScreen() {
   useFocusEffect(
     useCallback(() => {
       if (!pendingOtpPhone && !pendingRegistration) {
-        router.replace('/(onboarding)/register' as Href);
+        router.replace('/(onboarding)/login-choice' as Href);
       }
-    }, [pendingOtpPhone, pendingRegistration])
+    }, [pendingOtpPhone, pendingRegistration]),
   );
 
   useEffect(() => {
@@ -140,19 +163,38 @@ export default function VerifyOtpScreen() {
     setError('');
     setOtp('');
     autoVerifyRef.current = '';
-    otpRequestRef.current = null;
+    otpSendRef.current += 1;
+    setOtpReady(false);
     try {
       if (isSignIn) {
         await sendSignInOtp(phone);
         setPendingOtp({
           phone,
           mode: 'sign-in',
+          loginIntent: pendingLoginIntent,
         });
+        setOtpReady(true);
         return;
       }
-      if (pendingRegistration) {
-        await submitVendorRegistration(pendingRegistration);
+      const registration = useAuthStore.getState().pendingRegistration;
+      if (!registration) {
+        throw new Error('Registration details missing. Go back and try again.');
       }
+      const result = await submitVendorRegistration(registration);
+      setPendingOtp({
+        phone,
+        mode: 'register',
+        devOtp: result.otp,
+        registerOtpRequested: true,
+      });
+      if (result.shopImageUploadId) {
+        useAuthStore.getState().setPendingRegistration({
+          ...registration,
+          shopImageUploadId: result.shopImageUploadId,
+          shopImageUri: undefined,
+        });
+      }
+      setOtpReady(true);
     } catch (err) {
       setError(getApiError(err));
     } finally {
@@ -166,16 +208,24 @@ export default function VerifyOtpScreen() {
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View className="flex-1 px-8 pt-6">
-          <Text className="text-foreground" style={{ fontSize: 32, lineHeight: 38, fontWeight: '700' }}>
-            We just sent you an SMS
-          </Text>
-          <Text className="text-muted-foreground mt-3 text-base leading-6">
-            Enter the security code we sent to{'\n'}
-            {phoneDisplay}
-          </Text>
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName="flex-grow px-8 pb-8 pt-6"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+          <View className="mb-8 gap-3">
+            <Text
+              className="text-foreground"
+              style={{ fontSize: 32, lineHeight: 38, fontWeight: '700' }}>
+              We just sent you an SMS
+            </Text>
+            <Text className="text-muted-foreground text-base leading-6">
+              Enter the security code we sent to{'\n'}
+              {phoneDisplay}
+            </Text>
+          </View>
 
-          <View className="mt-10">
+          <View className="gap-6">
             <OtpInput
               value={otp}
               onChange={(value) => {
@@ -184,33 +234,31 @@ export default function VerifyOtpScreen() {
                 setError('');
               }}
             />
+
+            {sendingOtp ? (
+              <Text className="text-muted-foreground text-sm">Sending verification code…</Text>
+            ) : null}
+
+            {error ? <Text className="text-destructive text-sm">{error}</Text> : null}
+
+            <Pressable
+              className="self-start"
+              disabled={resending || sendingOtp}
+              onPress={() => void handleResend()}>
+              <Text className="text-foreground text-sm underline">
+                {resending || sendingOtp ? 'Sending code…' : "Didn't receive a code?"}
+              </Text>
+            </Pressable>
+
+            <View className="gap-4">
+              <OnboardingButton
+                disabled={otp.length !== 6 || submitting || sendingOtp || !otpReady}
+                onPress={() => void handleVerify(otp)}>
+                <Text>{submitting ? 'Verifying…' : 'Continue'}</Text>
+              </OnboardingButton>
+            </View>
           </View>
-
-          {sendingOtp ? (
-            <Text className="text-muted-foreground mt-4 text-sm">Sending verification code…</Text>
-          ) : null}
-
-          {error ? <Text className="text-destructive mt-3 text-sm">{error}</Text> : null}
-
-          <Pressable
-            className="mt-8 self-start"
-            disabled={resending || sendingOtp}
-            onPress={() => void handleResend()}>
-            <Text className="text-foreground text-sm underline">
-              {resending || sendingOtp ? 'Sending code…' : "Didn't receive a code?"}
-            </Text>
-          </Pressable>
-
-        </View>
-
-        <View className="px-8 pb-10 pt-4">
-          <Button
-            className="h-12 rounded-2xl"
-            disabled={otp.length !== 6 || submitting || sendingOtp}
-            onPress={() => void handleVerify(otp)}>
-            <Text>{submitting ? 'Verifying…' : 'Continue'}</Text>
-          </Button>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

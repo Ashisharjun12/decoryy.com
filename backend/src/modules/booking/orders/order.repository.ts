@@ -80,6 +80,7 @@ export interface IOrderRepository {
     markOnSite(orderId: string, tx?: DbTx): Promise<Order | undefined>;
     markConfirmed(orderId: string, tx?: DbTx): Promise<Order | undefined>;
     markCompleted(orderId: string, tx?: DbTx): Promise<Order | undefined>;
+    markCancelled(orderId: string, tx?: DbTx): Promise<Order | undefined>;
     clearCart(cartId: string): Promise<void>;
 }
 
@@ -281,6 +282,7 @@ export class OrderRepository implements IOrderRepository {
                 source: payload.source ?? "web",
                 createdByAdminId: payload.createdByAdminId ?? null,
                 adminNotes: payload.adminNotes ?? null,
+                isCustomPackage: payload.isCustomPackage ?? false,
                 cityId: payload.cityId,
                 pincode: payload.pincode,
                 scheduledAt: payload.scheduledAt,
@@ -421,6 +423,30 @@ export class OrderRepository implements IOrderRepository {
                 and(
                     eq(orders.id, orderId),
                     inArray(orders.status, ["ON_SITE", "DISPUTED"]),
+                ),
+            )
+            .returning();
+        return row;
+    }
+
+    async markCancelled(orderId: string, tx?: DbTx): Promise<Order | undefined> {
+        const client = tx ?? db;
+        const [row] = await client
+            .update(orders)
+            .set({
+                status: "CANCELLED",
+                updatedAt: new Date(),
+            })
+            .where(
+                and(
+                    eq(orders.id, orderId),
+                    inArray(orders.status, [
+                        "DRAFT",
+                        "PENDING_PAYMENT",
+                        "CONFIRMED",
+                        "ASSIGNED",
+                        "DISPUTED",
+                    ]),
                 ),
             )
             .returning();

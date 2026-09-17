@@ -64,6 +64,7 @@ function resolveTemplateData(
     const tripEvents = new Set([
         "BOOKING_CONFIRMED",
         "BOOKING_ASSIGNED",
+        "BOOKING_REMINDER",
         "VENDOR_EN_ROUTE",
         "VENDOR_ON_SITE",
         "DELIVERY_CODE",

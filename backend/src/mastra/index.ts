@@ -1,4 +1,5 @@
 import { Mastra } from '@mastra/core'
+import { catalogCopilotAgent } from './agents/catalog-copilot.agent.js'
 import { universalGateway } from './gateway.js'
 import { aiStorage } from './storage.js'
 import { agentObservability } from './agent-obeservablity.js'
@@ -8,11 +9,9 @@ const mastra = new Mastra({
     gateways: { universalGateway },
     storage: aiStorage,
     agents: {
-        
+        catalogCopilotAgent,
     },
-    memory: {
-      
-    },
+    memory: {},
 })
 
 export default mastra

@@ -7,9 +7,13 @@ export function resolveNotificationTarget(data: NotificationData): Href {
     return `/(app)/bookings/${data.orderId}` as Href;
   }
 
+  if (data.event === 'VENDOR_JOB_ASSIGNED' && data.orderId) {
+    return `/(app)/bookings/${data.orderId}` as Href;
+  }
+
   if (data.event === 'CHAT_MESSAGE') {
     if (data.conversationType === 'booking' && data.orderId) {
-      return `/(app)/bookings/${data.orderId}/chat` as Href;
+      return `/(app)/bookings/${data.orderId}` as Href;
     }
     if (data.conversationType === 'vendor_support') {
       return '/(app)/support' as Href;

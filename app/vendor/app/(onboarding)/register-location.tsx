@@ -1,5 +1,5 @@
 import { getApiError } from '@/api/client';
-import { Button } from '@/components/ui/button';
+import { OnboardingButton } from '@/module/onboarding/components/OnboardingButton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,7 +11,10 @@ import { StateSelect } from '@/module/onboarding/components/StateSelect';
 import { RegisterLocationGeoSkeleton } from '@/module/onboarding/components/skeletons/RegisterLocationFormSkeleton';
 import { useGeoCities } from '@/module/onboarding/hooks/use-geo-cities';
 import { getCityById } from '@/module/onboarding/lib/geo';
-import { submitVendorReapply } from '@/module/onboarding/services/register.service';
+import {
+  submitVendorReapply,
+  submitVendorRegistration,
+} from '@/module/onboarding/services/register.service';
 import {
   registerLocationSchema,
   type RegisterLocationFormValues,
@@ -134,12 +137,34 @@ export default function RegisterLocationScreen() {
       return;
     }
 
-    setPendingRegistration(payload);
-    setPendingOtp({
-      phone: basic.phone,
-      mode: 'register',
-    });
-    router.push('/(onboarding)/verify-otp' as Href);
+    try {
+      const otpResult = await submitVendorRegistration({
+        name: payload.name,
+        email: payload.email,
+        phone: payload.phone,
+        altPhone: payload.altPhone,
+        cityId: payload.cityId,
+        shopAddress: payload.shopAddress,
+        pincode: payload.pincode,
+        shopImageUri: payload.shopImageUri,
+      });
+
+      const pendingWithUpload: RegisterPayload = {
+        ...payload,
+        shopImageUploadId: otpResult.shopImageUploadId,
+        shopImageUri: undefined,
+      };
+      setPendingRegistration(pendingWithUpload);
+      setPendingOtp({
+        phone: basic.phone,
+        mode: 'register',
+        devOtp: otpResult.otp,
+        registerOtpRequested: true,
+      });
+      router.push('/(onboarding)/verify-otp' as Href);
+    } catch (err) {
+      setSubmitError(getApiError(err));
+    }
   }
 
   if (!canAccessScreen) {
@@ -282,12 +307,11 @@ export default function RegisterLocationScreen() {
         </ScrollView>
 
         <View className="px-8 pb-10 pt-4">
-          <Button
-            className="h-12 rounded-2xl"
+          <OnboardingButton
             disabled={!isValid || isSubmitting || loading || Boolean(geoError) || states.length === 0}
             onPress={handleSubmit(onSubmit)}>
             <Text>{isSubmitting ? 'Submitting…' : isReapplyMode ? 'Submit application' : 'Continue'}</Text>
-          </Button>
+          </OnboardingButton>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>

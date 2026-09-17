@@ -35,3 +35,19 @@ export function getPayoutPolicy() {
 export function patchPayoutPolicy(payload) {
   return api.patch("/admin/settings/payout-policy", payload).then(unwrap)
 }
+
+export function getBookingPolicy() {
+  return api.get("/admin/settings/booking-policy").then(unwrap)
+}
+
+export function patchBookingPolicy(payload) {
+  return api.patch("/admin/settings/booking-policy", payload).then(unwrap)
+}
+
+export function getAiPolicy() {
+  return api.get("/admin/settings/ai").then(unwrap)
+}
+
+export function patchAiPolicy(payload) {
+  return api.patch("/admin/settings/ai", payload).then(unwrap)
+}

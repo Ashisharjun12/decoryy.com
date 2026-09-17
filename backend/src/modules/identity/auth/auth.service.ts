@@ -27,6 +27,13 @@ import type { User } from "@/modules/identity/users/user.schema.js";
 import type { IVendorService } from "@/modules/identity/vendors/vendor.service.js";
 import type { PublicVendorProfile } from "@/modules/identity/vendors/vendor.public.js";
 import type { VendorRegisterInput } from "@/modules/identity/vendors/vendor.dto.js";
+import { VendorRepository } from "@/modules/identity/vendors/vendor.repository.js";
+import { VendorMemberRepository } from "@/modules/identity/vendor-members/vendor-member.repository.js";
+import {
+    resolvePartnerCapabilities,
+    type PublicPartnerMembership,
+    type PartnerCapabilities,
+} from "@/modules/identity/partner/partner-context.js";
 
 export type PublicUser = {
     id: string;
@@ -38,6 +45,8 @@ export type PublicUser = {
     status: User["status"];
     linkedGoogle: boolean;
     vendor?: PublicVendorProfile;
+    partnerMembership?: PublicPartnerMembership;
+    capabilities: PartnerCapabilities;
 };
 
 export interface IAuthService {
@@ -55,6 +64,7 @@ export interface IAuthService {
         otp: string;
         clientType: ClientType;
         device?: Device;
+        loginIntent?: "owner" | "staff";
     }): Promise<{ user: PublicUser; tokens: AuthTokens }>;
     googleLogin(input: {
         idToken: string;
@@ -78,7 +88,12 @@ export interface IAuthService {
     linkGoogle(actorId: string, idToken: string): Promise<PublicUser>;
 }
 
-function publicUser(user: User, vendor?: PublicVendorProfile): PublicUser {
+function publicUser(
+    user: User,
+    vendor?: PublicVendorProfile,
+    partnerMembership?: PublicPartnerMembership,
+    capabilities?: PartnerCapabilities,
+): PublicUser {
     return {
         id: user.id,
         phone: user.phone,
@@ -89,6 +104,12 @@ function publicUser(user: User, vendor?: PublicVendorProfile): PublicUser {
         status: user.status,
         linkedGoogle: user.googleId != null,
         ...(vendor ? { vendor } : {}),
+        ...(partnerMembership ? { partnerMembership } : {}),
+        capabilities: capabilities ?? {
+            isShopOwner: Boolean(vendor?.onboardingStatus === "ACTIVE"),
+            isFieldWorker: Boolean(partnerMembership),
+            canSwitchToFieldMode: Boolean(vendor?.onboardingStatus === "ACTIVE" && partnerMembership),
+        },
     };
 }
 
@@ -113,6 +134,9 @@ function isUniqueViolation(err: unknown): boolean {
 }
 
 export class AuthService implements IAuthService {
+    private readonly vendorRepo = new VendorRepository();
+    private readonly memberRepo = new VendorMemberRepository();
+
     constructor(
         private readonly users: IUserService,
         private readonly vendors: IVendorService,
@@ -125,7 +149,61 @@ export class AuthService implements IAuthService {
             user.role === "vendor"
                 ? await this.vendors.findPublicProfileByUserId(user.id)
                 : undefined;
-        return publicUser(user, vendor);
+        const { capabilities, membership } = await resolvePartnerCapabilities(
+            user.id,
+            user.role,
+            this.vendorRepo,
+            this.memberRepo,
+        );
+        return publicUser(user, vendor, membership, capabilities);
+    }
+
+    private assertPartnerLoginIntent(loginIntent: "owner" | "staff" | undefined, profile: PublicUser) {
+        if (!loginIntent) {
+            return;
+        }
+        if (loginIntent === "staff") {
+            if (profile.role !== "vendor_staff" || !profile.partnerMembership) {
+                throw ApiError.forbidden(
+                    "no staff account for this phone. ask your shop owner to add you in team",
+                );
+            }
+            return;
+        }
+        if (profile.role === "vendor_staff" && !profile.capabilities.isShopOwner) {
+            throw ApiError.forbidden("use staff login for this account");
+        }
+        if (profile.role !== "vendor" || !profile.vendor) {
+            throw ApiError.forbidden(
+                "no vendor partner account for this phone. register your shop or use staff login",
+            );
+        }
+    }
+
+    private async activateStaffInvite(phone: string, user: User): Promise<User> {
+        const invite = await this.memberRepo.findInvitedByPhone(phone);
+        if (!invite) {
+            return user;
+        }
+        const vendor = await this.vendorRepo.findById(invite.vendorId);
+        if (!vendor || vendor.onboardingStatus !== "ACTIVE") {
+            throw ApiError.forbidden("shop is not active");
+        }
+        let nextUser = user;
+        if (user.role === "user") {
+            nextUser = await this.users.updateRole(user.id, "vendor_staff");
+        } else if (user.role !== "vendor_staff") {
+            throw ApiError.conflict("phone cannot join as staff");
+        }
+        if (invite.displayName && invite.displayName !== nextUser.name) {
+            await this.users.updateName(nextUser.id, invite.displayName);
+            nextUser = { ...nextUser, name: invite.displayName };
+        }
+        await this.memberRepo.update(invite.id, {
+            userId: nextUser.id,
+            status: "active",
+        });
+        return nextUser;
     }
 
     private exposeOtp(): boolean {
@@ -190,6 +268,7 @@ export class AuthService implements IAuthService {
         otp: string;
         clientType: ClientType;
         device?: Device;
+        loginIntent?: "owner" | "staff";
     }): Promise<{ user: PublicUser; tokens: AuthTokens }> {
         const phone = normalizePhone(input.phone);
         const pending = await peekVendorPending(phone);
@@ -223,10 +302,11 @@ export class AuthService implements IAuthService {
                 shopImageUploadId: pendingData.shopImageUploadId,
             });
         } else if (!user) {
+            const staffInvite = await this.memberRepo.findInvitedByPhone(phone);
             user = await this.users.create({
                 phone,
-                name: "User",
-                role: "user",
+                name: staffInvite?.displayName ?? "User",
+                role: staffInvite ? "vendor_staff" : "user",
                 phoneVerifiedAt: new Date(),
             });
         } else {
@@ -236,8 +316,13 @@ export class AuthService implements IAuthService {
             }
         }
 
+        user = await this.activateStaffInvite(phone, user);
+
+        const publicProfile = await this.withVendor(user);
+        this.assertPartnerLoginIntent(input.loginIntent, publicProfile);
+
         const tokens = await this.sessions.issue(user, device);
-        return { user: await this.withVendor(user), tokens };
+        return { user: publicProfile, tokens };
     }
 
     async googleLogin(input: {

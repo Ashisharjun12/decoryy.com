@@ -31,7 +31,9 @@ export function reapplyVendor(payload: VendorReapplyPayload) {
 }
 
 export function registerVendor(payload: VendorRegisterPayload) {
-  return api.post('/vendor/register', payload).then(unwrap<{ phone: string; otp?: string }>);
+  return api
+    .post('/vendor/register', payload, { timeout: 60_000 })
+    .then(unwrap<{ phone: string; otp?: string }>);
 }
 
 export function presignShopImage(input: {
@@ -40,7 +42,7 @@ export function presignShopImage(input: {
   contentType: 'image/jpeg' | 'image/png' | 'image/webp';
 }) {
   return api
-    .post('/vendor/register/presign-shop-image', input)
+    .post('/vendor/register/presign-shop-image', input, { timeout: 60_000 })
     .then(unwrap<PresignShopImageResult>);
 }
 
@@ -52,6 +54,10 @@ export function completeShopImage(uploadId: string) {
 
 export function getDuty() {
   return api.get('/vendor/duty').then(unwrap<VendorProfile>);
+}
+
+export function getShopDuty() {
+  return api.get('/vendor/shop-duty').then(unwrap<VendorProfile>);
 }
 
 export function patchDuty(isOnDuty: boolean) {

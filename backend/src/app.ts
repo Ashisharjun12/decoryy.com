@@ -15,6 +15,7 @@ import { cartRouter, orderRouter, paymentIntentRouter } from "@/modules/booking/
 import { userNotificationPreferenceRouter } from "@/modules/notifications/index.js";
 import { userChatRouter, vendorChatRouter } from "@/modules/chat/index.js";
 import { createPaymentWebhookRouter } from "@/modules/payments/index.js";
+import { aiPublicRouter } from "@/modules/ai/index.js";
 
 class App {
   private app: Application;
@@ -85,6 +86,7 @@ class App {
     this.app.use("/api/v1/user", userRouter);
     this.app.use("/api/v1/geo", geoRouter);
     this.app.use("/api/v1/catalog", catalogRouter);
+    this.app.use("/api/v1/ai", aiPublicRouter);
     this.app.use("/api/v1/payments", paymentsPublicRouter);
     this.app.use("/api/v1/payments", paymentIntentRouter);
     this.app.use("/api/v1/cart", cartRouter);

@@ -1,5 +1,5 @@
-import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
+import { OnboardingButton } from '@/module/onboarding/components/OnboardingButton';
 import { OnboardingDots } from '@/module/onboarding/components/OnboardingDots';
 import { OnboardingSlide } from '@/module/onboarding/components/OnboardingSlide';
 import { ONBOARDING_SLIDES } from '@/module/onboarding/lib/onboarding-copy';
@@ -24,9 +24,9 @@ export default function WelcomeScreen() {
   const listRef = useRef<FlatList<(typeof ONBOARDING_SLIDES)[number]>>(null);
   const isLast = index === ONBOARDING_SLIDES.length - 1;
 
-  async function goToRegister() {
+  async function goToLoginChoice() {
     await completeWelcome();
-    router.replace('/(onboarding)/register' as Href);
+    router.replace('/(onboarding)/login-choice' as Href);
   }
 
   function handleContinue() {
@@ -36,11 +36,11 @@ export default function WelcomeScreen() {
       setIndex(next);
       return;
     }
-    void goToRegister();
+    void goToLoginChoice();
   }
 
   function handleSkip() {
-    void goToRegister();
+    void goToLoginChoice();
   }
 
   function onScrollEnd(event: NativeSyntheticEvent<NativeScrollEvent>) {
@@ -83,9 +83,9 @@ export default function WelcomeScreen() {
 
       <View className="px-8 pb-10 pt-4">
         <OnboardingDots count={ONBOARDING_SLIDES.length} index={index} />
-        <Button className="h-12 rounded-2xl" onPress={handleContinue}>
+        <OnboardingButton onPress={handleContinue}>
           <Text>{isLast ? 'Get started' : 'Continue'}</Text>
-        </Button>
+        </OnboardingButton>
       </View>
     </SafeAreaView>
   );

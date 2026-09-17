@@ -1,6 +1,8 @@
 import { Router } from "express";
+import { aiSettingsRouter } from "@/modules/ai/index.js";
 import type { SettingController } from "@/modules/ops/settings/setting.controller.js";
 import {
+    patchBookingPolicyDto,
     patchNotificationChannelsDto,
     patchPaymentMethodsDto,
     patchPayoutPolicyDto,
@@ -29,6 +31,13 @@ export function createSettingsAdminRouter(controller: SettingController) {
         validate(patchPayoutPolicyDto),
         controller.patchPayoutPolicy,
     );
+    router.get("/booking-policy", controller.getBookingPolicy);
+    router.patch(
+        "/booking-policy",
+        validate(patchBookingPolicyDto),
+        controller.patchBookingPolicy,
+    );
+    router.use("/ai", aiSettingsRouter);
     return router;
 }
 

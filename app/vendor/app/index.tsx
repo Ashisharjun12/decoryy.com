@@ -1,7 +1,8 @@
 import { getAuthRedirectPath } from '@/module/auth/lib/auth-routing';
 import { useAuthStore } from '@/store/auth.store';
 import { Href, Redirect } from 'expo-router';
-import { ActivityIndicator, View } from 'react-native';
+import { LoadingPlaceholder } from '@/components/shell';
+import { View } from 'react-native';
 
 export default function Index() {
   const hydrated = useAuthStore((s) => s.hydrated);
@@ -14,7 +15,7 @@ export default function Index() {
   if (!href) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
-        <ActivityIndicator />
+        <LoadingPlaceholder className="py-0" />
       </View>
     );
   }

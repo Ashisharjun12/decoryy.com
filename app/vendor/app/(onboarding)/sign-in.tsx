@@ -1,7 +1,6 @@
-import { getApiError } from '@/api/client';
-import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { AuthTopBar } from '@/module/onboarding/components/AuthTopBar';
+import { OnboardingButton } from '@/module/onboarding/components/OnboardingButton';
 import { IndiaPhoneField } from '@/module/onboarding/components/IndiaPhoneField';
 import {
   signInSchema,
@@ -9,13 +8,26 @@ import {
 } from '@/module/onboarding/schemas/sign-in.schema';
 import { useAuthStore } from '@/store/auth.store';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Href, router } from 'expo-router';
+import { Href, router, useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import { useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Platform, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function SignInScreen() {
   const setPendingOtp = useAuthStore((s) => s.setPendingOtp);
+  const setPendingLoginIntent = useAuthStore((s) => s.setPendingLoginIntent);
+  const pendingLoginIntent = useAuthStore((s) => s.pendingLoginIntent);
+  const isStaff = pendingLoginIntent === 'staff';
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!pendingLoginIntent) {
+        router.replace('/(onboarding)/login-choice' as Href);
+      }
+    }, [pendingLoginIntent]),
+  );
+
   const {
     control,
     handleSubmit,
@@ -30,44 +42,76 @@ export default function SignInScreen() {
     setPendingOtp({
       phone: values.phone,
       mode: 'sign-in',
+      loginIntent: pendingLoginIntent,
     });
     router.push('/(onboarding)/verify-otp' as Href);
   }
 
+  function goRegister() {
+    setPendingLoginIntent(null);
+    router.push('/(onboarding)/register' as Href);
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <AuthTopBar backHref={'/(onboarding)/register' as Href} />
+      <AuthTopBar
+        backHref={'/(onboarding)/login-choice' as Href}
+        trailingLabel={isStaff ? undefined : 'Sign up'}
+        onTrailingPress={isStaff ? undefined : goRegister}
+        showHelp={isStaff}
+      />
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View className="flex-1 px-8 pt-4">
-          <View className="mb-10 gap-2">
-            <Text className="text-foreground" style={{ fontSize: 32, lineHeight: 38, fontWeight: '700' }}>
-              Sign in
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName="flex-grow px-8 pb-8 pt-4"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+          <View className="mb-8 gap-2">
+            <Text
+              className="text-foreground"
+              style={{ fontSize: 32, lineHeight: 38, fontWeight: '700' }}>
+              {isStaff ? 'Staff sign in' : 'Vendor sign in'}
             </Text>
             <Text className="text-muted-foreground text-base leading-6">
-              Enter your registered phone number. We&apos;ll send you a code.
+              {isStaff
+                ? 'Use the phone number your shop owner added in Team.'
+                : 'Enter the phone number linked to your partner shop.'}
             </Text>
           </View>
 
-          <IndiaPhoneField
-            label="Phone number"
-            nativeID="signInPhone"
-            placeholder="Mobile number"
-            control={control}
-            name="phone"
-            error={errors.phone?.message}
-          />
-        </View>
+          <View className="gap-6">
+            <IndiaPhoneField
+              label="Phone number"
+              nativeID="signInPhone"
+              placeholder="Mobile number"
+              control={control}
+              name="phone"
+              error={errors.phone?.message}
+            />
 
-        <View className="px-8 pb-10 pt-4">
-          <Button
-            className="h-12 rounded-2xl"
-            disabled={!isValid || isSubmitting}
-            onPress={handleSubmit(onSubmit)}>
-            <Text>Send OTP</Text>
-          </Button>
-        </View>
+            <View className="gap-4">
+              <OnboardingButton
+                disabled={!isValid || isSubmitting}
+                onPress={handleSubmit(onSubmit)}>
+                <Text>Send OTP</Text>
+              </OnboardingButton>
+
+              {!isStaff ? (
+                <Text className="text-muted-foreground text-center text-sm leading-5">
+                  New to Decoryy?{' '}
+                  <Text
+                    className="text-foreground font-semibold"
+                    onPress={goRegister}
+                    accessibilityRole="link">
+                    Register your shop
+                  </Text>
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

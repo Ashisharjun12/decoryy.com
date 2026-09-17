@@ -2,6 +2,7 @@ import { AssignmentRepository } from "@/modules/assignment/assignments/assignmen
 import { OrderRepository } from "@/modules/booking/orders/order.repository.js";
 import { UserRepository } from "@/modules/identity/users/user.repository.js";
 import { VendorRepository } from "@/modules/identity/vendors/vendor.repository.js";
+import { VendorMemberRepository } from "@/modules/identity/vendor-members/vendor-member.repository.js";
 import { deliveryRouter } from "@/modules/notifications/delivery/delivery-router.service.js";
 import { notificationService } from "@/modules/notifications/index.js";
 import { RealtimeFactory } from "@/infrastructure/realtime/realtime.factory.js";
@@ -15,6 +16,7 @@ import { createAdminChatRouter } from "@/modules/chat/routes/admin-chat.route.js
 import { createUserChatRouter } from "@/modules/chat/routes/user-chat.route.js";
 import { createVendorChatRouter } from "@/modules/chat/routes/vendor-chat.route.js";
 import { ChatAclService } from "@/modules/chat/services/chat-acl.service.js";
+import { OrderFieldAssignmentRepository } from "@/modules/assignment/field-assignments/order-field-assignment.repository.js";
 import { BookingChatService } from "@/modules/chat/services/booking-chat.service.js";
 import { ConversationService } from "@/modules/chat/services/conversation.service.js";
 import { MessageService } from "@/modules/chat/services/message.service.js";
@@ -30,12 +32,16 @@ const assignmentRepository = new AssignmentRepository();
 const vendorRepository = new VendorRepository();
 const userRepository = new UserRepository();
 const realtime = RealtimeFactory.getProvider();
+const orderFieldAssignmentRepository = new OrderFieldAssignmentRepository();
+const vendorMemberRepository = new VendorMemberRepository();
 
 const chatAclService = new ChatAclService(
     participantRepository,
     orderRepository,
     assignmentRepository,
     vendorRepository,
+    orderFieldAssignmentRepository,
+    vendorMemberRepository,
 );
 
 const conversationService = new ConversationService(
@@ -47,6 +53,7 @@ const conversationService = new ConversationService(
     vendorRepository,
     orderRepository,
     assignmentRepository,
+    orderFieldAssignmentRepository,
 );
 
 const mediaRepository = new MediaRepository();
@@ -66,6 +73,9 @@ const messageService = new MessageService(
     conversationService,
     userRepository,
     orderRepository,
+    assignmentRepository,
+    vendorRepository,
+    orderFieldAssignmentRepository,
     notificationService,
     realtime,
     deliveryRouter,
@@ -79,6 +89,7 @@ export const bookingChatService = new BookingChatService(
     orderRepository,
     assignmentRepository,
     vendorRepository,
+    orderFieldAssignmentRepository,
 );
 
 export const vendorChatController = new VendorChatController(

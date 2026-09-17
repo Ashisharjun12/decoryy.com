@@ -6,10 +6,17 @@ import type { IConversationRepository } from "@/modules/chat/conversations/conve
 import type { Conversation } from "@/modules/chat/conversations/conversation.schema.js";
 import type { IMessageRepository } from "@/modules/chat/messages/message.repository.js";
 import type { IParticipantRepository } from "@/modules/chat/participants/participant.repository.js";
+import type { IOrderFieldAssignmentRepository } from "@/modules/assignment/field-assignments/order-field-assignment.repository.js";
+
+export type BookingChatCloseReason = "completed" | "cancelled";
 
 export interface IBookingChatService {
     ensureBookingConversation(orderId: string): Promise<Conversation>;
-    closeBookingConversation(orderId: string): Promise<void>;
+    syncBookingFieldWorker(orderId: string, vendorId: string): Promise<void>;
+    closeBookingConversation(
+        orderId: string,
+        reason?: BookingChatCloseReason,
+    ): Promise<void>;
 }
 
 export class BookingChatService implements IBookingChatService {
@@ -20,6 +27,7 @@ export class BookingChatService implements IBookingChatService {
         private readonly orders: IOrderRepository,
         private readonly assignments: IAssignmentRepository,
         private readonly vendors: IVendorRepository,
+        private readonly fieldAssignments: IOrderFieldAssignmentRepository,
     ) {}
 
     async ensureBookingConversation(orderId: string): Promise<Conversation> {
@@ -69,13 +77,54 @@ export class BookingChatService implements IBookingChatService {
         });
     }
 
-    async closeBookingConversation(orderId: string): Promise<void> {
+    async syncBookingFieldWorker(orderId: string, vendorId: string): Promise<void> {
+        const vendor = await this.vendors.findById(vendorId);
+        if (!vendor) return;
+
+        let conversation = await this.conversations.findByTypeAndContext("booking", "order", orderId);
+        if (!conversation) {
+            try {
+                conversation = await this.ensureBookingConversation(orderId);
+            } catch {
+                return;
+            }
+        }
+
+        const ownerUserId = vendor.userId;
+        const fieldRows = await this.fieldAssignments.listForOrder(vendorId, orderId);
+        const workerUserId = fieldRows[0]?.userId ?? null;
+
+        const parts = await this.participants.listByConversation(conversation.id);
+        for (const p of parts) {
+            if (p.role === "vendor" && p.userId !== ownerUserId) {
+                await this.participants.removeParticipant(conversation.id, p.userId);
+            }
+        }
+
+        if (workerUserId && workerUserId !== ownerUserId) {
+            await this.participants.upsertParticipant({
+                conversationId: conversation.id,
+                userId: workerUserId,
+                role: "vendor",
+            });
+        }
+    }
+
+    async closeBookingConversation(
+        orderId: string,
+        reason: BookingChatCloseReason = "completed",
+    ): Promise<void> {
         const conversation = await this.conversations.findByTypeAndContext(
             "booking",
             "order",
             orderId,
         );
         if (!conversation || conversation.status === "closed") return;
+
+        const body =
+            reason === "cancelled"
+                ? "Chat closed — booking cancelled"
+                : "Chat closed — order completed";
 
         await db.transaction(async (tx) => {
             const closed = await this.conversations.closeSystem(conversation.id, null, tx);
@@ -87,7 +136,7 @@ export class BookingChatService implements IBookingChatService {
                     conversationId: conversation.id,
                     senderUserId: null,
                     senderRole: "system",
-                    body: "Chat closed — order completed",
+                    body,
                     messageType: "system",
                 },
                 seq,

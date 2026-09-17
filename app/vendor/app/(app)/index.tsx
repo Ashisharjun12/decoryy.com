@@ -14,11 +14,13 @@ import { DutyStatusCard } from '@/module/duty/components/DutyStatusCard';
 import { useVendorDuty } from '@/module/duty/hooks/use-vendor-duty';
 import { useUnreadNotificationCount } from '@/module/notifications/hooks/use-unread-count';
 import { useAuthStore } from '@/store/auth.store';
+import { FieldTodayScreen } from '@/module/partner/field/FieldTodayScreen';
+import { selectIsFieldShell, usePartnerModeStore } from '@/store/partner-mode.store';
 import { Href, router } from 'expo-router';
 
 const GATED_STATES = new Set(['pending_approval', 'rejected', 'blocked']);
 
-export default function VendorHomeScreen() {
+function OwnerHomeScreen() {
   const user = useAuthStore((s) => s.user);
   const firstName = user?.name.split(' ')[0] ?? 'Partner';
   const unreadCount = useUnreadNotificationCount();
@@ -82,4 +84,15 @@ export default function VendorHomeScreen() {
       ) : null}
     </Screen>
   );
+}
+
+export default function VendorHomeScreen() {
+  const user = useAuthStore((s) => s.user);
+  const partnerMode = usePartnerModeStore((s) => s.mode);
+
+  if (selectIsFieldShell(partnerMode, user)) {
+    return <FieldTodayScreen />;
+  }
+
+  return <OwnerHomeScreen />;
 }

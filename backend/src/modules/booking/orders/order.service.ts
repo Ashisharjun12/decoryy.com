@@ -6,6 +6,8 @@ import { addons } from "@/modules/catalog/addons/addon.schema.js";
 import { displayUrl } from "@/modules/upload/media/media.public.js";
 import { uploads } from "@/modules/upload/media/media.schema.js";
 import { getProductForCity, priceQuote } from "@/modules/catalog/index.js";
+import { getCompletedUpload } from "@/modules/upload/index.js";
+import { resolveAdminCustomProductId } from "@/modules/booking/orders/admin-custom-product.js";
 import { AddonRepository } from "@/modules/catalog/addons/addon.repository.js";
 import { CartRepository } from "@/modules/booking/carts/cart.repository.js";
 import type { AdminCreateOrderInput } from "@/modules/booking/orders/order.admin.dto.js";
@@ -22,7 +24,11 @@ import {
     ORDER_STATUSES,
     type OrderStatus,
 } from "@/modules/booking/domain/order-status.js";
-import { assertBookableSlot } from "@/modules/booking/slots/slot.service.js";
+import {
+    assertAcceptingBookings,
+    assertBookableSlot,
+} from "@/modules/booking/slots/slot.service.js";
+import { scheduleBookingReminders } from "@/modules/assignment/jobs/assignment-reminder.service.js";
 import { assertServiceable, getActiveCityById } from "@/modules/geo/index.js";
 import { parsePagination, type Paginated } from "@/shared/http/pagination.js";
 import type { INotificationService } from "@/modules/notifications/notification.service.js";
@@ -137,6 +143,7 @@ export type PublicOrder = {
     createdAt: string;
     source?: string;
     adminNotes?: string | null;
+    isCustomPackage?: boolean;
     assignee?: PublicAssignee | null;
     deliveryCodePending?: boolean;
     canReview: boolean;
@@ -368,7 +375,9 @@ export class OrderService implements IOrderService {
             throw ApiError.badRequest("set bag city first");
         }
 
-        assertBookableSlot(loaded.scheduledAt);
+        const bookingPolicy = await settingService.getBookingPolicy();
+        assertAcceptingBookings(bookingPolicy);
+        assertBookableSlot(loaded.scheduledAt, bookingPolicy);
 
         const deliveryPin = normalizePincode(input.delivery.pincode);
         const resolved = await assertServiceable(deliveryPin);
@@ -502,7 +511,9 @@ export class OrderService implements IOrderService {
         }
 
         const scheduledAt = new Date(input.scheduledAt);
-        assertBookableSlot(scheduledAt);
+        const bookingPolicy = await settingService.getBookingPolicy();
+        assertAcceptingBookings(bookingPolicy);
+        assertBookableSlot(scheduledAt, bookingPolicy);
 
         const deliveryPin = normalizePincode(input.delivery.pincode);
         const resolved = await assertServiceable(deliveryPin);
@@ -511,21 +522,34 @@ export class OrderService implements IOrderService {
         }
 
         const city = await getActiveCityById(input.delivery.cityId);
-        const { items, subtotalPaise } = await this.buildLineSnapshotsFromItems(
-            input.delivery.cityId,
-            input.items,
-        );
-
-        for (const line of input.items) {
-            const product = await getProductForCity(line.productId, input.delivery.cityId);
-            if (!product.paymentCod) {
-                throw ApiError.badRequest("one or more items do not support offline payment");
-            }
-        }
-
         const paymentMethod = input.paymentMethod === "prepaid" ? "PREPAID" : "COD";
         const customerPhone = this.customers.toOrderPhone(input.customer.phone);
         const customerEmail = input.customer.email?.trim() ?? "";
+
+        let items: OrderItemInsert[];
+        let subtotalPaise: number;
+        let isCustomPackage = false;
+
+        if (input.orderKind === "custom") {
+            isCustomPackage = true;
+            const built = await this.buildCustomLineSnapshot(input.customLine);
+            items = [built.item];
+            subtotalPaise = built.subtotalPaise;
+        } else {
+            const priced = await this.buildLineSnapshotsFromItems(
+                input.delivery.cityId,
+                input.items,
+            );
+            items = priced.items;
+            subtotalPaise = priced.subtotalPaise;
+
+            for (const line of input.items) {
+                const product = await getProductForCity(line.productId, input.delivery.cityId);
+                if (!product.paymentCod) {
+                    throw ApiError.badRequest("one or more items do not support offline payment");
+                }
+            }
+        }
 
         const payload: OrderInsertPayload = {
             reference: makeReference(),
@@ -535,6 +559,7 @@ export class OrderService implements IOrderService {
             source: "admin",
             createdByAdminId: adminId,
             adminNotes: input.adminNotes?.trim() || null,
+            isCustomPackage,
             cityId: input.delivery.cityId,
             pincode: deliveryPin,
             scheduledAt,
@@ -584,7 +609,7 @@ export class OrderService implements IOrderService {
             ...publicOrder,
             assignee: assignee ?? null,
             deliveryCodePending,
-            canReview: meta.canReview,
+            canReview: loaded.isCustomPackage ? false : meta.canReview,
             reviewSubmitted: meta.reviewSubmitted,
             review: meta.review,
         };
@@ -604,6 +629,9 @@ export class OrderService implements IOrderService {
         }
         if (order.status !== "COMPLETED") {
             throw ApiError.badRequest("only completed bookings can be reviewed");
+        }
+        if (order.isCustomPackage) {
+            throw ApiError.badRequest("custom bookings cannot be reviewed");
         }
         const loaded = await this.orders.loadWithItems(orderId);
         if (!loaded) {
@@ -631,6 +659,26 @@ export class OrderService implements IOrderService {
             reviewerCity: publicOrder.delivery.cityName,
         });
         return reviewMeta("COMPLETED", review);
+    }
+
+    async cancelOrder(orderId: string, userId: string): Promise<PublicOrder> {
+        const order = await this.orders.findByIdForUser(orderId, userId);
+        if (!order) {
+            throw ApiError.notFound("order not found");
+        }
+        const updated = await this.orders.markCancelled(orderId);
+        if (!updated) {
+            throw ApiError.conflict("order cannot be cancelled in its current state");
+        }
+        const { closeBookingChatAfterOrderCancelled } = await import(
+            "@/modules/chat/lib/order-booking-chat-lifecycle.js"
+        );
+        await closeBookingChatAfterOrderCancelled(orderId);
+        const loaded = await this.orders.loadWithItems(orderId);
+        if (!loaded) {
+            throw ApiError.notFound("order not found");
+        }
+        return this.enrichAddonImages(this.toPublic(loaded));
     }
 
     async getForAdmin(orderId: string): Promise<PublicOrder> {
@@ -691,6 +739,40 @@ export class OrderService implements IOrderService {
         if (!platform.cod) {
             throw ApiError.badRequest("cash on delivery is not enabled on the platform");
         }
+    }
+
+    private async buildCustomLineSnapshot(
+        line: { name: string; pricePaise: number; imageUploadId?: string; quantity?: number },
+    ): Promise<{ item: OrderItemInsert; subtotalPaise: number }> {
+        const quantity = line.quantity ?? 1;
+        const productId = await resolveAdminCustomProductId();
+        let imageUrl: string | null = null;
+
+        if (line.imageUploadId) {
+            const upload = await getCompletedUpload(line.imageUploadId);
+            if (upload.kind !== "image") {
+                throw ApiError.badRequest("custom package image must be an image upload");
+            }
+            imageUrl = displayUrl(upload);
+        }
+
+        const productPaise = line.pricePaise;
+        const addonsPaise = 0;
+        const lineTotalPaise = productPaise * quantity;
+
+        return {
+            subtotalPaise: lineTotalPaise,
+            item: {
+                productId,
+                productName: line.name.trim(),
+                imageUrl,
+                quantity,
+                productPaise,
+                addonsPaise,
+                lineTotalPaise,
+                addons: [],
+            },
+        };
     }
 
     private async buildLineSnapshotsFromItems(
@@ -797,6 +879,7 @@ export class OrderService implements IOrderService {
             },
             source: order.source,
             adminNotes: order.adminNotes,
+            isCustomPackage: order.isCustomPackage,
             items: order.items.map((item) => ({
                 id: item.id,
                 productId: item.productId,
@@ -821,6 +904,8 @@ export class OrderService implements IOrderService {
     }
 
     async sendBookingConfirmedEmail(userId: string, order: PublicOrder): Promise<void> {
+        await scheduleBookingReminders(order.id, new Date(order.scheduledAt));
+
         try {
             const email = order.customer.email?.trim();
             await this.notifications.notify({
