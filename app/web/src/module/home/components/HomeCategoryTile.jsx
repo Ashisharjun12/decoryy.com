@@ -2,10 +2,17 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { categoryPath } from "@/lib/catalog-path";
 import { resolveCategoryIcon } from "@/lib/category-icons";
+import { categoryImageUrl } from "@/module/home/lib/home-catalog";
 import { cn } from "@/lib/utils";
 import { DecoryImageFallback } from "@/components/decory-image-fallback";
 
-export function HomeCategoryTile({ category, parent, onDrill, className }) {
+export function HomeCategoryTile({
+  category,
+  parent,
+  onDrill,
+  className,
+  navigation = "drill",
+}) {
   const [broken, setBroken] = useState(false);
   const hasChildren = category.children?.length > 0;
   const { Icon, iconBg } = resolveCategoryIcon({
@@ -13,50 +20,59 @@ export function HomeCategoryTile({ category, parent, onDrill, className }) {
     iconTone: category.iconTone,
     slug: category.slug,
   });
-  const imageUrl = category.imageUrl;
+  const imageUrl = categoryImageUrl(category);
   const label = category.name;
-  const tileBg = category.tileBg ?? "bg-amber-50";
-
   const tileClass = cn(
-    "group flex min-w-0 flex-col items-center gap-2.5",
+    "group flex min-w-0 flex-col items-center gap-2",
     className,
   );
 
   const imageBox = (
     <span
       className={cn(
-        "flex aspect-square w-full items-center justify-center overflow-hidden rounded-[22px] p-3 transition-shadow group-hover:shadow-md dark:bg-amber-950/20",
-        tileBg,
-        !imageUrl && iconBg,
+        "relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl bg-transparent",
+        !imageUrl && !broken && iconBg,
       )}
     >
       {imageUrl && !broken ? (
         <img
           src={imageUrl}
           alt=""
-          className="max-h-full max-w-full object-contain transition-transform duration-200 group-hover:scale-[1.03]"
+          loading="lazy"
+          decoding="async"
+          className="size-full object-cover object-center transition-transform duration-200 group-hover:scale-[1.04]"
           onError={() => setBroken(true)}
         />
       ) : imageUrl && broken ? (
-        <DecoryImageFallback />
+        <DecoryImageFallback className="rounded-2xl" />
       ) : (
-        <Icon className="size-9" strokeWidth={1.75} />
+        <Icon className="size-9 sm:size-10" strokeWidth={1.75} />
       )}
     </span>
   );
 
   const labelEl = (
-    <span className="line-clamp-2 w-full text-center text-[13px] font-semibold leading-snug text-foreground">
+    <span className="line-clamp-2 w-full px-0.5 text-center text-[11px] font-semibold leading-snug text-foreground sm:text-xs">
       {label}
     </span>
   );
 
-  if (hasChildren) {
+  if (hasChildren && navigation === "drill") {
     return (
       <button type="button" onClick={() => onDrill?.(category)} className={tileClass}>
         {imageBox}
         {labelEl}
       </button>
+    );
+  }
+
+  if (hasChildren && navigation === "link") {
+    const href = categoryPath(category);
+    return (
+      <Link to={href} className={tileClass}>
+        {imageBox}
+        {labelEl}
+      </Link>
     );
   }
 

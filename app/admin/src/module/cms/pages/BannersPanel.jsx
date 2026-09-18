@@ -41,8 +41,11 @@ export function BannersPanel({ cities }) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [editing, setEditing] = useState(null)
+  const [imageTarget, setImageTarget] = useState("desktop")
   const [imagePreview, setImagePreview] = useState("")
   const [imageUploadId, setImageUploadId] = useState(null)
+  const [mobileImagePreview, setMobileImagePreview] = useState("")
+  const [mobileImageUploadId, setMobileImageUploadId] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [deleting, setDeleting] = useState(null)
   const [deletingBusy, setDeletingBusy] = useState(false)
@@ -83,6 +86,8 @@ export function BannersPanel({ cities }) {
     setEditing(null)
     setImagePreview("")
     setImageUploadId(null)
+    setMobileImagePreview("")
+    setMobileImageUploadId(null)
     setDialogOpen(true)
   }
 
@@ -90,6 +95,8 @@ export function BannersPanel({ cities }) {
     setEditing(row)
     setImagePreview(row.imageUrl ?? "")
     setImageUploadId(row.imageUploadId ?? null)
+    setMobileImagePreview(row.mobileImageUrl ?? "")
+    setMobileImageUploadId(row.mobileImageUploadId ?? null)
     setDialogOpen(true)
   }
 
@@ -100,8 +107,10 @@ export function BannersPanel({ cities }) {
         ...body,
         imageUrl: body.imageUrl || imagePreview,
         imageUploadId: body.imageUploadId || imageUploadId,
+        mobileImageUploadId:
+          body.mobileImageUploadId !== undefined ? body.mobileImageUploadId : mobileImageUploadId,
       }
-      const { imageUrl, cityName, image, ...apiBody } = payload
+      const { imageUrl, mobileImageUrl, cityName, image, mobileImage, ...apiBody } = payload
       if (editing?.id) {
         await patchCmsBanner(editing.id, apiBody)
         toast.add({ title: "Banner saved", type: "success" })
@@ -113,6 +122,8 @@ export function BannersPanel({ cities }) {
       setEditing(null)
       setImagePreview("")
       setImageUploadId(null)
+      setMobileImagePreview("")
+      setMobileImageUploadId(null)
       await load()
     } catch (err) {
       toast.add({ title: getApiError(err), type: "error" })
@@ -189,7 +200,9 @@ export function BannersPanel({ cities }) {
       </div>
 
       {sortable ? (
-        <p className="text-xs text-muted-foreground">Drag rows to set display order for this placement.</p>
+        <p className="text-xs text-muted-foreground">
+          Drag rows to set display order for this placement. Mid and end slots show the first published banner in order.
+        </p>
       ) : (
         <p className="text-xs text-muted-foreground">Select a placement to drag-sort banners.</p>
       )}
@@ -223,9 +236,22 @@ export function BannersPanel({ cities }) {
         item={editing}
         cities={cities}
         defaultPlacement={placementFilter !== "all" ? placementFilter : "home_hero"}
-        imagePreview={imagePreview}
+        desktopPreview={imagePreview}
+        mobilePreview={mobileImagePreview}
         imageUploadId={imageUploadId}
-        onPickImage={() => setPickerOpen(true)}
+        mobileImageUploadId={mobileImageUploadId}
+        onPickDesktopImage={() => {
+          setImageTarget("desktop")
+          setPickerOpen(true)
+        }}
+        onPickMobileImage={() => {
+          setImageTarget("mobile")
+          setPickerOpen(true)
+        }}
+        onClearMobileImage={() => {
+          setMobileImagePreview("")
+          setMobileImageUploadId(null)
+        }}
         submitting={submitting}
         onSubmit={handleSave}
       />
@@ -237,8 +263,13 @@ export function BannersPanel({ cities }) {
         kinds={["image"]}
         onAdd={(picked) => {
           const row = picked[0] ? toGalleryItem(picked[0]) : null
-          if (row?.url) setImagePreview(row.url)
-          if (row?.uploadId) setImageUploadId(row.uploadId)
+          if (imageTarget === "mobile") {
+            if (row?.url) setMobileImagePreview(row.url)
+            if (row?.uploadId) setMobileImageUploadId(row.uploadId)
+          } else {
+            if (row?.url) setImagePreview(row.url)
+            if (row?.uploadId) setImageUploadId(row.uploadId)
+          }
         }}
       />
 

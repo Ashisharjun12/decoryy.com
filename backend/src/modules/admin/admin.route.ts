@@ -18,7 +18,7 @@ import {
 } from "@/modules/payments/index.js";
 import { promotionsAdminRouter } from "@/modules/promotions/index.js";
 import { reviewsAdminRouter } from "@/modules/reviews/index.js";
-import { cmsAdminRouter } from "@/modules/cms/index.js";
+import { brandAdminRouter, cmsAdminRouter } from "@/modules/catalog/index.js";
 import { aiAdminRouter } from "@/modules/ai/index.js";
 import { authRequired } from "@/shared/middlewares/auth.middleware.js";
 import { requireRole } from "@/shared/middlewares/requireRole.middleware.js";
@@ -45,4 +45,5 @@ adminRouter.use("/financials", createFinancialAdminRouter(new FinancialAdminCont
 adminRouter.use("/promotions", promotionsAdminRouter);
 adminRouter.use("/reviews", reviewsAdminRouter);
 adminRouter.use("/cms", cmsAdminRouter);
+adminRouter.use("/brand", brandAdminRouter);
 adminRouter.use("/ai", aiAdminRouter);

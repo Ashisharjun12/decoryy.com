@@ -32,3 +32,7 @@ export * from "../modules/reviews/customer-reviews/customer-review.schema.js";
 export * from "../modules/reviews/video-reviews/video-review.schema.js";
 export * from "../modules/cms/banners/banner.schema.js";
 export * from "../modules/cms/testimonials/testimonial.schema.js";
+export * from "../modules/cms/home-layout/home-layout.schema.js";
+export * from "../modules/cms/faq/faq.schema.js";
+export * from "../modules/cms/social-links/social-link.schema.js";
+export * from "../modules/cms/footer-columns/footer-column.schema.js";

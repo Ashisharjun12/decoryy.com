@@ -6,6 +6,7 @@ import { LoginDialog } from "@/module/layout/components/LoginDialog";
 import { LocationPrompt } from "@/module/layout/components/LocationPrompt";
 import { CartDrawer } from "@/module/layout/components/CartDrawer";
 import { SiteFooter } from "@/module/layout/components/SiteFooter";
+import { SiteShellProvider } from "@/module/site/hooks/use-site-shell.jsx";
 import { AnnouncementBar } from "@/module/cms/components/AnnouncementBar";
 import { SiteHeader } from "@/module/layout/components/SiteHeader";
 
@@ -16,6 +17,7 @@ export function Layout() {
   return (
     <LenisProvider>
       <TooltipProvider>
+        <SiteShellProvider>
         <Toaster>
           <div className="flex min-h-[100dvh] flex-col bg-background text-foreground">
             <AnnouncementBar />
@@ -29,6 +31,7 @@ export function Layout() {
             <CartDrawer />
           </div>
         </Toaster>
+        </SiteShellProvider>
       </TooltipProvider>
     </LenisProvider>
   );

@@ -9,10 +9,13 @@ const EMPTY_CMS = {
   mid: [],
   end: [],
   testimonials: [],
+  layoutBlocks: [],
+  faqs: [],
 };
 
 export function useHomeCms() {
   const city = useLocationStore((s) => s.city);
+  const pincode = useLocationStore((s) => s.pincode);
   const cityId = isBackendCityId(city?.id) ? city.id : city?.id ?? null;
 
   const [remote, setRemote] = useState(null);
@@ -21,7 +24,11 @@ export function useHomeCms() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    getHomeCms({ cityId: isBackendCityId(cityId) ? cityId : undefined, platform: "web" })
+    getHomeCms({
+      cityId: isBackendCityId(cityId) ? cityId : undefined,
+      pincode: pincode?.code ?? undefined,
+      platform: "web",
+    })
       .then((data) => {
         if (!cancelled) setRemote(data);
       })
@@ -34,7 +41,7 @@ export function useHomeCms() {
     return () => {
       cancelled = true;
     };
-  }, [cityId]);
+  }, [cityId, pincode?.code]);
 
   const resolved = useMemo(() => {
     if (!remote) return { ...EMPTY_CMS };
@@ -46,6 +53,8 @@ export function useHomeCms() {
       mid: remote.mid ?? [],
       end: remote.end ?? [],
       testimonials: remote.testimonials ?? [],
+      layoutBlocks: remote.layoutBlocks ?? [],
+      faqs: remote.faqs ?? [],
     };
   }, [remote]);
 

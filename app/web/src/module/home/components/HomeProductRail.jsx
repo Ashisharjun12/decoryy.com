@@ -4,11 +4,22 @@ import {
   CarouselContent,
   CarouselItem,
 } from "@/components/ui/carousel";
-import { HomeProductCardCompact, HomeProductCardSkeleton } from "@/module/home/components/HomeProductCard";
+import {
+  HomeProductCardRail,
+  HomeProductCardRailSkeleton,
+} from "@/module/home/components/HomeProductCard";
 import { HomeScrollControls } from "@/module/home/components/HomeScrollControls";
 import { HomeSectionHeading } from "@/module/home/components/HomeSectionHeading";
 
-export function HomeProductRail({ section, loading = false }) {
+export function HomeProductRail({
+  section,
+  loading = false,
+  title: titleOverride,
+  subtitle,
+  showTitle = true,
+  showSubtitle = true,
+}) {
+  const railTitle = titleOverride ?? section.name;
   const [api, setApi] = useState(null);
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(false);
@@ -30,9 +41,18 @@ export function HomeProductRail({ section, loading = false }) {
   }, [api, onSelect]);
 
   return (
-    <section aria-label={section.name}>
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <HomeSectionHeading title={section.name} />
+    <section aria-label={railTitle}>
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+        {showTitle || (showSubtitle && subtitle) ? (
+          <HomeSectionHeading
+            title={showTitle ? railTitle : " "}
+            subtitle={showSubtitle ? subtitle : null}
+            compact
+            hideSubtitle={false}
+          />
+        ) : (
+          <span />
+        )}
         <HomeScrollControls
           canPrev={canPrev}
           canNext={canNext}
@@ -42,9 +62,9 @@ export function HomeProductRail({ section, loading = false }) {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
-            <HomeProductCardSkeleton key={index} compact />
+            <HomeProductCardRailSkeleton key={index} />
           ))}
         </div>
       ) : (
@@ -53,13 +73,13 @@ export function HomeProductRail({ section, loading = false }) {
           opts={{ align: "start", dragFree: true }}
           className="w-full"
         >
-          <CarouselContent className="-ml-3">
+          <CarouselContent className="-ml-2.5">
             {section.items.map((product) => (
               <CarouselItem
                 key={product.id}
-                className="basis-1/2 pl-3 sm:basis-1/3 lg:basis-1/4"
+                className="basis-[46%] pl-2.5 sm:basis-[31%] md:basis-[24%] lg:basis-1/4"
               >
-                <HomeProductCardCompact product={product} />
+                <HomeProductCardRail product={product} />
               </CarouselItem>
             ))}
           </CarouselContent>

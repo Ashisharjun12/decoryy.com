@@ -1,9 +1,12 @@
 import { cn } from "@/lib/utils";
 
-const LIGHT_SRC = "https://ik.imagekit.io/aevhlnk0h/decoryy-light.png";
-const DARK_SRC = "https://ik.imagekit.io/aevhlnk0h/decoryy-dark.png";
+const DEFAULT_LIGHT_SRC = "https://ik.imagekit.io/aevhlnk0h/decoryy-light.png";
+const DEFAULT_DARK_SRC = "https://ik.imagekit.io/aevhlnk0h/decoryy-dark.png";
 
-export function DecoryLogo({ className }) {
+export function DecoryLogo({ className, lightSrc, darkSrc, alt = "Decoryy" }) {
+  const light = lightSrc || DEFAULT_LIGHT_SRC;
+  const dark = darkSrc || DEFAULT_DARK_SRC;
+
   return (
     <span
       className={cn(
@@ -11,10 +14,10 @@ export function DecoryLogo({ className }) {
         className,
       )}
       role="img"
-      aria-label="Decoryy"
+      aria-label={alt}
     >
-      <img src={LIGHT_SRC} alt="" className="size-full object-cover dark:hidden" />
-      <img src={DARK_SRC} alt="" className="hidden size-full object-cover dark:block" />
+      <img src={light} alt="" className="size-full object-cover dark:hidden" />
+      <img src={dark} alt="" className="hidden size-full object-cover dark:block" />
     </span>
   );
 }

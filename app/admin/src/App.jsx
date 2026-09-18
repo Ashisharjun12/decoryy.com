@@ -25,6 +25,7 @@ import { ProductReviewsAdminPage } from "@/module/reviews/pages/ProductReviewsAd
 import { AdminShell } from "@/module/layout/AdminShell"
 import { InboxPage } from "@/module/inbox/pages/InboxPage"
 import { ContentPage } from "@/module/cms/pages/ContentPage"
+import { BrandSettingsPage } from "@/module/brand/pages/BrandSettingsPage"
 
 export default function App() {
   useEffect(() => {
@@ -47,6 +48,7 @@ export default function App() {
               <Route path="/media" element={<MediaPage />} />
               <Route path="/catalog" element={<CatalogPage />} />
               <Route path="/content" element={<ContentPage />} />
+              <Route path="/brand" element={<BrandSettingsPage />} />
               <Route path="/catalog/products/new" element={<ProductFormPage />} />
               <Route path="/catalog/products/:id/reviews" element={<ProductReviewsAdminPage />} />
               <Route path="/catalog/products/:id" element={<ProductFormPage />} />

@@ -1,6 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom"
 import { useEffect } from "react"
-import { LayoutDashboardIcon, MapPinIcon, ImagesIcon, TagsIcon, TicketPercentIcon, StarIcon, CalendarClockIcon, UsersIcon, Settings, MessageSquareIcon, WalletIcon, LayoutTemplateIcon } from "lucide-react"
+import { LayoutDashboardIcon, MapPinIcon, ImagesIcon, TagsIcon, TicketPercentIcon, StarIcon, CalendarClockIcon, UsersIcon, Settings, MessageSquareIcon, WalletIcon, LayoutTemplateIcon, PaletteIcon } from "lucide-react"
 import { getUnreadCount } from "@/api/chat.api"
 import { useChatStore } from "@/store/chat.store"
 import { NavMain } from "@/components/blocks/admin/nav-main"
@@ -41,6 +41,11 @@ const navItems = [
     title: "Content",
     url: "/content",
     icon: <LayoutTemplateIcon />,
+  },
+  {
+    title: "Brand",
+    url: "/brand",
+    icon: <PaletteIcon />,
   },
   {
     title: "Promotions",

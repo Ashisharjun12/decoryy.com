@@ -13,19 +13,106 @@ function discountPercent(pricePaise, compareAtPaise) {
   return Math.round((1 - pricePaise / compareAtPaise) * 100);
 }
 
+function formatRating(value) {
+  if (value == null || Number.isNaN(Number(value))) return null;
+  const n = Number(value);
+  return n % 1 === 0 ? String(n) : n.toFixed(1);
+}
+
+function ProductCardRatingReviews({ ratingLabel, reviewCount, size = "default" }) {
+  if (ratingLabel == null && reviewCount == null) return null;
+  const count =
+    reviewCount != null ? Number(reviewCount).toLocaleString() : null;
+  const reviewSize = size === "rail" ? "text-[11px]" : "text-xs";
+
+  return (
+    <div className="mt-1.5 flex min-h-5 items-center gap-1.5">
+      {ratingLabel != null ? (
+        <span
+          className={cn(
+            "inline-flex items-center gap-0.5 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[11px] font-bold leading-none text-white",
+          )}
+        >
+          <span aria-hidden>★</span>
+          {ratingLabel}
+        </span>
+      ) : null}
+      {count != null ? (
+        <span className={cn("truncate text-muted-foreground", reviewSize)}>
+          {count} reviews
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function ProductCardPriceBlock({ pricePaise, compareAtPaise, size = "default" }) {
+  const percentOff = discountPercent(pricePaise, compareAtPaise);
+  const hasCompare = compareAtPaise != null && compareAtPaise > pricePaise;
+  const priceClass =
+    size === "rail"
+      ? "text-[15px] font-extrabold tracking-tight sm:text-[17px]"
+      : "text-base font-extrabold tracking-tight sm:text-lg";
+  const mrpClass =
+    size === "rail"
+      ? "text-[11px] sm:text-xs"
+      : "text-xs sm:text-[13px]";
+  const offClass =
+    size === "rail" ? "text-[11px] px-1.5 py-0.5" : "text-xs px-2 py-0.5";
+
+  return (
+    <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+      <div className="min-w-0">
+        {hasCompare ? (
+          <span className="sr-only">
+            Sale price {formatPaise(pricePaise)}, was {formatPaise(compareAtPaise)}
+          </span>
+        ) : null}
+        <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+          <span
+            className={cn("tabular-nums text-foreground", priceClass)}
+            aria-hidden={hasCompare ? true : undefined}
+          >
+            {formatPaise(pricePaise)}
+          </span>
+          {hasCompare ? (
+            <span
+              className={cn(
+                "font-medium text-muted-foreground line-through tabular-nums",
+                mrpClass,
+              )}
+              aria-hidden
+            >
+              {formatPaise(compareAtPaise)}
+            </span>
+          ) : null}
+        </div>
+      </div>
+      {percentOff > 0 ? (
+        <span
+          className={cn(
+            "shrink-0 rounded-md bg-emerald-50 font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
+            offClass,
+          )}
+        >
+          {percentOff}% OFF
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 function CompactProductCardContent({ product }) {
   const [broken, setBroken] = useState(false);
   const src = product.imageUrl ?? product.images?.[0]?.url;
-  const percentOff = discountPercent(product.pricePaise, product.compareAtPaise);
-  const hasCompare =
-    product.compareAtPaise != null && product.compareAtPaise > product.pricePaise;
+  const ratingLabel = formatRating(product.rating);
 
   return (
     <Link
       to={productPath(product)}
-      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card transition-shadow hover:shadow-md"
+      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm transition-[box-shadow,border-color] duration-200 hover:border-border hover:shadow-md"
     >
-      <div className="relative aspect-square w-full shrink-0 overflow-hidden bg-muted">
+      <div className="relative aspect-square w-full shrink-0 overflow-hidden rounded-t-2xl bg-muted">
         {src && !broken ? (
           <img
             src={src}
@@ -37,44 +124,20 @@ function CompactProductCardContent({ product }) {
           <DecoryImageFallback />
         )}
       </div>
-      <div className="flex flex-1 flex-col px-2.5 pt-2.5 pb-3">
-        <h3 className="line-clamp-2 min-h-[2.5em] text-[13px] leading-snug font-semibold text-foreground">
+      <div className="flex flex-1 flex-col px-3 pb-3 pt-2.5">
+        <h3 className="line-clamp-2 min-h-[2.5em] text-[13px] leading-snug font-semibold tracking-tight text-foreground">
           {product.name}
         </h3>
 
-        <div className="mt-1.5 flex min-h-[1.25rem] items-center gap-1.5">
-          {product.rating != null ? (
-            <span className="inline-flex items-center gap-0.5 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[11px] font-bold text-white">
-              <span aria-hidden>★</span>
-              {product.rating}
-            </span>
-          ) : null}
-          {product.reviewCount != null ? (
-            <span className="truncate text-[11px] text-muted-foreground">
-              {product.reviewCount} reviews
-            </span>
-          ) : null}
-        </div>
+        <ProductCardRatingReviews
+          ratingLabel={ratingLabel}
+          reviewCount={product.reviewCount}
+        />
 
-        <div className="mt-auto flex items-end justify-between gap-2 pt-2">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-baseline gap-1.5">
-              <span className="text-[15px] font-extrabold tabular-nums">
-                {formatPaise(product.pricePaise)}
-              </span>
-              {hasCompare ? (
-                <span className="text-[12px] text-muted-foreground line-through tabular-nums">
-                  {formatPaise(product.compareAtPaise)}
-                </span>
-              ) : null}
-            </div>
-          </div>
-          {percentOff > 0 ? (
-            <span className="shrink-0 text-[12px] font-bold text-emerald-600">
-              {percentOff}% OFF
-            </span>
-          ) : null}
-        </div>
+        <ProductCardPriceBlock
+          pricePaise={product.pricePaise}
+          compareAtPaise={product.compareAtPaise}
+        />
       </div>
     </Link>
   );
@@ -155,6 +218,77 @@ export function HomeProductCard({ product, variant = "default" }) {
 
 export function HomeProductCardCompact({ product }) {
   return <HomeProductCard product={product} variant="compact" />;
+}
+
+function RailProductCardContent({ product }) {
+  const [broken, setBroken] = useState(false);
+  const src = product.imageUrl ?? product.images?.[0]?.url;
+  const ratingLabel = formatRating(product.rating);
+
+  return (
+    <Link
+      to={productPath(product)}
+      className="group flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm transition-[box-shadow,border-color] duration-200 hover:border-border hover:shadow-md"
+    >
+      <div className="relative aspect-[5/4] w-full shrink-0 overflow-hidden rounded-t-2xl bg-muted">
+        {src && !broken ? (
+          <img
+            src={src}
+            alt=""
+            className="size-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+            onError={() => setBroken(true)}
+          />
+        ) : (
+          <DecoryImageFallback />
+        )}
+      </div>
+      <div className="flex flex-1 flex-col px-2.5 pb-3 pt-2.5 sm:px-3">
+        <h3 className="line-clamp-2 min-h-[2.35em] text-xs font-semibold leading-snug tracking-tight text-foreground sm:text-[13px]">
+          {product.name}
+        </h3>
+
+        <ProductCardRatingReviews
+          size="rail"
+          ratingLabel={ratingLabel}
+          reviewCount={product.reviewCount}
+        />
+
+        <ProductCardPriceBlock
+          size="rail"
+          pricePaise={product.pricePaise}
+          compareAtPaise={product.compareAtPaise}
+        />
+      </div>
+    </Link>
+  );
+}
+
+export function HomeProductCardRail({ product }) {
+  return (
+    <div className="min-w-0">
+      <RailProductCardContent product={product} />
+    </div>
+  );
+}
+
+export function HomeProductCardRailSkeleton() {
+  return (
+    <div className="min-w-0 overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
+      <Skeleton className="aspect-[5/4] w-full rounded-none" />
+      <div className="flex flex-col px-2.5 pb-3 pt-2.5 sm:px-3">
+        <Skeleton className="h-3.5 w-[88%] rounded-md" />
+        <Skeleton className="mt-1.5 h-3.5 w-[62%] rounded-md" />
+        <div className="mt-1.5 flex items-center gap-1.5">
+          <Skeleton className="h-5 w-10 rounded-md" />
+          <Skeleton className="h-3 w-16 rounded-md" />
+        </div>
+        <div className="mt-2 flex items-center justify-between">
+          <Skeleton className="h-5 w-[4.5rem] rounded-md" />
+          <Skeleton className="h-5 w-12 rounded-md" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function HomeProductCardSkeleton({ compact = false }) {

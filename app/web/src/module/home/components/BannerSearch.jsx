@@ -24,7 +24,7 @@ function Field({ label, children, className }) {
   return (
     <div
       className={cn(
-        "flex min-w-0 flex-col justify-center gap-0.5 rounded-2xl px-3 py-1.5 transition-colors hover:bg-muted/70 md:rounded-full md:px-5 md:py-2.5",
+        "flex min-w-0 flex-col justify-center gap-0.5 px-3 py-1.5 md:px-5 md:py-2.5",
         className,
       )}
     >
@@ -37,7 +37,7 @@ function Field({ label, children, className }) {
 }
 
 const triggerClass =
-  "h-auto w-full min-w-0 border-0 bg-transparent p-0 text-xs font-semibold shadow-none hover:bg-transparent focus-visible:border-transparent focus-visible:ring-0 md:text-sm dark:bg-transparent dark:hover:bg-transparent";
+  "h-auto w-full min-w-0 rounded-none border-0 bg-transparent p-0 text-xs font-semibold shadow-none hover:bg-transparent focus-visible:border-transparent focus-visible:ring-0 md:text-sm dark:bg-transparent dark:hover:bg-transparent";
 
 export function BannerSearch() {
   const city = useLocationStore((s) => s.city);
@@ -81,7 +81,7 @@ export function BannerSearch() {
 
   return (
     <form
-      className="rounded-3xl border border-border bg-card p-1.5 shadow-md md:rounded-full md:p-1.5 md:shadow-lg"
+      className="rounded-3xl bg-card p-2 shadow-[0_8px_32px_-8px_rgba(15,23,42,0.14)] md:rounded-full md:p-1.5 md:shadow-[0_12px_40px_-10px_rgba(15,23,42,0.16)]"
       onSubmit={(event) => {
         event.preventDefault();
         findSetups();

@@ -31,6 +31,9 @@ export const cmsBanners = pgTable("cms_banners", {
     subtitle: text("subtitle"),
     tag: text("tag"),
     imageUploadId: uuid("image_upload_id").references(() => uploads.id, { onDelete: "set null" }),
+    mobileImageUploadId: uuid("mobile_image_upload_id").references(() => uploads.id, {
+        onDelete: "set null",
+    }),
     alt: text("alt"),
     ctaLabel: text("cta_label"),
     href: text("href"),

@@ -1,21 +1,32 @@
 import { useEffect, useMemo, useState } from "react";
+import { listProducts } from "@/api/products.api";
 import { listSections } from "@/api/sections.api";
 import {
-  buildDemoSections,
-  getDemoCategories,
   normalizeApiSections,
+  normalizeCategoryTree,
+  normalizeProduct,
 } from "@/module/home/lib/home-catalog";
-import { useLocationStore } from "@/store/location.store";
+import { isBackendCityId, useLocationStore } from "@/store/location.store";
+import { useCatalogStore } from "@/store/catalog.store";
 
 export function useHomeDiscovery() {
   const cityId = useLocationStore((s) => s.city?.id);
   const pincode = useLocationStore((s) => s.pincode);
+  const locationStatus = useLocationStore((s) => s.status);
 
-  const [sectionsStatus, setSectionsStatus] = useState("idle");
+  const [sectionsStatus, setSectionsStatus] = useState("loading");
   const [apiSections, setApiSections] = useState([]);
 
   useEffect(() => {
-    if (!cityId && !pincode) {
+    if (locationStatus !== "ready") {
+      setSectionsStatus("loading");
+      return;
+    }
+
+    const serviceCityId = isBackendCityId(cityId) ? cityId : undefined;
+    const pincodeCode = pincode?.code ?? null;
+
+    if (!serviceCityId && !pincodeCode) {
       setApiSections([]);
       setSectionsStatus("ready");
       return;
@@ -24,10 +35,39 @@ export function useHomeDiscovery() {
     let cancelled = false;
     setSectionsStatus("loading");
 
-    listSections({ cityId, pincode })
-      .then((data) => {
+    const locationQuery = {
+      cityId: serviceCityId,
+      pincode: pincodeCode ?? undefined,
+    };
+
+    listSections(locationQuery)
+      .then(async (data) => {
         if (cancelled) return;
-        setApiSections(normalizeApiSections(data));
+        const fromSections = normalizeApiSections(data);
+        if (fromSections.length > 0) {
+          setApiSections(fromSections);
+          setSectionsStatus("ready");
+          return;
+        }
+
+        const catalog = await listProducts({ ...locationQuery, page: 1, limit: 16 });
+        if (cancelled) return;
+        const items = (catalog?.items ?? [])
+          .map(normalizeProduct)
+          .filter(Boolean);
+        if (items.length === 0) {
+          setApiSections([]);
+        } else {
+          setApiSections([
+            {
+              id: "catalog-fallback",
+              slug: "decorations",
+              name: "Popular setups",
+              sortIndex: 0,
+              items,
+            },
+          ]);
+        }
         setSectionsStatus("ready");
       })
       .catch(() => {
@@ -39,16 +79,19 @@ export function useHomeDiscovery() {
     return () => {
       cancelled = true;
     };
-  }, [cityId, pincode]);
+  }, [cityId, pincode, locationStatus]);
 
-  const categories = useMemo(() => getDemoCategories(), []);
+  const catalogCategories = useCatalogStore((s) => s.categories);
 
-  const sections = useMemo(() => {
-    if (apiSections.length > 0) return apiSections;
-    return buildDemoSections();
-  }, [apiSections]);
+  const categories = useMemo(
+    () => normalizeCategoryTree(catalogCategories),
+    [catalogCategories],
+  );
 
-  const loading = sectionsStatus === "loading";
+  const sections = apiSections;
+
+  const loading =
+    locationStatus !== "ready" || sectionsStatus === "loading";
 
   return {
     categories,

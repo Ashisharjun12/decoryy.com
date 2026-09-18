@@ -26,26 +26,39 @@ import {
   useLocationStore,
 } from "@/store/location.store";
 
-function CityChip({ city, pincode, source, className, ...props }) {
+function CityChip({
+  city,
+  pincode,
+  source,
+  className,
+  pinClassName,
+  labelClassName,
+  chevronClassName,
+  ...props
+}) {
   return (
     <button
       type="button"
       className={cn(
-        "inline-flex h-10 max-w-[13rem] cursor-pointer items-center gap-2 rounded-full border border-border bg-background px-3.5 text-left text-[13.5px] transition-shadow hover:border-primary hover:shadow-sm sm:max-w-none",
+        "inline-flex h-10 max-w-[13rem] cursor-pointer items-center gap-1.5 rounded-full border border-border bg-background px-3.5 text-left text-[13.5px] transition-shadow hover:border-primary hover:shadow-sm sm:max-w-none",
         className,
       )}
       {...props}
     >
-      <MapPinIcon className="size-3.5 shrink-0 text-muted-foreground" />
-      <span className="min-w-0 truncate font-bold">
+      <MapPinIcon
+        className={cn("size-3.5 shrink-0 text-muted-foreground", pinClassName)}
+      />
+      <span className={cn("min-w-0 truncate font-bold", labelClassName)}>
         {formatLocationLabel(city, pincode, source)}
       </span>
-      <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground" />
+      <ChevronDownIcon
+        className={cn("size-3.5 shrink-0 text-muted-foreground", chevronClassName)}
+      />
     </button>
   );
 }
 
-export function LocationPicker() {
+export function LocationPicker({ variant = "default" }) {
   const city = useLocationStore((s) => s.city);
   const pincode = useLocationStore((s) => s.pincode);
   const source = useLocationStore((s) => s.source);
@@ -98,6 +111,32 @@ export function LocationPicker() {
         pincode={pincode}
         source={source}
         onClick={() => setPickerOpen(true)}
+        className={
+          variant === "onBrand" || variant === "onHero"
+            ? "h-auto max-w-[10.5rem] border-0 bg-transparent px-0 py-0 shadow-none hover:border-0 hover:bg-transparent hover:shadow-none"
+            : undefined
+        }
+        pinClassName={
+          variant === "onBrand"
+            ? "text-primary-foreground/80"
+            : variant === "onHero"
+              ? "text-primary"
+              : undefined
+        }
+        labelClassName={
+          variant === "onBrand"
+            ? "text-sm font-semibold text-primary-foreground"
+            : variant === "onHero"
+              ? "text-sm font-semibold text-background"
+              : undefined
+        }
+        chevronClassName={
+          variant === "onBrand"
+            ? "text-primary-foreground/70"
+            : variant === "onHero"
+              ? "text-background/70"
+              : undefined
+        }
       />
       <Dialog
         open={pickerOpen}

@@ -3,7 +3,6 @@ import { Link, useParams } from "react-router-dom";
 import { getApiError } from "@/api/api";
 import { getProduct } from "@/api/products.api";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { ProductPdp, ProductPdpSkeleton } from "@/module/catalog/components/ProductPdp";
 import { isBackendCityId, useLocationStore } from "@/store/location.store";
 
@@ -61,25 +60,7 @@ export function ProductPage() {
   }, [id, hasLocation, pincode?.code, city?.id]);
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-[1240px] overflow-x-hidden px-4 py-8 md:px-8 md:py-12">
-      <p className="mb-6 text-sm text-muted-foreground">
-        <Link to="/" className="hover:text-foreground">
-          Home
-        </Link>
-        {" / "}
-        <Link to="/decorations" className="hover:text-foreground">
-          Decorations
-        </Link>
-        {" / "}
-        <span className="text-foreground">
-          {status === "loading" ? (
-            <Skeleton className="inline-block h-4 w-28 align-middle rounded-md" />
-          ) : (
-            product?.name || "Setup"
-          )}
-        </span>
-      </p>
-
+    <div className="mx-auto w-full min-w-0 max-w-[1240px] overflow-x-hidden px-4 py-6 md:px-8 md:py-10">
       {status === "need-location" ? (
         <div className="flex flex-col items-start gap-4 rounded-4xl border bg-card p-6">
           <h1 className="font-heading text-2xl font-medium tracking-tight">

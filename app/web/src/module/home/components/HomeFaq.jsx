@@ -6,9 +6,13 @@ import {
   AccordionItem,
 } from "@/components/ui/accordion";
 import { Reveal } from "@/module/home/components/Reveal";
+import { useHomeCms } from "@/module/cms/hooks/use-home-cms";
 import { DEMO_FAQ } from "@/module/home/data/demo-faq";
 
 export function HomeFaq() {
+  const { faqs } = useHomeCms();
+  const items = faqs.length > 0 ? faqs : DEMO_FAQ;
+
   return (
     <Reveal className="mx-auto max-w-[1240px] px-4 py-16 md:px-8">
       <div className="mx-auto w-full max-w-xl">
@@ -24,7 +28,7 @@ export function HomeFaq() {
           className="rounded-none border-none **:data-[slot=accordion-content]:px-0"
           multiple={false}
         >
-          {DEMO_FAQ.map((item) => (
+          {items.map((item) => (
             <AccordionItem
               className="border-border data-open:bg-transparent! not-last:border-b"
               key={item.id}

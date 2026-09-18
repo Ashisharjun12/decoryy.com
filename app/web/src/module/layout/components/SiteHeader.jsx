@@ -14,8 +14,10 @@ import { SupportButton } from "@/module/layout/components/SupportButton";
 import { UserMenu } from "@/module/layout/components/UserMenu";
 import { NotificationBell } from "@/module/notifications/components/NotificationBell";
 import { useAuthStore } from "@/store/auth.store";
+import { useSiteShell } from "@/module/site/hooks/use-site-shell.jsx";
 
 export function SiteHeader() {
+  const { brand } = useSiteShell();
   const location = useLocation();
   const headerRef = useRef(null);
   const { scrollY } = useScroll();
@@ -23,6 +25,7 @@ export function SiteHeader() {
   const user = useAuthStore((s) => s.user);
   const setLoginOpen = useAuthStore((s) => s.setLoginOpen);
   const isAccount = location.pathname.startsWith("/account");
+  const isHome = location.pathname === "/";
 
   useMotionValueEvent(scrollY, "change", (value) => {
     setCompact(value > 24);
@@ -48,7 +51,10 @@ export function SiteHeader() {
   return (
     <header
       ref={headerRef}
-      className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-md"
+      className={cn(
+        "sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-md",
+        isHome && "hidden md:block",
+      )}
     >
       <div
         className={cn(
@@ -58,9 +64,13 @@ export function SiteHeader() {
       >
         <MobileNav />
         <Link to="/" className="flex shrink-0 items-center gap-2.5">
-          <DecoryLogo />
+          <DecoryLogo
+            lightSrc={brand.logoLightUrl}
+            darkSrc={brand.logoDarkUrl}
+            alt={brand.companyName}
+          />
           <span className="hidden font-heading text-[21px] font-extrabold tracking-tight sm:inline">
-            Decoryy
+            {brand.companyName}
           </span>
         </Link>
         <LocationPicker />

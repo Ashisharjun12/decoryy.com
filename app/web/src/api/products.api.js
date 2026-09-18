@@ -6,6 +6,7 @@ export function listProducts({
   categoryIds,
   minPricePaise,
   maxPricePaise,
+  sort,
   page = 1,
   limit = 24,
 } = {}) {
@@ -18,6 +19,7 @@ export function listProducts({
   if (categoryIds?.length) params.categoryIds = categoryIds.join(",");
   if (minPricePaise != null) params.minPricePaise = minPricePaise;
   if (maxPricePaise != null) params.maxPricePaise = maxPricePaise;
+  if (sort) params.sort = sort;
   return api.get("/catalog/products", { params }).then(unwrap);
 }
 

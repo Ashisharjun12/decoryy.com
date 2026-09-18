@@ -55,6 +55,7 @@ export interface ISectionService {
         pincode?: string;
         cityId?: string;
     }): Promise<{ city: PublicCity; sections: PublicSection[] }>;
+    resolveProductsForSection(sectionId: string, cityId: string): Promise<ProductForCity[]>;
 }
 
 export class SectionService implements ISectionService {
@@ -153,6 +154,15 @@ export class SectionService implements ISectionService {
         return this.membership(id, cityId);
     }
 
+    async resolveProductsForSection(sectionId: string, cityId: string): Promise<ProductForCity[]> {
+        const section = await this.sections.findById(sectionId);
+        if (!section || !section.isActive) {
+            return [];
+        }
+        const { items } = await this.resolvePublicSectionItems(sectionId, cityId);
+        return items;
+    }
+
     async listPublic(query: {
         pincode?: string;
         cityId?: string;
@@ -162,20 +172,46 @@ export class SectionService implements ISectionService {
         const rows = await this.sections.listActive();
         const sections: PublicSection[] = [];
         for (const section of rows) {
-            const override = await this.sections.findOverride(section.id, cityId);
-            const source: "global" | "city" = override ? "city" : "global";
-            const membership = await this.sections.listProducts(
-                section.id,
-                source === "city" ? cityId : null,
-            );
-            const items = await this.products.listForCityByIds(
-                cityId,
-                membership.map((row) => row.productId),
-            );
+            const { source, items } = await this.resolvePublicSectionItems(section.id, cityId);
             if (items.length === 0) continue;
             sections.push({ ...section, source, items });
         }
         return { city: resolved, sections };
+    }
+
+    private async resolvePublicSectionItems(
+        sectionId: string,
+        cityId: string,
+    ): Promise<{ source: "global" | "city"; items: ProductForCity[] }> {
+        const override = await this.sections.findOverride(sectionId, cityId);
+        const globalMembership = await this.sections.listProducts(sectionId, null);
+        const cityMembership = override
+            ? await this.sections.listProducts(sectionId, cityId)
+            : [];
+
+        const tryMembership = async (
+            rows: { productId: string }[],
+            source: "global" | "city",
+        ): Promise<{ source: "global" | "city"; items: ProductForCity[] }> => {
+            const items = await this.products.listForCityByIds(
+                cityId,
+                rows.map((row) => row.productId),
+            );
+            return { source, items };
+        };
+
+        if (override && cityMembership.length > 0) {
+            const cityResult = await tryMembership(cityMembership, "city");
+            if (cityResult.items.length > 0) {
+                return cityResult;
+            }
+        }
+
+        if (globalMembership.length > 0) {
+            return tryMembership(globalMembership, "global");
+        }
+
+        return { source: "global", items: [] };
     }
 
     private async resolvePublicCity(query: {

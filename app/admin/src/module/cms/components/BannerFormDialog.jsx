@@ -14,6 +14,10 @@ import { Spinner } from "@/components/ui/spinner"
 import { CmsFormDialogShell } from "@/module/cms/components/CmsFormDialogShell"
 import { PlatformCheckboxes } from "@/module/cms/components/PlatformCheckboxes"
 import { CMS_PLACEMENTS, CMS_STATUSES, PLACEMENT_LABELS } from "@/module/cms/lib/cms-constants"
+import {
+  CMS_BANNER_DESKTOP_SIZE_HINT,
+  CMS_BANNER_MOBILE_SIZE_HINT,
+} from "@/module/cms/lib/cms-banner-media"
 
 const VISUAL_PLACEMENTS = CMS_PLACEMENTS.filter((value) => value !== "announcement_bar")
 const FORM_ID = "banner-form"
@@ -31,9 +35,13 @@ export function BannerFormDialog({
   defaultPlacement = "home_hero",
   onSubmit,
   submitting,
-  onPickImage,
-  imagePreview,
-  imageUploadId: pickedUploadId,
+  onPickDesktopImage,
+  onPickMobileImage,
+  desktopPreview,
+  mobilePreview,
+  imageUploadId: pickedDesktopUploadId,
+  mobileImageUploadId: pickedMobileUploadId,
+  onClearMobileImage,
 }) {
   const [placement, setPlacement] = useState(defaultPlacement)
   const [title, setTitle] = useState("")
@@ -49,6 +57,9 @@ export function BannerFormDialog({
   const [cityId, setCityId] = useState("global")
   const [platforms, setPlatforms] = useState(["web", "mobile"])
   const [imageUploadId, setImageUploadId] = useState(null)
+  const [mobileImageUploadId, setMobileImageUploadId] = useState(null)
+  const [mobileImageUrl, setMobileImageUrl] = useState("")
+  const [mobileImageCleared, setMobileImageCleared] = useState(false)
   const [imageError, setImageError] = useState("")
 
   useEffect(() => {
@@ -57,7 +68,8 @@ export function BannerFormDialog({
     setTitle(item?.title ?? "")
     setSubtitle(item?.subtitle ?? "")
     setTag(item?.tag ?? "")
-    setImageUrl(item?.imageUrl || imagePreview || "")
+    setImageUrl(item?.imageUrl || desktopPreview || "")
+    setMobileImageUrl(item?.mobileImageUrl || mobilePreview || "")
     setAlt(item?.alt ?? "")
     setHref(item?.href ?? "")
     setCtaLabel(item?.ctaLabel ?? "")
@@ -66,15 +78,20 @@ export function BannerFormDialog({
     setStatus(item?.status ?? "draft")
     setCityId(item?.cityId ?? "global")
     setPlatforms(item?.platforms ?? ["web", "mobile"])
-    setImageUploadId(pickedUploadId ?? item?.imageUploadId ?? null)
+    setImageUploadId(pickedDesktopUploadId ?? item?.imageUploadId ?? null)
+    setMobileImageUploadId(pickedMobileUploadId ?? item?.mobileImageUploadId ?? null)
+    setMobileImageCleared(false)
     setImageError("")
-  }, [open, item, defaultPlacement, imagePreview, pickedUploadId])
+  }, [open, item, defaultPlacement, desktopPreview, mobilePreview, pickedDesktopUploadId, pickedMobileUploadId])
 
   function handleSubmit(event) {
     event.preventDefault()
-    const resolvedUploadId = imageUploadId ?? pickedUploadId ?? item?.imageUploadId ?? null
+    const resolvedUploadId = imageUploadId ?? pickedDesktopUploadId ?? item?.imageUploadId ?? null
+    const resolvedMobileUploadId = mobileImageCleared
+      ? null
+      : mobileImageUploadId ?? pickedMobileUploadId ?? item?.mobileImageUploadId ?? null
     if (!resolvedUploadId) {
-      setImageError("Pick a banner image from media.")
+      setImageError("Pick a desktop banner image from media.")
       return
     }
     setImageError("")
@@ -85,8 +102,9 @@ export function BannerFormDialog({
       title: emptyToNull(title),
       subtitle: emptyToNull(subtitle),
       tag: emptyToNull(tag),
-      imageUrl: imageUrl || imagePreview || null,
+      imageUrl: imageUrl || desktopPreview || null,
       imageUploadId: resolvedUploadId,
+      mobileImageUploadId: resolvedMobileUploadId,
       alt: emptyToNull(alt),
       href: emptyToNull(href),
       ctaLabel: emptyToNull(ctaLabel),
@@ -118,19 +136,56 @@ export function BannerFormDialog({
       <form id={FORM_ID} onSubmit={handleSubmit} className="grid w-full min-w-0 gap-4">
         <div className="grid gap-2">
           <Label>
-            Image <span className="text-destructive">*</span>
+            Desktop image <span className="text-destructive">*</span>
           </Label>
+          <p className="text-xs text-muted-foreground">Recommended: {CMS_BANNER_DESKTOP_SIZE_HINT}</p>
           <div className="flex gap-2">
-            {onPickImage ? (
-              <Button type="button" variant="outline" onClick={onPickImage}>Choose from media</Button>
+            {onPickDesktopImage ? (
+              <Button type="button" variant="outline" onClick={onPickDesktopImage}>
+                Choose from media
+              </Button>
             ) : null}
           </div>
-          {imageUrl || imagePreview ? (
-            <img src={imagePreview || imageUrl} alt="" className="h-32 w-full rounded-lg object-cover" />
+          {imageUrl || desktopPreview ? (
+            <img src={desktopPreview || imageUrl} alt="" className="h-32 w-full rounded-lg object-cover" />
           ) : (
-            <p className="text-xs text-muted-foreground">Banner image is required. All other fields are optional.</p>
+            <p className="text-xs text-muted-foreground">Desktop image is required for visual banners.</p>
           )}
           {imageError ? <p className="text-sm text-destructive">{imageError}</p> : null}
+        </div>
+        <div className="grid gap-2">
+          <Label>Mobile image</Label>
+          <p className="text-xs text-muted-foreground">
+            Optional. Recommended: {CMS_BANNER_MOBILE_SIZE_HINT}. Storefront uses desktop image if empty.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {onPickMobileImage ? (
+              <Button type="button" variant="outline" onClick={onPickMobileImage}>
+                Choose from media
+              </Button>
+            ) : null}
+            {(mobilePreview || mobileImageUrl || mobileImageUploadId) && onClearMobileImage ? (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setMobileImageUploadId(null)
+                  setMobileImageUrl("")
+                  setMobileImageCleared(true)
+                  onClearMobileImage()
+                }}
+              >
+                Remove mobile image
+              </Button>
+            ) : null}
+          </div>
+          {mobilePreview || mobileImageUrl ? (
+            <img
+              src={mobilePreview || mobileImageUrl}
+              alt=""
+              className="mx-auto h-40 max-w-[10rem] rounded-lg object-cover"
+            />
+          ) : null}
         </div>
         <div className="grid gap-2">
           <Label>Placement</Label>

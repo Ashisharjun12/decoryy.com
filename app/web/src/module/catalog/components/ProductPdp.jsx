@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { addDays, format, isSameDay, startOfToday } from "date-fns";
 import {
   CalendarDaysIcon,
@@ -15,8 +16,10 @@ import {
   SparklesIcon,
   TruckIcon,
 } from "lucide-react";
+import { categoryPath } from "@/lib/catalog-path";
 import { formatPaise } from "@/lib/money";
 import { cn } from "@/lib/utils";
+import { useCatalogStore } from "@/store/catalog.store";
 import { toast } from "@/components/ui/toast";
 import { getApiError } from "@/api/api";
 import { useCartStore } from "@/store/cart.store";
@@ -34,7 +37,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DecoryImageFallback } from "@/components/decory-image-fallback";
 import { Skeleton } from "@/components/ui/skeleton";
+import { listProducts } from "@/api/products.api";
+import { ProductCustomizeOrderDialog } from "@/module/catalog/components/ProductCustomizeOrderDialog";
 import { ProductReviewsPreview } from "@/module/catalog/components/reviews/ProductReviewsPreview";
+import { proceedToCheckout } from "@/module/booking/lib/proceed-to-checkout";
+import { useAuthStore } from "@/store/auth.store";
+import { HomeProductCardRail } from "@/module/home/components/HomeProductCard";
+import { HomeSectionHeading } from "@/module/home/components/HomeSectionHeading";
+import { normalizeProduct } from "@/module/home/lib/home-catalog";
 
 const TIME_SLOTS = [
   { id: "9-12", label: "9 AM – 12 PM" },
@@ -65,6 +75,38 @@ function filledPoints(items) {
 
 function filledFaqs(items) {
   return (items ?? []).filter((item) => (item.question ?? "").trim() && (item.answer ?? "").trim());
+}
+
+function indexCategories(categories) {
+  const byId = new Map();
+  function walk(nodes) {
+    for (const node of nodes ?? []) {
+      byId.set(node.id, node);
+      walk(node.children);
+    }
+  }
+  walk(categories);
+  return byId;
+}
+
+function resolveProductCategory(categoryId, categories) {
+  if (!categoryId) return { label: "Decorations", href: "/decorations" };
+  const byId = indexCategories(categories);
+  const cat = byId.get(categoryId);
+  if (!cat) return { label: "Decorations", href: "/decorations" };
+  if (cat.parentId) {
+    const parent = byId.get(cat.parentId);
+    if (parent) {
+      return { label: cat.name, href: categoryPath(parent, cat), parent };
+    }
+  }
+  return { label: cat.name, href: categoryPath(cat) };
+}
+
+function formatRating(value) {
+  if (value == null || Number.isNaN(Number(value))) return null;
+  const n = Number(value);
+  return n % 1 === 0 ? String(n) : n.toFixed(1);
 }
 
 function comingSoon() {
@@ -139,7 +181,7 @@ function SectionTrigger({ icon, iconClassName, title, subtitle }) {
   );
 }
 
-function ProductPrice({ pricePaise, compareAtPaise }) {
+function ProductPrice({ pricePaise, compareAtPaise, ratingAvg, reviewCount }) {
   if (pricePaise == null) {
     return <p className="text-muted-foreground">Price unavailable</p>;
   }
@@ -150,33 +192,86 @@ function ProductPrice({ pricePaise, compareAtPaise }) {
     compareAtPaise != null && compareAtPaise > pricePaise
       ? Math.round((1 - pricePaise / compareAtPaise) * 100)
       : 0;
+  const ratingLabel = formatRating(ratingAvg);
+  const reviews =
+    reviewCount != null && Number(reviewCount) > 0
+      ? Number(reviewCount).toLocaleString()
+      : null;
 
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex flex-wrap items-baseline gap-2">
-        <span className="font-heading text-2xl font-medium tracking-tight">
+    <div className="flex flex-col gap-2.5 border-b border-border/60 pb-5">
+      {ratingLabel != null || reviews ? (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          {ratingLabel != null ? (
+            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-0.5 text-xs font-bold text-white">
+              <span aria-hidden>★</span>
+              {ratingLabel}
+            </span>
+          ) : null}
+          {reviews ? (
+            <span className="text-muted-foreground">{reviews} reviews</span>
+          ) : null}
+          {ratingLabel != null ? (
+            <>
+              <span className="text-muted-foreground/50" aria-hidden>·</span>
+              <span className="text-muted-foreground">Verified</span>
+            </>
+          ) : null}
+        </div>
+      ) : null}
+      <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+        <span className="text-3xl font-extrabold tracking-tight tabular-nums text-foreground">
           {formatPaise(pricePaise)}
         </span>
         {compareAtPaise != null && compareAtPaise > pricePaise ? (
-          <span className="text-muted-foreground line-through">
+          <span className="text-base text-muted-foreground line-through tabular-nums">
             {formatPaise(compareAtPaise)}
           </span>
         ) : null}
         {percentOff > 0 ? (
-          <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-400">
-            {percentOff}% off
-          </Badge>
+          <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+            {percentOff}% OFF
+          </span>
         ) : null}
       </div>
       {savedPaise > 0 ? (
-        <p className="text-sm">
-          <span className="font-medium text-emerald-700 dark:text-emerald-400">
+        <p className="text-sm leading-relaxed">
+          <span className="font-semibold text-emerald-700 dark:text-emerald-400">
             You save {formatPaise(savedPaise)}
           </span>
-          <span className="text-muted-foreground"> · Inclusive of all charges and setup</span>
+          <span className="text-muted-foreground"> · Inclusive of all charges &amp; setup</span>
         </p>
-      ) : null}
+      ) : (
+        <p className="text-sm text-muted-foreground">Inclusive of all charges &amp; setup</p>
+      )}
     </div>
+  );
+}
+
+function ProductBreadcrumb({ title, categoryId }) {
+  const categories = useCatalogStore((s) => s.categories);
+  const category = useMemo(
+    () => resolveProductCategory(categoryId, categories),
+    [categoryId, categories],
+  );
+
+  return (
+    <nav
+      className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground"
+      aria-label="Breadcrumb"
+    >
+      <Link to="/" className="shrink-0 hover:text-foreground">
+        Home
+      </Link>
+      <span className="shrink-0 text-muted-foreground/60" aria-hidden>/</span>
+      <Link to={category.href} className="max-w-[42%] truncate hover:text-foreground">
+        {category.label}
+      </Link>
+      <span className="shrink-0 text-muted-foreground/60" aria-hidden>/</span>
+      <span className="min-w-0 truncate font-medium text-foreground" title={title}>
+        {title}
+      </span>
+    </nav>
   );
 }
 
@@ -408,62 +503,71 @@ function ProductSchedule({ onChange }) {
   );
 }
 
-function ProductAddons({ addons, selectedIds, onToggle }) {
-  const rows = addons ?? [];
-  const selected = new Set(selectedIds ?? []);
+function ProductRelatedRail({ product }) {
+  const city = useLocationStore((s) => s.city);
+  const pincode = useLocationStore((s) => s.pincode);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!product?.categoryId) {
+      setItems([]);
+      setLoading(false);
+      return undefined;
+    }
+    let cancelled = false;
+    setLoading(true);
+    void listProducts({
+      categoryId: product.categoryId,
+      cityId: pincode?.code ? undefined : city?.id,
+      pincode: pincode?.code || undefined,
+      page: 1,
+      limit: 12,
+    })
+      .then((data) => {
+        if (cancelled) return;
+        const rows = (data?.items ?? [])
+          .filter((row) => row.id !== product.id)
+          .map(normalizeProduct)
+          .filter(Boolean)
+          .slice(0, 8);
+        setItems(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setItems([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [product?.categoryId, product?.id, city?.id, pincode?.code]);
+
+  if (!loading && items.length === 0) return null;
 
   return (
-    <div className="flex min-w-0 flex-col gap-3">
-      <h3 className="font-heading text-base font-medium">We suggest to add this</h3>
-      {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No add-ons for this setup</p>
+    <section className="mt-12 border-t border-border/60 pt-10 md:mt-16 md:pt-12">
+      <HomeSectionHeading
+        title="Similar packages"
+        subtitle="Explore more décor in this category"
+        compact
+        className="mb-4"
+      />
+      {loading ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="h-48 animate-pulse rounded-2xl bg-muted" />
+          ))}
+        </div>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {rows.map((addon) => {
-            const thumb = imageSrc(addon.image);
-            const isOn = selected.has(addon.id);
-            return (
-              <li key={addon.id} className="flex min-w-0 items-center gap-3">
-                <span className="relative size-12 shrink-0 overflow-hidden rounded-full bg-muted">
-                  {thumb ? (
-                    <img src={thumb} alt="" className="size-full object-cover" />
-                  ) : (
-                    <DecoryImageFallback />
-                  )}
-                </span>
-                <div className="min-w-0 flex-1">
-                  {addon.color?.name ? (
-                    <p className="flex min-w-0 items-center gap-1.5 font-medium">
-                      <span
-                        className="size-3.5 shrink-0 rounded-full border border-black/10"
-                        style={{ backgroundColor: addon.color.hex }}
-                        aria-hidden
-                      />
-                      <span className="truncate">
-                        {addon.name} · {addon.color.name}
-                      </span>
-                    </p>
-                  ) : (
-                    <p className="truncate font-medium">{addon.name}</p>
-                  )}
-                  <p className="text-sm text-muted-foreground">
-                    {addon.pricePaise == null ? "Free" : formatPaise(addon.pricePaise)}
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  size="lg"
-                  variant={isOn ? "default" : "outline"}
-                  onClick={() => onToggle?.(addon.id)}
-                >
-                  {isOn ? "Selected" : "Select"}
-                </Button>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {items.map((item) => (
+            <HomeProductCardRail key={item.id} product={item} />
+          ))}
+        </div>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -474,35 +578,52 @@ export function ProductPdp({ product, onChangeLocation }) {
   const faqItems = filledFaqs(product?.faqs);
   const includePoints = filledPoints(product?.includes);
   const cityLabel = (product?.city?.name ?? "").trim() || "Select city";
-  const [selectedAddonIds, setSelectedAddonIds] = useState([]);
   const [scheduledAt, setScheduledAt] = useState(null);
   const [booking, setBooking] = useState(false);
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const navigate = useNavigate();
   const addItem = useCartStore((s) => s.addItem);
+  const setCartOpen = useCartStore((s) => s.setOpen);
+  const user = useAuthStore((s) => s.user);
+  const setLoginOpen = useAuthStore((s) => s.setLoginOpen);
   const city = useLocationStore((s) => s.city);
   const pincode = useLocationStore((s) => s.pincode);
   const setPickerOpen = useLocationStore((s) => s.setPickerOpen);
 
-  const selectedAddons = useMemo(() => {
-    const ids = new Set(selectedAddonIds);
-    return (product?.addons ?? []).filter((addon) => ids.has(addon.id));
-  }, [product?.addons, selectedAddonIds]);
+  const productAddons = product?.addons ?? [];
+  const hasAddons = productAddons.length > 0;
 
-  const addonsPaise = useMemo(
-    () =>
-      selectedAddons.reduce((sum, addon) => sum + (addon.pricePaise ?? 0), 0),
-    [selectedAddons],
-  );
-
-  const packageTotalPaise =
-    product?.pricePaise != null ? product.pricePaise + addonsPaise : null;
-
-  function toggleAddon(id) {
-    setSelectedAddonIds((prev) =>
-      prev.includes(id) ? prev.filter((row) => row !== id) : [...prev, id],
-    );
+  async function completeBooking(addonIds) {
+    if (!product?.id) return;
+    setBooking(true);
+    try {
+      await addItem(
+        {
+          productId: product.id,
+          addonIds,
+          quantity: 1,
+          pincode: pincode?.code || undefined,
+          cityId: pincode?.code ? undefined : city?.id,
+          scheduledAt: scheduledAt || undefined,
+        },
+        { openDrawer: false },
+      );
+      toast.add({ title: "Added to bag", type: "success" });
+      setCustomizeOpen(false);
+      proceedToCheckout({
+        user,
+        setLoginOpen,
+        navigate,
+        setCartOpen,
+      });
+    } catch (err) {
+      toast.add({ title: getApiError(err), type: "error" });
+    } finally {
+      setBooking(false);
+    }
   }
 
-  async function onBookNow() {
+  function onBookNow() {
     if (!product?.id) return;
     const hasLocation =
       Boolean(pincode?.code) || (Boolean(city?.id) && isBackendCityId(city.id));
@@ -511,69 +632,43 @@ export function ProductPdp({ product, onChangeLocation }) {
       toast.add({ title: "Select your city first", type: "info" });
       return;
     }
-    setBooking(true);
-    try {
-      await addItem({
-        productId: product.id,
-        addonIds: selectedAddonIds,
-        quantity: 1,
-        pincode: pincode?.code || undefined,
-        cityId: pincode?.code ? undefined : city?.id,
-        scheduledAt: scheduledAt || undefined,
-      });
-      toast.add({ title: "Added to bag", type: "success" });
-    } catch (err) {
-      toast.add({ title: getApiError(err), type: "error" });
-    } finally {
-      setBooking(false);
+    if (hasAddons) {
+      setCustomizeOpen(true);
+      return;
     }
+    void completeBooking([]);
   }
 
   return (
-    <div className="grid min-w-0 gap-6 overflow-x-hidden lg:grid-cols-2">
-      <div className="flex min-w-0 flex-col gap-6 lg:sticky lg:top-24 lg:self-start">
-        <ProductGallery images={images} title={title} />
-        <ProductAddons
-          addons={product?.addons}
-          selectedIds={selectedAddonIds}
-          onToggle={toggleAddon}
-        />
-      </div>
+    <div className="flex min-w-0 flex-col gap-0">
+      <div className="grid min-w-0 gap-8 overflow-x-hidden lg:grid-cols-2 lg:items-start lg:gap-10">
+        <div className="min-w-0 lg:sticky lg:top-20 lg:z-[1] lg:self-start">
+          <ProductGallery images={images} title={title} />
+        </div>
 
-      <div className="flex min-w-0 flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4 pb-2">
+        <ProductBreadcrumb title={title} categoryId={product?.categoryId} />
+
         <div className="flex min-w-0 flex-col gap-2">
-          <h1 className="font-heading text-2xl font-medium tracking-tight">{title}</h1>
-          <p
-            className={cn(
-              "text-sm",
-              copy ? "whitespace-pre-wrap text-foreground" : "text-muted-foreground",
-            )}
+          <h1
+            className="line-clamp-2 font-heading text-2xl font-semibold tracking-tight md:text-[1.75rem] md:leading-snug"
+            title={title}
           >
-            {copy || "No description"}
-          </p>
+            {title}
+          </h1>
+          {copy ? (
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+              {copy}
+            </p>
+          ) : null}
         </div>
 
         <ProductPrice
           pricePaise={product?.pricePaise}
           compareAtPaise={product?.compareAtPaise}
+          ratingAvg={product?.ratingAvg}
+          reviewCount={product?.reviewCount}
         />
-
-        {packageTotalPaise != null && selectedAddons.length > 0 ? (
-          <div className="flex min-w-0 items-baseline justify-between gap-3 rounded-4xl border border-emerald-600/20 bg-emerald-600/5 px-4 py-3">
-            <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">Package total</p>
-              <p className="text-sm text-muted-foreground">
-                Setup
-                {addonsPaise > 0
-                  ? ` + ${selectedAddons.length} add-on${selectedAddons.length === 1 ? "" : "s"}`
-                  : ` + ${selectedAddons.length} free add-on${selectedAddons.length === 1 ? "" : "s"}`}
-              </p>
-            </div>
-            <p className="shrink-0 text-lg font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
-              {formatPaise(packageTotalPaise)}
-            </p>
-          </div>
-        ) : null}
 
         <div className="flex min-w-0 items-center justify-between gap-3 rounded-4xl bg-emerald-600/10 px-4 py-3">
           <div className="flex min-w-0 items-center gap-2">
@@ -607,13 +702,18 @@ export function ProductPdp({ product, onChangeLocation }) {
             disabled={booking}
             onClick={onBookNow}
           >
-            {booking
-              ? "Adding…"
-              : packageTotalPaise != null
-                ? `Book Now · ${formatPaise(packageTotalPaise)}`
-                : "Book Now"}
+            {booking ? "Adding…" : "Book Now"}
           </Button>
         </div>
+
+        <ProductCustomizeOrderDialog
+          open={customizeOpen}
+          onOpenChange={setCustomizeOpen}
+          addons={productAddons}
+          submitting={booking}
+          onSkip={() => void completeBooking([])}
+          onProceed={(addonIds) => void completeBooking(addonIds)}
+        />
 
         <Accordion multiple defaultValue={["includes"]} className="rounded-4xl border bg-card">
           <AccordionItem value="includes" className="data-open:bg-transparent">
@@ -688,16 +788,23 @@ export function ProductPdp({ product, onChangeLocation }) {
         </Accordion>
 
         <ProductReviewsPreview productId={product?.id} product={product} />
+        </div>
       </div>
+
+      <ProductRelatedRail product={product} />
     </div>
   );
 }
 
 export function ProductPdpSkeleton() {
   return (
-    <div className="grid min-w-0 gap-6 overflow-x-hidden lg:grid-cols-2" aria-busy="true" aria-live="polite">
+    <div
+      className="grid min-w-0 gap-8 overflow-x-hidden lg:grid-cols-2 lg:items-start lg:gap-10"
+      aria-busy="true"
+      aria-live="polite"
+    >
       <span className="sr-only">Loading product</span>
-      <div className="flex min-w-0 flex-col gap-6">
+      <div className="min-w-0 lg:sticky lg:top-20">
         <div className="flex min-w-0 flex-col gap-3">
           <Skeleton className="aspect-square w-full rounded-4xl" />
           <div className="flex gap-2">
@@ -707,9 +814,20 @@ export function ProductPdpSkeleton() {
             <Skeleton className="size-16 shrink-0 rounded-2xl" />
           </div>
         </div>
+      </div>
+
+      <div className="flex min-w-0 flex-col gap-4">
+        <Skeleton className="h-4 w-[72%] rounded-md" />
+        <div className="flex min-w-0 flex-col gap-2">
+          <Skeleton className="h-8 w-[85%] rounded-md" />
+          <Skeleton className="h-4 w-full rounded-md" />
+          <Skeleton className="h-4 w-[72%] rounded-md" />
+        </div>
+        <Skeleton className="h-10 w-40 rounded-md" />
+        <Skeleton className="h-14 w-full rounded-4xl" />
         <div className="flex min-w-0 flex-col gap-3">
           <Skeleton className="h-5 w-44 rounded-md" />
-          {[0, 1, 2].map((i) => (
+          {[0, 1].map((i) => (
             <div key={i} className="flex items-center gap-3">
               <Skeleton className="size-12 shrink-0 rounded-full" />
               <div className="min-w-0 flex-1 space-y-2">
@@ -720,16 +838,6 @@ export function ProductPdpSkeleton() {
             </div>
           ))}
         </div>
-      </div>
-
-      <div className="flex min-w-0 flex-col gap-4">
-        <div className="flex min-w-0 flex-col gap-2">
-          <Skeleton className="h-8 w-[85%] rounded-md" />
-          <Skeleton className="h-4 w-full rounded-md" />
-          <Skeleton className="h-4 w-[72%] rounded-md" />
-        </div>
-        <Skeleton className="h-8 w-32 rounded-md" />
-        <Skeleton className="h-14 w-full rounded-4xl" />
         <div className="rounded-4xl border bg-card p-4">
           <Skeleton className="h-5 w-40 rounded-md" />
           <Skeleton className="mt-2 h-3 w-52 rounded-md" />

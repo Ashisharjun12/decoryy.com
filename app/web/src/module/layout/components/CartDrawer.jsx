@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/drawer";
 import { DecoryImageFallback } from "@/components/decory-image-fallback";
 import { Spinner } from "@/components/ui/spinner";
+import { proceedToCheckout } from "@/module/booking/lib/proceed-to-checkout";
 import { useAuthStore } from "@/store/auth.store";
 import { useCartStore } from "@/store/cart.store";
 import { getApiError } from "@/api/api";
@@ -45,12 +46,7 @@ export function CartDrawer() {
 
   function onContinue() {
     if (!cart.items?.length) return;
-    if (!user) {
-      setLoginOpen(true);
-      return;
-    }
-    setOpen(false);
-    navigate("/checkout");
+    proceedToCheckout({ user, setLoginOpen, navigate, setCartOpen: setOpen });
   }
 
   const hasItems = Boolean(cart.items?.length);

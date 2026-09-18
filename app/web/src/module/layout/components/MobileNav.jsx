@@ -6,6 +6,7 @@ import {
   listTopLevelCategories,
   resolveCategoryIcon,
 } from "@/lib/category-icons";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -21,7 +22,7 @@ import { UserMenu } from "@/module/layout/components/UserMenu";
 import { useAuthStore } from "@/store/auth.store";
 import { useCatalogStore } from "@/store/catalog.store";
 
-export function MobileNav() {
+export function MobileNav({ triggerClassName }) {
   const [open, setOpen] = useState(false);
   const user = useAuthStore((s) => s.user);
   const setLoginOpen = useAuthStore((s) => s.setLoginOpen);
@@ -36,7 +37,11 @@ export function MobileNav() {
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger
         render={
-          <Button variant="ghost" size="icon" className="md:hidden" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn("size-9 shrink-0 md:hidden", triggerClassName)}
+          />
         }
       >
         <MenuIcon />

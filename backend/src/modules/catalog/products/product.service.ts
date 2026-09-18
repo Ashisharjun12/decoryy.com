@@ -47,6 +47,7 @@ export type PublicAddonForCity = {
     image: (PublicMedia & { url: string }) | null;
     color: { id: string; name: string; slug: string; hex: string } | null;
     pricePaise: number | null;
+    compareAtPaise: number | null;
 };
 
 export type ProductPublicDetail = ProductForCity & {
@@ -109,9 +110,20 @@ export type PublicProductListQuery = {
     categoryIds?: unknown;
     minPricePaise?: unknown;
     maxPricePaise?: unknown;
+    sort?: unknown;
     page?: unknown;
     limit?: unknown;
 };
+
+type PublicProductSort = "popularity" | "new" | "price_asc" | "price_desc";
+
+function parsePublicSort(query: PublicProductListQuery): PublicProductSort {
+    const raw = typeof query.sort === "string" ? query.sort.trim() : "";
+    if (raw === "new" || raw === "price_asc" || raw === "price_desc" || raw === "popularity") {
+        return raw;
+    }
+    return "popularity";
+}
 
 const COPY_MAX = 20;
 const UUID_RE =
@@ -400,6 +412,7 @@ export class ProductService implements IProductService {
             categoryIds: categoryIds.length ? categoryIds : undefined,
             minPricePaise,
             maxPricePaise,
+            sort: parsePublicSort(query),
         };
 
         const [{ items: rows, total }, categories, price] = await Promise.all([
@@ -537,6 +550,17 @@ export class ProductService implements IProductService {
             if (!addon || !addon.isActive) continue;
             const override = await this.prices.getAddonPrice(addonId, cityId);
             const pricePaise = resolvedSellPaise(override?.pricePaise, addon.pricePaise);
+            let compareAtPaise =
+                override?.compareAtPaise != null
+                    ? override.compareAtPaise
+                    : addon.compareAtPaise ?? null;
+            if (
+                pricePaise == null ||
+                compareAtPaise == null ||
+                compareAtPaise <= pricePaise
+            ) {
+                compareAtPaise = null;
+            }
             items.push({
                 id: addon.id,
                 name: addon.name,
@@ -544,6 +568,7 @@ export class ProductService implements IProductService {
                 image: await this.toAddonImage(addon.imageUploadId),
                 color: await this.toAddonColor(addon.colorId),
                 pricePaise,
+                compareAtPaise,
             });
         }
         return items;
@@ -578,9 +603,6 @@ export class ProductService implements IProductService {
         const category = await this.categories.findById(categoryId);
         if (!category) {
             throw ApiError.notFound("category not found");
-        }
-        if (!category.parentId) {
-            throw ApiError.badRequest("product category must be a subcategory");
         }
     }
 

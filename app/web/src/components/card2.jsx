@@ -40,6 +40,7 @@ import {
   RESEND_SECONDS,
 } from "@/module/auth/phone-login";
 import { cn } from "@/lib/utils";
+import { useSiteShell } from "@/module/site/hooks/use-site-shell.jsx";
 
 function GoogleMark({ className }) {
   return (
@@ -65,6 +66,8 @@ function GoogleMark({ className }) {
 }
 
 export function LoginCard() {
+  const { brand } = useSiteShell();
+  const companyName = brand.companyName || "Decoryy";
   const overlayRef = useRef(null);
   const pendingRef = useRef(false);
   const verifyRef = useRef(false);
@@ -235,7 +238,7 @@ export function LoginCard() {
     try {
       const payload = await verifyOtp({ phone: phone.trim(), otp: code });
       await applyCustomerSession(payload);
-      toast.add({ title: "Welcome to Decoryy", type: "success" });
+      toast.add({ title: `Welcome to ${companyName}`, type: "success" });
     } catch (err) {
       setOtp("");
       toast.add({ title: getApiError(err), type: "error" });
@@ -264,9 +267,14 @@ export function LoginCard() {
     <Card className="w-full shadow-none ring-0">
       <CardHeader className="flex flex-col items-center text-center">
         <div className="mb-1 flex items-center gap-2">
-          <DecoryLogo className="size-9" />
+          <DecoryLogo
+            className="size-9"
+            lightSrc={brand.logoLightUrl}
+            darkSrc={brand.logoDarkUrl}
+            alt={companyName}
+          />
           <span className="font-heading text-xl font-extrabold tracking-tight">
-            Decoryy
+            {companyName}
           </span>
         </div>
         <CardTitle>

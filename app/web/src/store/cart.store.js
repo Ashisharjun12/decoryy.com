@@ -53,12 +53,13 @@ export const useCartStore = create((set, get) => ({
     }
   },
 
-  addItem: async (body) => {
+  addItem: async (body, options = {}) => {
+    const openDrawer = options.openDrawer !== false;
     set({ status: "loading", error: "" });
     try {
       const cart = await addCartItem(body);
       get().applyCart(cart);
-      set({ open: true });
+      set({ open: openDrawer });
       return cart;
     } catch (err) {
       set({ status: "error", error: getApiError(err) });

@@ -23,7 +23,7 @@ function isMacPlatform() {
   return /mac/i.test(navigator.userAgent);
 }
 
-export function SearchCommand({ variant = "bar" }) {
+export function SearchCommand({ variant = "bar", className }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const categories = useCatalogStore((s) => s.categories);
@@ -98,17 +98,42 @@ export function SearchCommand({ variant = "bar" }) {
     </CommandDialog>
   );
 
-  if (variant === "icon") {
+  if (variant === "pill") {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className={cn(
+            "flex h-11 w-full items-center gap-2.5 rounded-full bg-background px-4 text-left text-[13px] text-muted-foreground shadow-sm",
+            className,
+          )}
+        >
+          <SearchIcon className="size-4 shrink-0 text-amber-700" />
+          <span className="min-w-0 flex-1 truncate">
+            Search decorations, themes…
+          </span>
+        </button>
+        {dialog}
+      </>
+    );
+  }
+
+  if (variant === "icon" || variant === "toolbarIcon") {
     return (
       <>
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          className="md:hidden"
+          className={cn(
+            "size-9 shrink-0",
+            variant === "icon" && "md:hidden",
+            className,
+          )}
           onClick={() => setOpen(true)}
         >
-          <SearchIcon />
+          <SearchIcon className="size-5" />
           <span className="sr-only">Search</span>
         </Button>
         {dialog}

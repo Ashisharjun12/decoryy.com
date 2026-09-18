@@ -1,0 +1,56 @@
+export const SITE_BRAND_KEY = "site_brand";
+
+export type SiteBrand = {
+    companyName: string;
+    footerDescription: string;
+    logoLightUploadId: string | null;
+    logoDarkUploadId: string | null;
+    contactPhone: string | null;
+    contactEmail: string | null;
+    whatsappUrl: string | null;
+};
+
+export const DEFAULT_SITE_BRAND: SiteBrand = {
+    companyName: "Decoryy",
+    footerDescription:
+        "City-priced decoration setups — balloons, backdrops, and lights, dressed for the room you have.",
+    logoLightUploadId: null,
+    logoDarkUploadId: null,
+    contactPhone: null,
+    contactEmail: null,
+    whatsappUrl: null,
+};
+
+export function mergeSiteBrand(value: unknown): SiteBrand {
+    const raw =
+        value && typeof value === "object" && !Array.isArray(value)
+            ? (value as Record<string, unknown>)
+            : {};
+
+    const str = (key: keyof SiteBrand, fallback: string) => {
+        const v = raw[key];
+        return typeof v === "string" ? v.trim() : fallback;
+    };
+
+    const nullableStr = (key: keyof SiteBrand): string | null => {
+        const v = raw[key];
+        if (v === null || v === undefined || v === "") return null;
+        return typeof v === "string" ? v.trim() : null;
+    };
+
+    const uuidOrNull = (key: "logoLightUploadId" | "logoDarkUploadId"): string | null => {
+        const v = raw[key];
+        if (v === null || v === undefined || v === "") return null;
+        return typeof v === "string" ? v : null;
+    };
+
+    return {
+        companyName: str("companyName", DEFAULT_SITE_BRAND.companyName) || DEFAULT_SITE_BRAND.companyName,
+        footerDescription: str("footerDescription", DEFAULT_SITE_BRAND.footerDescription),
+        logoLightUploadId: uuidOrNull("logoLightUploadId"),
+        logoDarkUploadId: uuidOrNull("logoDarkUploadId"),
+        contactPhone: nullableStr("contactPhone"),
+        contactEmail: nullableStr("contactEmail"),
+        whatsappUrl: nullableStr("whatsappUrl"),
+    };
+}

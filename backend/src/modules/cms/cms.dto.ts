@@ -25,6 +25,7 @@ export const listCmsTestimonialsQueryDto = z.object({
 
 export const homeCmsQueryDto = z.object({
     cityId: z.string().uuid().optional(),
+    pincode: z.string().trim().min(1).max(12).optional(),
     platform: z.enum(["web", "mobile"]).default("web"),
 });
 
@@ -41,6 +42,7 @@ const bannerBaseSchema = z.object({
     subtitle: z.string().trim().max(500).nullable().optional(),
     tag: z.string().trim().max(80).nullable().optional(),
     imageUploadId: z.string().uuid().nullable().optional(),
+    mobileImageUploadId: z.string().uuid().nullable().optional(),
     alt: z.string().trim().max(200).nullable().optional(),
     ctaLabel: z.string().trim().max(80).nullable().optional(),
     href: z.string().trim().max(500).nullable().optional(),
@@ -75,3 +77,19 @@ const testimonialBaseSchema = z.object({
 
 export const createCmsTestimonialDto = testimonialBaseSchema;
 export const patchCmsTestimonialDto = testimonialBaseSchema.partial();
+
+export {
+    createHomeLayoutBlockDto,
+    patchHomeLayoutBlockDto,
+    listHomeLayoutBlocksQueryDto,
+    reorderHomeLayoutBlocksDto,
+    putHomeLayoutBlockCategoriesDto,
+    homeLayoutBlockIdParamsDto,
+} from "@/modules/cms/home-layout/home-layout.dto.js";
+
+export {
+    createCmsFaqDto,
+    patchCmsFaqDto,
+    listCmsFaqsQueryDto,
+    reorderCmsFaqsDto,
+} from "@/modules/cms/faq/faq.dto.js";

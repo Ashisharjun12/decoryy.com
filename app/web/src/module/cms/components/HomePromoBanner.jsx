@@ -8,16 +8,28 @@ export function HomePromoBanner({ slide, className = "" }) {
 
   const imageOnly = !hasBannerOverlay(slide);
 
-  if (imageOnly) {
-    const image = slide.imageUrl ? (
-      <img
-        src={slide.imageUrl}
-        alt={slide.alt ?? "Banner"}
-        className="block w-full object-cover"
-      />
-    ) : (
-      <DecoryImageFallback className="min-h-[180px] w-full md:min-h-[220px]" />
+  const mobileSrc = slide.mobileImageUrl?.trim() || null;
+
+  function PromoPicture({ className, imgClassName }) {
+    if (!slide.imageUrl && !mobileSrc) {
+      return <DecoryImageFallback className={className ?? "min-h-[140px] w-full md:min-h-[180px]"} />;
+    }
+    return (
+      <picture className={className}>
+        {mobileSrc ? (
+          <source media="(max-width: 767px)" srcSet={mobileSrc} />
+        ) : null}
+        <img
+          src={slide.imageUrl}
+          alt={slide.alt ?? "Banner"}
+          className={imgClassName ?? "block w-full object-cover"}
+        />
+      </picture>
     );
+  }
+
+  if (imageOnly) {
+    const image = <PromoPicture />;
 
     return (
       <section className={`mx-auto max-w-[1240px] px-4 md:px-8 ${className}`}>
@@ -37,12 +49,15 @@ export function HomePromoBanner({ slide, className = "" }) {
   return (
     <section className={`mx-auto max-w-[1240px] px-4 md:px-8 ${className}`}>
       <div className="relative overflow-hidden rounded-[22px] border border-border bg-black">
-        {slide.imageUrl ? (
-          <img src={slide.imageUrl} alt={slide.alt ?? ""} className="absolute inset-0 size-full object-cover opacity-60" />
+        {slide.imageUrl || mobileSrc ? (
+          <PromoPicture
+            className="absolute inset-0 size-full"
+            imgClassName="absolute inset-0 size-full object-cover opacity-60"
+          />
         ) : (
           <DecoryImageFallback className="absolute inset-0 size-full" />
         )}
-        <div className="relative z-10 flex min-h-[180px] flex-col justify-end gap-3 p-6 md:min-h-[220px] md:p-10">
+        <div className="relative z-10 flex min-h-[140px] flex-col justify-end gap-3 p-6 md:min-h-[180px] md:p-10">
           {slide.tag ? (
             <span className="inline-flex w-fit rounded-[14px] bg-white/15 px-2.5 py-1 text-[10px] font-semibold text-white md:text-xs">
               {slide.tag}

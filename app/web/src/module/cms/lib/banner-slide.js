@@ -9,10 +9,19 @@ export function hasBannerOverlay(slide) {
   );
 }
 
+export function bannerImageForViewport(slide, preferMobile = false) {
+  if (!slide) return "";
+  const desktop = slide.imageUrl ?? slide.image?.url ?? "";
+  const mobile = slide.mobileImageUrl ?? slide.mobileImage?.url ?? "";
+  if (preferMobile) return mobile || desktop;
+  return desktop;
+}
+
 export function normalizeHeroSlide(row) {
   return {
     id: row.id,
     imageUrl: row.imageUrl ?? row.image?.url ?? "",
+    mobileImageUrl: row.mobileImageUrl ?? row.mobileImage?.url ?? "",
     href: row.href?.trim() ? row.href.trim() : null,
     alt: row.alt?.trim() || row.title?.trim() || "Banner",
     tag: row.tag?.trim() || null,

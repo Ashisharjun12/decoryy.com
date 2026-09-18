@@ -35,6 +35,7 @@ export class CmsBannerService {
 
     async create(input: CreateInput) {
         await this.validateImage(input.placement, input.imageUploadId ?? null);
+        await this.validateMobileImage(input.mobileImageUploadId ?? null);
         const row = await this.banners.insert({
             placement: input.placement,
             cityId: input.cityId ?? null,
@@ -48,6 +49,7 @@ export class CmsBannerService {
             subtitle: input.subtitle ?? null,
             tag: input.tag ?? null,
             imageUploadId: input.imageUploadId ?? null,
+            mobileImageUploadId: input.mobileImageUploadId ?? null,
             alt: input.alt ?? null,
             ctaLabel: input.ctaLabel ?? null,
             href: input.href ?? null,
@@ -68,6 +70,11 @@ export class CmsBannerService {
         const imageId =
             input.imageUploadId !== undefined ? input.imageUploadId : existing.imageUploadId;
         await this.validateImage(placement, imageId);
+        const mobileImageId =
+            input.mobileImageUploadId !== undefined
+                ? input.mobileImageUploadId
+                : existing.mobileImageUploadId;
+        await this.validateMobileImage(mobileImageId);
         const row = await this.banners.update(id, {
             placement: input.placement,
             cityId: input.cityId,
@@ -81,6 +88,7 @@ export class CmsBannerService {
             subtitle: input.subtitle,
             tag: input.tag,
             imageUploadId: input.imageUploadId,
+            mobileImageUploadId: input.mobileImageUploadId,
             alt: input.alt,
             ctaLabel: input.ctaLabel,
             href: input.href,
@@ -125,13 +133,26 @@ export class CmsBannerService {
         }
     }
 
+    private async validateMobileImage(mobileImageUploadId: string | null) {
+        if (!mobileImageUploadId) return;
+        const upload = await getCompletedUpload(mobileImageUploadId);
+        if (upload.kind !== "image") {
+            throw ApiError.badRequest("mobile banner image must be an image");
+        }
+    }
+
     private async toAdmin(row: CmsBanner & { cityName?: string | null }) {
         const image = row.imageUploadId ? await this.mediaUrl(row.imageUploadId) : null;
+        const mobileImage = row.mobileImageUploadId
+            ? await this.mediaUrl(row.mobileImageUploadId)
+            : null;
         return {
             ...row,
             cityName: row.cityName ?? null,
             imageUrl: image?.url ?? null,
             image: image,
+            mobileImageUrl: mobileImage?.url ?? null,
+            mobileImage,
         };
     }
 

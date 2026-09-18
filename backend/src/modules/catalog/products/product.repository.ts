@@ -49,10 +49,13 @@ export type PricedProduct = {
     pricePaise: number;
 };
 
+export type PublicProductSort = "popularity" | "new" | "price_asc" | "price_desc";
+
 export type PublicPricedFilter = {
     categoryIds?: string[];
     minPricePaise?: number;
     maxPricePaise?: number;
+    sort?: PublicProductSort;
 };
 
 export type CategoryFacet = {
@@ -97,6 +100,20 @@ export interface IProductRepository {
 
 function sellPriceSql() {
     return sql`coalesce(${cityPrices.pricePaise}, ${products.pricePaise})`;
+}
+
+function orderByForPublicSort(sort: PublicProductSort = "popularity") {
+    switch (sort) {
+        case "new":
+            return [desc(products.createdAt), asc(products.name)];
+        case "price_asc":
+            return [asc(sellPriceSql()), asc(products.name)];
+        case "price_desc":
+            return [desc(sellPriceSql()), asc(products.name)];
+        case "popularity":
+        default:
+            return [desc(products.reviewCount), desc(products.ratingAvg), asc(products.name)];
+    }
 }
 
 function resolvedSell(cityId?: string) {
@@ -280,7 +297,7 @@ export class ProductRepository implements IProductRepository {
             .from(products)
             .leftJoin(cityPrices, join)
             .where(where)
-            .orderBy(asc(products.name))
+            .orderBy(...orderByForPublicSort(filter.sort ?? "popularity"))
             .limit(pagination.limit)
             .offset(paginationOffset(pagination));
 

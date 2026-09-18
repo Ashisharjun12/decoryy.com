@@ -5,24 +5,32 @@ import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { DecoryImageFallback } from "@/components/decory-image-fallback";
-import { hasBannerOverlay } from "@/module/cms/lib/banner-slide";
+import { bannerImageForViewport, hasBannerOverlay } from "@/module/cms/lib/banner-slide";
 const AUTOPLAY_MS = 6000;
 
-function SlideImage({ src, alt, className }) {
+function SlideImage({ src, alt, className, mobileHero, mobileHeroContain }) {
   const [broken, setBroken] = useState(false);
   if (!src || broken) return <DecoryImageFallback />;
   return (
     <img
       src={src}
       alt={alt}
-      className={cn("absolute inset-0 size-full object-contain md:object-cover", className)}
+      className={cn(
+        "absolute inset-0 size-full",
+        mobileHeroContain
+          ? "object-contain object-center"
+          : mobileHero
+            ? "object-cover object-center"
+            : "object-contain md:object-cover",
+        className,
+      )}
       onError={() => setBroken(true)}
     />
   );
 }
 
-function SlideOverlay({ item }) {
-  if (!hasBannerOverlay(item)) return null;
+function SlideOverlay({ item, mobileHero }) {
+  if (mobileHero || !hasBannerOverlay(item)) return null;
 
   return (
     <>
@@ -69,8 +77,15 @@ function SlideOverlay({ item }) {
   );
 }
 
-function ImageOnlySlide({ item }) {
-  const image = <SlideImage src={item.imageUrl} alt={item.alt} />;
+function ImageOnlySlide({ item, mobileHero, mobileHeroContain }) {
+  const image = (
+    <SlideImage
+      src={bannerImageForViewport(item, mobileHero)}
+      alt={item.alt}
+      mobileHero={mobileHero}
+      mobileHeroContain={mobileHeroContain}
+    />
+  );
   if (item.href) {
     return (
       <Link to={item.href} className="absolute inset-0 block size-full" aria-label={item.alt}>
@@ -81,17 +96,43 @@ function ImageOnlySlide({ item }) {
   return image;
 }
 
-function SlideFrame({ item, children }) {
+function slideShellClass(variant) {
+  if (variant === "mobileHeroFull") {
+    return "relative aspect-[16/9] w-full max-w-none overflow-hidden rounded-2xl bg-muted/50";
+  }
+  if (variant === "mobileHero") {
+    return "relative h-[160px] w-full max-w-none overflow-hidden rounded-2xl bg-background shadow-md ring-1 ring-background/80";
+  }
+  return "relative aspect-[16/5] max-h-[200px] overflow-hidden rounded-[22px] border border-border bg-black md:max-h-none md:aspect-[16/5]";
+}
+
+function SlideFrame({ item, children, variant }) {
   const imageOnly = !hasBannerOverlay(item);
+  const mobileHero =
+    variant === "mobileHero" || variant === "mobileHeroFull";
+  const mobileHeroContain = variant === "mobileHeroFull";
   return (
-    <div className="relative h-[200px] overflow-hidden rounded-[22px] border border-border bg-black md:h-[420px]">
-      {imageOnly ? <ImageOnlySlide item={item} /> : <SlideImage src={item.imageUrl} alt={item.alt} />}
+    <div className={slideShellClass(variant)}>
+      {imageOnly ? (
+        <ImageOnlySlide
+          item={item}
+          mobileHero={mobileHero}
+          mobileHeroContain={mobileHeroContain}
+        />
+      ) : (
+        <SlideImage
+          src={bannerImageForViewport(item, mobileHero)}
+          alt={item.alt}
+          mobileHero={mobileHero}
+          mobileHeroContain={mobileHeroContain}
+        />
+      )}
       {children}
     </div>
   );
 }
 
-export function BannerSlider({ slides = [] }) {
+export function BannerSlider({ slides = [], variant }) {
   const reduceMotion = useReducedMotion();
   const [current, setCurrent] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -110,8 +151,13 @@ export function BannerSlider({ slides = [] }) {
   if (total === 1) {
     const item = slides[0];
     return (
-      <SlideFrame item={item}>
-        <SlideOverlay item={item} />
+      <SlideFrame item={item} variant={variant}>
+        <SlideOverlay
+          item={item}
+          mobileHero={
+            variant === "mobileHero" || variant === "mobileHeroFull"
+          }
+        />
       </SlideFrame>
     );
   }
@@ -122,10 +168,13 @@ export function BannerSlider({ slides = [] }) {
 
   const currentSlide = slides[current];
   const dotFillClass = hasBannerOverlay(currentSlide) ? "bg-white" : "bg-white";
+  const mobileHero =
+    variant === "mobileHero" || variant === "mobileHeroFull";
+  const mobileHeroContain = variant === "mobileHeroFull";
 
   return (
     <div
-      className="relative h-[200px] overflow-hidden rounded-[22px] border border-border bg-black md:h-[420px]"
+      className={slideShellClass(variant)}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
@@ -139,11 +188,20 @@ export function BannerSlider({ slides = [] }) {
           aria-hidden={index !== current}
         >
           {hasBannerOverlay(item) ? (
-            <SlideImage src={item.imageUrl} alt={item.alt} />
+            <SlideImage
+              src={bannerImageForViewport(item, mobileHero)}
+              alt={item.alt}
+              mobileHero={mobileHero}
+              mobileHeroContain={mobileHeroContain}
+            />
           ) : (
-            <ImageOnlySlide item={item} />
+            <ImageOnlySlide
+              item={item}
+              mobileHero={mobileHero}
+              mobileHeroContain={mobileHeroContain}
+            />
           )}
-          <SlideOverlay item={item} />
+          <SlideOverlay item={item} mobileHero={mobileHero} />
         </div>
       ))}
 

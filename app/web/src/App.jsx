@@ -23,6 +23,7 @@ import { DecorationsPage } from "@/module/catalog/pages/DecorationsPage";
 import { ProductPage } from "@/module/catalog/pages/ProductPage";
 import { ProductReviewsPage } from "@/module/catalog/pages/ProductReviewsPage";
 import { HomePage } from "@/module/home/pages/HomePage";
+import { ServiceCitiesPage } from "@/module/geo/pages/ServiceCitiesPage";
 import { LoginRedirect } from "@/module/layout/pages/LoginRedirect";
 import { NotificationsHost } from "@/module/notifications/components/NotificationsHost";
 import { SocketProvider } from "@/providers/socket-provider";
@@ -42,6 +43,7 @@ export default function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<HomePage />} />
+          <Route path="/cities" element={<ServiceCitiesPage />} />
           <Route path="/decorations" element={<DecorationsPage />} />
           <Route path="/c/:parentSlug" element={<CategoryPage />} />
           <Route path="/c/:parentSlug/:childSlug" element={<CategoryPage />} />

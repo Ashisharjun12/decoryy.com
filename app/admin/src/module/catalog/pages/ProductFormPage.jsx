@@ -10,7 +10,11 @@ import { listAdmin as listCities } from "@/api/cities.api"
 import { getPaymentMethods } from "@/api/settings.api"
 import { getApiError } from "@/api/api"
 import { toSellAndCompare } from "@/lib/money"
-import { productFormSchema } from "@/module/catalog/schema"
+import {
+  productCategoryToFormFields,
+  productFormSchema,
+  resolveProductCategoryId,
+} from "@/module/catalog/schema"
 import { ProductMediaGallery, toGalleryItem } from "@/module/catalog/components/ProductMediaGallery"
 import { ProductAddonsCard } from "@/module/catalog/components/ProductAddonsCard"
 import { ProductAdditionalInfo } from "@/module/catalog/components/ProductAdditionalInfo"
@@ -86,8 +90,7 @@ export function ProductFormPage() {
   const slugValue = form.watch("slug")
   const descriptionValue = form.watch("description")
   const createReady =
-    !isNew ||
-    ((nameValue ?? "").trim().length >= 2 && Boolean(parentCategoryId) && Boolean(categoryId))
+    !isNew || ((nameValue ?? "").trim().length >= 2 && Boolean(parentCategoryId))
 
   const [parents, setParents] = useState([])
   const [children, setChildren] = useState([])
@@ -194,26 +197,30 @@ export function ProductFormPage() {
 
         const product = await getAdmin(id)
         if (cancelled) return
-        let parentId = product.category?.parentId || ""
-        let categoryId = product.categoryId ?? ""
+        const { parentCategoryId: parentId, categoryId: subcategoryId } =
+          productCategoryToFormFields(product.category, product.categoryId)
         const parentActive = parentItems.some((row) => row.id === parentId)
+        let categoryId = subcategoryId
         if (!parentActive) {
-          parentId = ""
           categoryId = ""
         }
         let childItems = []
         if (parentId) childItems = await loadChildren(parentId)
         if (cancelled) return
-        if (categoryId && !childItems.some((row) => row.id === categoryId)) {
+        if (
+          categoryId &&
+          !childItems.some((row) => row.id === categoryId)
+        ) {
           categoryId = ""
         }
+        const parentIdForForm = parentActive ? parentId : ""
         setProductName(product.name)
         setLoadedCategoryName(product.category?.name ?? "")
         form.reset({
           name: product.name ?? "",
           slug: product.slug ?? "",
           description: product.description ?? "",
-          parentCategoryId: parentId,
+          parentCategoryId: parentIdForForm,
           categoryId,
           isActive: Boolean(product.isActive),
           scheduledEnabled: product.scheduledEnabled !== false,
@@ -238,7 +245,11 @@ export function ProductFormPage() {
         }
         setOffers(nextOffers)
         setSavedPriceCityIds((product.prices ?? []).map((price) => price.cityId))
-        if (!parentActive || (product.categoryId && !categoryId)) {
+        const onSubcategory = Boolean(product.category?.parentId)
+        if (
+          !parentActive ||
+          (onSubcategory && product.categoryId && !categoryId)
+        ) {
           setError("This product’s category is inactive. Choose an active category.")
         }
       } catch (err) {
@@ -317,7 +328,8 @@ export function ProductFormPage() {
 
   const selectedCategory = children.find((row) => row.id === categoryId)
   const selectedParent = parents.find((row) => row.id === parentCategoryId)
-  const resolvedCategoryName = selectedCategory?.name || loadedCategoryName
+  const resolvedCategoryName =
+    selectedCategory?.name || selectedParent?.name || loadedCategoryName
   function applyAiCopy(copy) {
     form.setValue("description", copy.description ?? "")
     if (copy.slug) {
@@ -340,10 +352,16 @@ export function ProductFormPage() {
     setSubmitting(true)
     setError("")
     const defaults = defaultPricePayload()
+    const categoryIdForApi = resolveProductCategoryId(values)
+    if (!categoryIdForApi) {
+      setError("Select a category.")
+      setSubmitting(false)
+      return
+    }
     const details = {
       name: values.name,
       description: values.description.trim() || null,
-      categoryId: values.categoryId,
+      categoryId: categoryIdForApi,
       imageUploadIds: gallery.map((item) => item.uploadId),
       includes,
       deliverySetup,
@@ -544,7 +562,10 @@ export function ProductFormPage() {
           <Card>
             <CardHeader>
               <CardTitle>Classification</CardTitle>
-              <CardDescription>Select a category, then the subcategory products attach to.</CardDescription>
+              <CardDescription>
+                Category is required. Subcategory is optional when the product applies to the whole
+                category.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <FieldGroup>
@@ -577,18 +598,33 @@ export function ProductFormPage() {
                   control={form.control}
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel>Subcategory</FieldLabel>
+                      <FieldLabel>Subcategory (optional)</FieldLabel>
                       <Select
-                        value={field.value || undefined}
-                        onValueChange={field.onChange}
-                        disabled={!parentCategoryId}
+                        value={field.value || "__none__"}
+                        onValueChange={(value) =>
+                          field.onChange(value === "__none__" ? "" : value)
+                        }
+                        disabled={!parentCategoryId || children.length === 0}
                       >
                         <SelectTrigger className="w-full" aria-invalid={fieldState.invalid}>
-                          <SelectValue placeholder="Select subcategory">
-                            {children.find((row) => row.id === field.value)?.name || "Select subcategory"}
+                          <SelectValue
+                            placeholder={
+                              children.length === 0
+                                ? "No subcategories"
+                                : "Select subcategory (optional)"
+                            }
+                          >
+                            {(() => {
+                              const sub = children.find((row) => row.id === field.value)
+                              if (sub) return sub.name
+                              if (children.length === 0) return "No subcategories"
+                              if (!field.value) return "Whole category (no subcategory)"
+                              return "Select subcategory (optional)"
+                            })()}
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="__none__">Whole category (no subcategory)</SelectItem>
                           {children.map((row) => (
                             <SelectItem key={row.id} value={row.id}>
                               {row.name}

@@ -5,8 +5,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AnnouncementsPanel } from "@/module/cms/pages/AnnouncementsPanel"
 import { BannersPanel } from "@/module/cms/pages/BannersPanel"
 import { TestimonialsPanel } from "@/module/cms/pages/TestimonialsPanel"
+import { HomeLayoutPanel } from "@/module/cms/pages/HomeLayoutPanel"
+import { FaqPanel } from "@/module/cms/pages/FaqPanel"
 
-const TABS = ["announcements", "banners", "testimonials"]
+const TABS = ["announcements", "banners", "homepage", "testimonials", "faq"]
 
 function normalizeTab(value) {
   return TABS.includes(value) ? value : "announcements"
@@ -32,14 +34,16 @@ export function ContentPage() {
       <div>
         <h1 className="font-heading text-2xl font-medium tracking-tight">Content</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Manage homepage announcements, banners, and editorial testimonials. City items prepend global content.
+          Manage announcements, banners, homepage layout, testimonials, and FAQs.
         </p>
       </div>
       <Tabs value={tab} onValueChange={onTabChange}>
         <TabsList variant="line">
           <TabsTrigger value="announcements">Announcements</TabsTrigger>
           <TabsTrigger value="banners">Banners</TabsTrigger>
+          <TabsTrigger value="homepage">Homepage</TabsTrigger>
           <TabsTrigger value="testimonials">Testimonials</TabsTrigger>
+          <TabsTrigger value="faq">FAQ</TabsTrigger>
         </TabsList>
         <TabsContent value="announcements">
           <AnnouncementsPanel cities={cities} />
@@ -47,8 +51,14 @@ export function ContentPage() {
         <TabsContent value="banners">
           <BannersPanel cities={cities} />
         </TabsContent>
+        <TabsContent value="homepage">
+          <HomeLayoutPanel cities={cities} />
+        </TabsContent>
         <TabsContent value="testimonials">
           <TestimonialsPanel cities={cities} />
+        </TabsContent>
+        <TabsContent value="faq">
+          <FaqPanel />
         </TabsContent>
       </Tabs>
     </div>

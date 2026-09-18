@@ -47,3 +47,52 @@ export function patchCmsTestimonial(id, body) {
 export function deleteCmsTestimonial(id) {
   return api.delete(`/admin/cms/testimonials/${id}`).then(unwrap)
 }
+
+export function listHomeLayoutBlocks({ cityId = "global", status } = {}) {
+  return api
+    .get("/admin/cms/home-layout-blocks", {
+      params: {
+        cityId,
+        ...(status ? { status } : {}),
+      },
+    })
+    .then(unwrap)
+}
+
+export function createHomeLayoutBlock(body) {
+  return api.post("/admin/cms/home-layout-blocks", body).then(unwrap)
+}
+
+export function patchHomeLayoutBlock(id, body) {
+  return api.patch(`/admin/cms/home-layout-blocks/${id}`, body).then(unwrap)
+}
+
+export function reorderHomeLayoutBlocks({ cityId, ids }) {
+  return api.put("/admin/cms/home-layout-blocks/reorder", { cityId, ids }).then(unwrap)
+}
+
+export function deleteHomeLayoutBlock(id) {
+  return api.delete(`/admin/cms/home-layout-blocks/${id}`).then(unwrap)
+}
+
+export function listCmsFaqs({ page = 1, limit = 50, status } = {}) {
+  return api
+    .get("/admin/cms/faqs", { params: { page, limit, ...(status ? { status } : {}) } })
+    .then(unwrap)
+}
+
+export function createCmsFaq(body) {
+  return api.post("/admin/cms/faqs", body).then(unwrap)
+}
+
+export function patchCmsFaq(id, body) {
+  return api.patch(`/admin/cms/faqs/${id}`, body).then(unwrap)
+}
+
+export function reorderCmsFaqs({ ids }) {
+  return api.put("/admin/cms/faqs/reorder", { ids }).then(unwrap)
+}
+
+export function deleteCmsFaq(id) {
+  return api.delete(`/admin/cms/faqs/${id}`).then(unwrap)
+}

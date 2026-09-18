@@ -12,7 +12,7 @@ export function CatalogPagination({ page, limit, total, onPageChange }) {
     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
       <p className="text-sm text-muted-foreground">
         Page {page} of {pageCount}
-        <span className="text-muted-foreground/80"> · {total} setups</span>
+        <span className="text-muted-foreground/80"> · {total} packages</span>
       </p>
       <div className="flex items-center gap-2">
         <Button

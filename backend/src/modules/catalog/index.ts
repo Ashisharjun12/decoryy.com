@@ -32,7 +32,8 @@ import {
 } from "@/modules/catalog/sections/section.schema.js";
 import { SectionService } from "@/modules/catalog/sections/section.service.js";
 import { reviewPublicController } from "@/modules/reviews/index.js";
-import { cmsPublicRouter } from "@/modules/cms/index.js";
+import { createCmsModule } from "@/modules/cms/index.js";
+import { createBrandModule } from "@/modules/brand/index.js";
 
 const categoryRepository = new CategoryRepository();
 const productRepository = new ProductRepository();
@@ -58,6 +59,22 @@ const categoryController = new CategoryController(categoryService);
 const productController = new ProductController(productService, cityPriceService, addonService);
 const addonController = new AddonController(addonService, cityPriceService);
 const sectionController = new SectionController(sectionService);
+
+const brandModule = createBrandModule();
+
+const cmsModule = createCmsModule(
+    {
+        sectionService,
+        sectionRepository,
+        categoryService,
+        categoryRepository,
+    },
+    brandModule.siteShellService,
+);
+
+export const cmsPublicRouter = cmsModule.cmsPublicRouter;
+export const cmsAdminRouter = cmsModule.cmsAdminRouter;
+export const brandAdminRouter = brandModule.brandAdminRouter;
 
 export const catalogRouter = Router();
 catalogRouter.use("/categories", createCategoryPublicRouter(categoryController));

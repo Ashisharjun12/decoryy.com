@@ -18,16 +18,16 @@ export function getCatalogAiPolicyBlockReason(policy) {
   return null
 }
 
-export function getCatalogAiFormBlockReason({ name, parentCategoryId, categoryId, categoryName }) {
+export function getCatalogAiFormBlockReason({ name, parentCategoryId, categoryName }) {
   const trimmedName = (name ?? "").trim()
   if (trimmedName.length < 2) {
     return "Enter a product name (at least 2 characters)."
   }
   if (!parentCategoryId) {
-    return "Select a parent category."
+    return "Select a category."
   }
-  if (!categoryId || !categoryName) {
-    return "Select a subcategory."
+  if (!categoryName) {
+    return "Select a category."
   }
   return null
 }
@@ -49,13 +49,8 @@ export function getCatalogAiRequirementChecks(policy, formInput) {
       kind: "field",
     },
     {
-      label: "Parent category",
-      done: Boolean(formInput.parentCategoryId),
-      kind: "field",
-    },
-    {
-      label: "Subcategory",
-      done: Boolean(formInput.categoryId && formInput.categoryName),
+      label: "Category",
+      done: Boolean(formInput.parentCategoryId && formInput.categoryName),
       kind: "field",
     },
   ]

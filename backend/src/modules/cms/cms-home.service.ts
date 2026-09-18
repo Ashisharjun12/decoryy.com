@@ -15,6 +15,7 @@ type ResolveRow = {
     subtitle: string | null;
     tag: string | null;
     imageUrl?: string | null;
+    mobileImageUrl?: string | null;
     alt: string | null;
     ctaLabel: string | null;
     href: string | null;
@@ -78,6 +79,7 @@ function toHeroSlide(row: ResolveRow) {
     return {
         id: row.id,
         imageUrl: row.imageUrl ?? "",
+        mobileImageUrl: row.mobileImageUrl ?? "",
         href,
         alt: row.alt?.trim() || title || "Banner",
         tag,
@@ -112,10 +114,28 @@ function toTestimonial(row: TestimonialRow) {
     };
 }
 
+type FaqRow = {
+    id: string;
+    question: string;
+    answer: string;
+    platforms: string[];
+    status: string;
+    sortIndex: number;
+};
+
+function toFaq(row: FaqRow) {
+    return {
+        id: row.id,
+        question: row.question,
+        answer: row.answer,
+    };
+}
+
 export class CmsHomeService {
     resolve(
         banners: ResolveRow[],
         testimonials: TestimonialRow[],
+        faqs: FaqRow[] = [],
         options: { cityId?: string | null; platform?: string } = {},
     ) {
         const platform = options.platform ?? "web";
@@ -143,6 +163,11 @@ export class CmsHomeService {
         );
         const mergedTestimonials = mergeCityPrepend(cityId, testimonialPool).map(toTestimonial);
 
+        const faqPool = faqs.filter(
+            (row) => isPublished(row, at) && matchesPlatform(row.platforms, platform),
+        );
+        const resolvedFaqs = faqPool.sort(sortByIndex).map(toFaq);
+
         return {
             announcements,
             announcement,
@@ -150,6 +175,7 @@ export class CmsHomeService {
             mid: pickPlacement("home_mid"),
             end: pickPlacement("home_end"),
             testimonials: mergedTestimonials,
+            faqs: resolvedFaqs,
         };
     }
 }

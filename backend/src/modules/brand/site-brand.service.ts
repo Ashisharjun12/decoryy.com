@@ -1,0 +1,98 @@
+import { ApiError } from "@/shared/errors/apiError.js";
+import { getCompletedUpload, toPublicMedia } from "@/modules/upload/index.js";
+import type { ISettingRepository } from "@/modules/ops/settings/setting.repository.js";
+import {
+    DEFAULT_SITE_BRAND,
+    mergeSiteBrand,
+    SITE_BRAND_KEY,
+    type SiteBrand,
+} from "@/modules/brand/site-brand.js";
+import type { z } from "zod";
+import type { patchSiteBrandDto } from "@/modules/brand/brand.dto.js";
+
+type PatchInput = z.infer<typeof patchSiteBrandDto>;
+
+export class SiteBrandService {
+    constructor(private readonly settings: ISettingRepository) {}
+
+    async getAdmin() {
+        const brand = await this.load();
+        const [logoLightUrl, logoDarkUrl] = await Promise.all([
+            brand.logoLightUploadId ? this.mediaUrl(brand.logoLightUploadId) : null,
+            brand.logoDarkUploadId ? this.mediaUrl(brand.logoDarkUploadId) : null,
+        ]);
+        return {
+            ...brand,
+            logoLightUrl,
+            logoDarkUrl,
+        };
+    }
+
+    async patch(input: PatchInput) {
+        const current = await this.load();
+        const next: SiteBrand = {
+            companyName: input.companyName?.trim() ?? current.companyName,
+            footerDescription: input.footerDescription?.trim() ?? current.footerDescription,
+            logoLightUploadId:
+                input.logoLightUploadId !== undefined
+                    ? input.logoLightUploadId
+                    : current.logoLightUploadId,
+            logoDarkUploadId:
+                input.logoDarkUploadId !== undefined
+                    ? input.logoDarkUploadId
+                    : current.logoDarkUploadId,
+            contactPhone:
+                input.contactPhone !== undefined ? input.contactPhone : current.contactPhone,
+            contactEmail:
+                input.contactEmail !== undefined
+                    ? input.contactEmail === "" ? null : input.contactEmail
+                    : current.contactEmail,
+            whatsappUrl: input.whatsappUrl !== undefined ? input.whatsappUrl : current.whatsappUrl,
+        };
+
+        if (next.logoLightUploadId) await this.validateLogo(next.logoLightUploadId);
+        if (next.logoDarkUploadId) await this.validateLogo(next.logoDarkUploadId);
+
+        await this.settings.upsert(SITE_BRAND_KEY, next);
+        return this.getAdmin();
+    }
+
+    async getPublicBrand() {
+        const brand = await this.load();
+        const [logoLightUrl, logoDarkUrl] = await Promise.all([
+            brand.logoLightUploadId ? this.mediaUrl(brand.logoLightUploadId) : null,
+            brand.logoDarkUploadId ? this.mediaUrl(brand.logoDarkUploadId) : null,
+        ]);
+        return {
+            companyName: brand.companyName,
+            footerDescription: brand.footerDescription,
+            logoLightUrl,
+            logoDarkUrl,
+            contactPhone: brand.contactPhone,
+            contactEmail: brand.contactEmail,
+            whatsappUrl: brand.whatsappUrl,
+        };
+    }
+
+    private async load(): Promise<SiteBrand> {
+        const row = await this.settings.findByKey(SITE_BRAND_KEY);
+        const brand = mergeSiteBrand(row?.value);
+        if (!row) {
+            await this.settings.upsert(SITE_BRAND_KEY, brand);
+        }
+        return brand;
+    }
+
+    private async validateLogo(uploadId: string) {
+        const upload = await getCompletedUpload(uploadId);
+        if (upload.kind !== "image") {
+            throw ApiError.badRequest("logo must be an image");
+        }
+    }
+
+    private async mediaUrl(uploadId: string) {
+        const upload = await getCompletedUpload(uploadId);
+        const media = toPublicMedia(upload);
+        return media.optimizedUrl ?? media.publicUrl;
+    }
+}

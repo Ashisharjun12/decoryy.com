@@ -2,13 +2,30 @@ import { DEMO_HOME_CATEGORIES } from "@/module/home/data/demo-home-categories";
 import { DEMO_SECTION_META } from "@/module/home/data/demo-category-tree";
 import { DEMO_PRODUCTS } from "@/module/home/data/demo-products";
 
+const demoCategoryImageBySlug = new Map();
+
+function indexDemoCategoryImages(nodes) {
+  for (const node of nodes) {
+    if (node?.slug && node.imageUrl) {
+      demoCategoryImageBySlug.set(node.slug, node.imageUrl);
+    }
+    if (node?.children?.length) {
+      indexDemoCategoryImages(node.children);
+    }
+  }
+}
+
+indexDemoCategoryImages(DEMO_HOME_CATEGORIES);
+
 export function categoryImageUrl(category) {
   if (!category) return null;
+  const image = category.image;
   return (
     category.imageUrl ??
-    category.image?.url ??
-    category.image?.optimizedUrl ??
-    category.image?.publicUrl ??
+    image?.url ??
+    image?.thumbnailUrl ??
+    image?.optimizedUrl ??
+    image?.publicUrl ??
     null
   );
 }
@@ -19,6 +36,11 @@ export function normalizeCategory(raw) {
     ? raw.children.map(normalizeCategory).filter(Boolean)
     : [];
 
+  let imageUrl = categoryImageUrl(raw);
+  if (!imageUrl && raw.slug) {
+    imageUrl = demoCategoryImageBySlug.get(raw.slug) ?? null;
+  }
+
   return {
     id: raw.id,
     name: raw.name,
@@ -26,7 +48,7 @@ export function normalizeCategory(raw) {
     parentId: raw.parentId ?? null,
     iconKey: raw.iconKey ?? null,
     iconTone: raw.iconTone ?? null,
-    imageUrl: categoryImageUrl(raw),
+    imageUrl,
     tileBg: raw.tileBg ?? "bg-amber-50",
     children,
   };
@@ -46,12 +68,23 @@ export function normalizeProduct(raw) {
     raw.images?.[0]?.publicUrl ??
     null;
 
+  const pricePaise =
+    raw.pricePaise ??
+    raw.cityPricePaise ??
+    raw.sellPricePaise ??
+    0;
+
+  const compareAtPaise =
+    raw.compareAtPaise ??
+    raw.cityCompareAtPaise ??
+    null;
+
   return {
     id: raw.id,
     name: raw.name,
     slug: raw.slug,
-    pricePaise: raw.pricePaise ?? 0,
-    compareAtPaise: raw.compareAtPaise ?? null,
+    pricePaise,
+    compareAtPaise,
     rating:
       raw.ratingAvg != null
         ? Number(raw.ratingAvg)
@@ -105,6 +138,11 @@ export function buildDemoSections() {
   return [...bySlug.values()]
     .map(normalizeSection)
     .filter((section) => section && section.items.length > 0);
+}
+
+export function normalizeLayoutProducts(items) {
+  if (!Array.isArray(items)) return [];
+  return items.map(normalizeProduct).filter(Boolean);
 }
 
 export function normalizeApiSections(response) {

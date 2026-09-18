@@ -9,6 +9,16 @@ import {
     patchCmsBannerDto,
     patchCmsTestimonialDto,
     reorderCmsBannersDto,
+    createHomeLayoutBlockDto,
+    patchHomeLayoutBlockDto,
+    listHomeLayoutBlocksQueryDto,
+    reorderHomeLayoutBlocksDto,
+    putHomeLayoutBlockCategoriesDto,
+    homeLayoutBlockIdParamsDto,
+    createCmsFaqDto,
+    patchCmsFaqDto,
+    listCmsFaqsQueryDto,
+    reorderCmsFaqsDto,
 } from "@/modules/cms/cms.dto.js";
 import { validate } from "@/shared/middlewares/validate.middleware.js";
 
@@ -40,5 +50,48 @@ export function createCmsAdminRouter(controller: CmsAdminController) {
         controller.patchTestimonial,
     );
     router.delete("/testimonials/:id", validate(cmsIdParamsDto, "params"), controller.deleteTestimonial);
+
+    router.get(
+        "/home-layout-blocks",
+        validate(listHomeLayoutBlocksQueryDto, "query"),
+        controller.listHomeLayoutBlocks,
+    );
+    router.put("/home-layout-blocks/reorder", validate(reorderHomeLayoutBlocksDto), controller.reorderHomeLayoutBlocks);
+    router.get(
+        "/home-layout-blocks/:id",
+        validate(homeLayoutBlockIdParamsDto, "params"),
+        controller.getHomeLayoutBlock,
+    );
+    router.post("/home-layout-blocks", validate(createHomeLayoutBlockDto), controller.createHomeLayoutBlock);
+    router.patch(
+        "/home-layout-blocks/:id",
+        validate(homeLayoutBlockIdParamsDto, "params"),
+        validate(patchHomeLayoutBlockDto),
+        controller.patchHomeLayoutBlock,
+    );
+    router.delete(
+        "/home-layout-blocks/:id",
+        validate(homeLayoutBlockIdParamsDto, "params"),
+        controller.deleteHomeLayoutBlock,
+    );
+    router.put(
+        "/home-layout-blocks/:id/categories",
+        validate(homeLayoutBlockIdParamsDto, "params"),
+        validate(putHomeLayoutBlockCategoriesDto),
+        controller.putHomeLayoutBlockCategories,
+    );
+
+    router.get("/faqs", validate(listCmsFaqsQueryDto, "query"), controller.listFaqs);
+    router.put("/faqs/reorder", validate(reorderCmsFaqsDto), controller.reorderFaqs);
+    router.get("/faqs/:id", validate(cmsIdParamsDto, "params"), controller.getFaq);
+    router.post("/faqs", validate(createCmsFaqDto), controller.createFaq);
+    router.patch(
+        "/faqs/:id",
+        validate(cmsIdParamsDto, "params"),
+        validate(patchCmsFaqDto),
+        controller.patchFaq,
+    );
+    router.delete("/faqs/:id", validate(cmsIdParamsDto, "params"), controller.deleteFaq);
+
     return router;
 }
