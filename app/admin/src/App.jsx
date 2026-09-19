@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toast"
 import { GuestOnly, RequireAdmin } from "@/module/auth/guards"
 import { hydrateAuth } from "@/module/auth/hydrate"
 import { LoginPage } from "@/module/auth/pages/LoginPage"
+import { VerifyEmailChangePage } from "@/module/auth/pages/VerifyEmailChangePage"
 import { Layout } from "@/module/layout/Layout"
 import { DashboardPage } from "@/module/geo/pages/DashboardPage"
 import { LocationsPage } from "@/module/geo/pages/LocationsPage"
@@ -26,6 +27,8 @@ import { AdminShell } from "@/module/layout/AdminShell"
 import { InboxPage } from "@/module/inbox/pages/InboxPage"
 import { ContentPage } from "@/module/cms/pages/ContentPage"
 import { BrandSettingsPage } from "@/module/brand/pages/BrandSettingsPage"
+import { BrandPageFormPage } from "@/module/brand/pages/BrandPageFormPage"
+import { NotFoundPage } from "@/module/layout/pages/NotFoundPage"
 
 export default function App() {
   useEffect(() => {
@@ -39,6 +42,7 @@ export default function App() {
           <Route element={<GuestOnly />}>
             <Route path="/login" element={<LoginPage />} />
           </Route>
+          <Route path="/verify-email-change" element={<VerifyEmailChangePage />} />
           <Route element={<RequireAdmin />}>
             <Route element={<AdminShell />}>
             <Route element={<Layout />}>
@@ -49,6 +53,7 @@ export default function App() {
               <Route path="/catalog" element={<CatalogPage />} />
               <Route path="/content" element={<ContentPage />} />
               <Route path="/brand" element={<BrandSettingsPage />} />
+              <Route path="/brand/pages/:id" element={<BrandPageFormPage />} />
               <Route path="/catalog/products/new" element={<ProductFormPage />} />
               <Route path="/catalog/products/:id/reviews" element={<ProductReviewsAdminPage />} />
               <Route path="/catalog/products/:id" element={<ProductFormPage />} />
@@ -66,10 +71,10 @@ export default function App() {
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/inbox" element={<InboxPage />} />
               <Route path="/inbox/:conversationId" element={<InboxPage />} />
+              <Route path="*" element={<NotFoundPage />} />
             </Route>
             </Route>
           </Route>
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </BrowserRouter>
     </Toaster>

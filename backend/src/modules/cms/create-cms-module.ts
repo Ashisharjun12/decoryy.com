@@ -17,6 +17,7 @@ import type { ICategoryRepository } from "@/modules/catalog/categories/category.
 import type { ISectionService } from "@/modules/catalog/sections/section.service.js";
 import type { ISectionRepository } from "@/modules/catalog/sections/section.repository.js";
 import type { CachedSiteShellService } from "@/modules/brand/cached-site-shell.service.js";
+import type { CachedCmsPageService } from "@/modules/cms/cached-cms-page.service.js";
 
 export type CmsModuleDeps = {
     sectionService: ISectionService;
@@ -25,7 +26,11 @@ export type CmsModuleDeps = {
     categoryRepository: ICategoryRepository;
 };
 
-export function createCmsModule(deps: CmsModuleDeps, siteShellService: CachedSiteShellService) {
+export function createCmsModule(
+    deps: CmsModuleDeps,
+    siteShellService: CachedSiteShellService,
+    cachedCmsPageService: CachedCmsPageService,
+) {
     const bannerRepository = new CmsBannerRepository();
     const testimonialRepository = new CmsTestimonialRepository();
     const layoutRepository = new CmsHomeLayoutRepository();
@@ -57,7 +62,11 @@ export function createCmsModule(deps: CmsModuleDeps, siteShellService: CachedSit
         cmsHomeLayoutService,
         cmsHomeFaqService,
     );
-    const cmsPublicController = new CmsPublicController(cmsPublicService, siteShellService);
+    const cmsPublicController = new CmsPublicController(
+        cmsPublicService,
+        siteShellService,
+        cachedCmsPageService,
+    );
 
     return {
         cmsPublicRouter: createCmsPublicRouter(cmsPublicController),

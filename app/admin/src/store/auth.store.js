@@ -7,5 +7,9 @@ export const useAuthStore = create((set) => ({
   setStatus: (status) => set({ status }),
   setSession: ({ user, accessToken }) =>
     set({ user, accessToken, status: "ready" }),
+  patchUser: (partial) =>
+    set((state) =>
+      state.user ? { user: { ...state.user, ...partial } } : state,
+    ),
   clear: () => set({ user: null, accessToken: null, status: "ready" }),
 }));

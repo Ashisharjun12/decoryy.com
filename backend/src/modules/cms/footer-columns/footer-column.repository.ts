@@ -9,8 +9,23 @@ import {
 
 export type CmsFooterColumnPatch = Partial<Omit<NewCmsFooterColumn, "id" | "createdAt" | "updatedAt">>;
 
+export type FooterColumnLinkRow = {
+    label: string;
+    linkType: string;
+    pageId: string | null;
+    href: string;
+    sortIndex: number;
+};
+
 export type FooterColumnWithLinks = CmsFooterColumn & {
-    links: { label: string; href: string; sortIndex: number }[];
+    links: FooterColumnLinkRow[];
+};
+
+export type FooterLinkInput = {
+    label: string;
+    linkType: "page" | "custom";
+    pageId?: string | null;
+    href?: string;
 };
 
 export class CmsFooterColumnRepository {
@@ -19,16 +34,25 @@ export class CmsFooterColumnRepository {
         return row;
     }
 
-    async listLinksForColumn(columnId: string) {
-        return db
+    async listLinksForColumn(columnId: string): Promise<FooterColumnLinkRow[]> {
+        const rows = await db
             .select({
                 label: cmsFooterColumnLinks.label,
+                linkType: cmsFooterColumnLinks.linkType,
+                pageId: cmsFooterColumnLinks.pageId,
                 href: cmsFooterColumnLinks.href,
                 sortIndex: cmsFooterColumnLinks.sortIndex,
             })
             .from(cmsFooterColumnLinks)
             .where(eq(cmsFooterColumnLinks.columnId, columnId))
             .orderBy(asc(cmsFooterColumnLinks.sortIndex));
+        return rows.map((row) => ({
+            label: row.label,
+            linkType: row.linkType ?? "custom",
+            pageId: row.pageId,
+            href: row.href,
+            sortIndex: row.sortIndex,
+        }));
     }
 
     async listAdminWithLinks(): Promise<FooterColumnWithLinks[]> {
@@ -81,7 +105,7 @@ export class CmsFooterColumnRepository {
 
     async replaceLinks(
         columnId: string,
-        links: { label: string; href: string }[],
+        links: FooterLinkInput[],
     ): Promise<FooterColumnWithLinks | undefined> {
         const column = await this.findById(columnId);
         if (!column) return undefined;
@@ -93,7 +117,9 @@ export class CmsFooterColumnRepository {
                     links.map((link, index) => ({
                         columnId,
                         label: link.label.trim(),
-                        href: link.href.trim(),
+                        linkType: link.linkType,
+                        pageId: link.linkType === "page" ? link.pageId ?? null : null,
+                        href: link.linkType === "custom" ? (link.href ?? "").trim() : "",
                         sortIndex: index,
                     })),
                 );

@@ -79,8 +79,7 @@ Infrastructure: `sms/`, `email/` (smtp only), `push/`, `whatsapp/` (noop).
 
 ## Env
 
-- `SMS_PROVIDER=dev|twilio|fast2sms`
-- `FAST2SMS_API_KEY`, `FAST2SMS_ROUTE=q|dlt` (default `q`), `FAST2SMS_SENDER_ID` (required for `dlt`)
+- `SMS_PROVIDER=dev|twilio`
 - `WEB_APP_ORIGIN` — customer booking track URLs in SMS/email (e.g. `http://localhost:5174` dev)
 
 ## Manual test

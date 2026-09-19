@@ -19,7 +19,8 @@ function skipRefresh(url = "") {
   return (
     url.includes("/auth/admin/login") ||
     url.includes("/auth/refresh") ||
-    url.includes("/auth/logout")
+    url.includes("/auth/logout") ||
+    url.includes("/auth/verify-email-change")
   );
 }
 

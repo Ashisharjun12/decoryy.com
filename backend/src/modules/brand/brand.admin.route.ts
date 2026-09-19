@@ -12,6 +12,10 @@ import {
     reorderCmsFooterColumnsDto,
     cmsFooterColumnIdParamsDto,
     putCmsFooterColumnLinksDto,
+    createCmsPageDto,
+    patchCmsPageDto,
+    listCmsPagesQueryDto,
+    cmsPageIdParamsDto,
 } from "@/modules/brand/brand.dto.js";
 import { validate } from "@/shared/middlewares/validate.middleware.js";
 
@@ -74,6 +78,18 @@ export function createBrandAdminRouter(controller: BrandAdminController) {
         validate(putCmsFooterColumnLinksDto),
         controller.putFooterColumnLinks,
     );
+
+    router.get("/pages/picker", controller.listPagesPicker);
+    router.get("/pages", validate(listCmsPagesQueryDto, "query"), controller.listPages);
+    router.get("/pages/:id", validate(cmsPageIdParamsDto, "params"), controller.getPage);
+    router.post("/pages", validate(createCmsPageDto), controller.createPage);
+    router.patch(
+        "/pages/:id",
+        validate(cmsPageIdParamsDto, "params"),
+        validate(patchCmsPageDto),
+        controller.patchPage,
+    );
+    router.delete("/pages/:id", validate(cmsPageIdParamsDto, "params"), controller.deletePage);
 
     return router;
 }

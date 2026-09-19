@@ -8,7 +8,11 @@ import {
     catalogSectionAdminRouter,
 } from "@/modules/catalog/index.js";
 import { orderAdminRouter } from "@/modules/booking/index.js";
-import { customerAdminRouter, vendorAdminRouter } from "@/modules/identity/index.js";
+import {
+    adminAccountAdminRouter,
+    customerAdminRouter,
+    vendorAdminRouter,
+} from "@/modules/identity/index.js";
 import { auditAdminRouter, dashboardAdminRouter, settingsAdminRouter } from "@/modules/ops/index.js";
 import { notificationTemplateAdminRouter } from "@/modules/notifications/index.js";
 import { adminChatRouter } from "@/modules/chat/index.js";
@@ -52,4 +56,5 @@ adminRouter.use("/promotions", promotionsAdminRouter);
 adminRouter.use("/reviews", reviewsAdminRouter);
 adminRouter.use("/cms", cmsAdminRouter);
 adminRouter.use("/brand", brandAdminRouter);
+adminRouter.use("/account", adminAccountAdminRouter);
 adminRouter.use("/ai", aiAdminRouter);

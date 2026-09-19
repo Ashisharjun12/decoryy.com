@@ -13,10 +13,24 @@ const footerHrefSchema = z
         "href must be a path or http(s) URL",
     );
 
-const footerLinkSchema = z.object({
+const footerCustomLinkSchema = z.object({
     label: z.string().trim().min(1).max(120),
+    linkType: z.literal("custom").default("custom"),
     href: footerHrefSchema,
+    pageId: z.null().optional(),
 });
+
+const footerPageLinkSchema = z.object({
+    label: z.string().trim().min(1).max(120),
+    linkType: z.literal("page"),
+    pageId: z.string().uuid(),
+    href: z.string().optional(),
+});
+
+const footerLinkSchema = z.discriminatedUnion("linkType", [
+    footerCustomLinkSchema,
+    footerPageLinkSchema,
+]);
 
 const columnBaseSchema = z.object({
     title: z.string().trim().min(1).max(120),

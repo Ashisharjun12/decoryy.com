@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { db } from "@/db/postgres-client.js";
 import {
     users,
@@ -27,6 +27,9 @@ export interface IUserRepository {
     setEmail(id: string, email: string): Promise<User>;
     updateStatus(id: string, status: UserStatus): Promise<User>;
     updateRole(id: string, role: UserRole): Promise<User>;
+    countByRole(role: UserRole): Promise<number>;
+    updatePasswordHash(id: string, passwordHash: string): Promise<void>;
+    setMustChangePassword(id: string, value: boolean): Promise<void>;
 }
 
 export class UserRepository implements IUserRepository {
@@ -186,5 +189,27 @@ export class UserRepository implements IUserRepository {
             throw new Error("failed to update user role");
         }
         return row;
+    }
+
+    async countByRole(role: UserRole): Promise<number> {
+        const [{ total }] = await db
+            .select({ total: count() })
+            .from(users)
+            .where(eq(users.role, role));
+        return Number(total ?? 0);
+    }
+
+    async updatePasswordHash(id: string, passwordHash: string): Promise<void> {
+        await db
+            .update(users)
+            .set({ passwordHash, updatedAt: new Date() })
+            .where(eq(users.id, id));
+    }
+
+    async setMustChangePassword(id: string, value: boolean): Promise<void> {
+        await db
+            .update(users)
+            .set({ mustChangePassword: value, updatedAt: new Date() })
+            .where(eq(users.id, id));
     }
 }

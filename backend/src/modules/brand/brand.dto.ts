@@ -28,6 +28,15 @@ export {
     putCmsFooterColumnLinksDto,
 } from "@/modules/cms/footer-columns/footer-column.dto.js";
 
+export {
+    createCmsPageDto,
+    patchCmsPageDto,
+    listCmsPagesQueryDto,
+    cmsPageIdParamsDto,
+    cmsPageSlugParamsDto,
+    cmsPagePublicQueryDto,
+} from "@/modules/cms/pages/page.dto.js";
+
 export const siteShellQueryDto = z.object({
     platform: z.enum(["web", "mobile"]).default("web"),
 });

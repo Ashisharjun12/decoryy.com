@@ -19,6 +19,10 @@ export interface IUserService {
     updateStatus(id: string, status: UserStatus): Promise<User>;
     updateRole(id: string, role: UserRole): Promise<User>;
     updateName(id: string, name: string): Promise<void>;
+    countByRole(role: UserRole): Promise<number>;
+    updatePasswordHash(id: string, passwordHash: string): Promise<void>;
+    setMustChangePassword(id: string, value: boolean): Promise<void>;
+    setEmail(id: string, email: string): Promise<User>;
 }
 
 export class UserService implements IUserService {
@@ -81,5 +85,21 @@ export class UserService implements IUserService {
 
     updateName(id: string, name: string) {
         return this.users.updateName(id, name);
+    }
+
+    countByRole(role: UserRole) {
+        return this.users.countByRole(role);
+    }
+
+    updatePasswordHash(id: string, passwordHash: string) {
+        return this.users.updatePasswordHash(id, passwordHash);
+    }
+
+    setMustChangePassword(id: string, value: boolean) {
+        return this.users.setMustChangePassword(id, value);
+    }
+
+    setEmail(id: string, email: string) {
+        return this.users.setEmail(id, email);
     }
 }

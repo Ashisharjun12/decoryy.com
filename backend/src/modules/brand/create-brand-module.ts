@@ -8,18 +8,25 @@ import { CmsSocialLinkRepository } from "@/modules/cms/social-links/social-link.
 import { CmsSocialLinkService } from "@/modules/cms/social-links/social-link.service.js";
 import { CmsFooterColumnRepository } from "@/modules/cms/footer-columns/footer-column.repository.js";
 import { CmsFooterColumnService } from "@/modules/cms/footer-columns/footer-column.service.js";
+import { CmsPageRepository } from "@/modules/cms/pages/page.repository.js";
+import { CmsPageService } from "@/modules/cms/pages/page.service.js";
+import { CachedCmsPageService } from "@/modules/cms/cached-cms-page.service.js";
 
 export function createBrandModule() {
     const settings = new SettingRepository();
     const siteBrandService = new SiteBrandService(settings);
     const socialLinkRepository = new CmsSocialLinkRepository();
     const socialLinkService = new CmsSocialLinkService(socialLinkRepository);
+    const pageRepository = new CmsPageRepository();
+    const cmsPageService = new CmsPageService(pageRepository);
+    const cachedCmsPageService = new CachedCmsPageService(cmsPageService);
     const footerColumnRepository = new CmsFooterColumnRepository();
-    const footerColumnService = new CmsFooterColumnService(footerColumnRepository);
+    const footerColumnService = new CmsFooterColumnService(footerColumnRepository, cmsPageService);
     const siteShellService = new SiteShellService(
         siteBrandService,
         socialLinkService,
         footerColumnService,
+        cmsPageService,
     );
     const cachedSiteShellService = new CachedSiteShellService(siteShellService);
 
@@ -27,6 +34,7 @@ export function createBrandModule() {
         siteBrandService,
         socialLinkService,
         footerColumnService,
+        cmsPageService,
     );
 
     return {
@@ -36,5 +44,7 @@ export function createBrandModule() {
         siteBrandService,
         socialLinkService,
         footerColumnService,
+        cmsPageService,
+        cachedCmsPageService,
     };
 }

@@ -1,4 +1,5 @@
 export * from "../modules/identity/users/user.schema.js";
+export * from "../modules/identity/admin-account/admin-email-change.schema.js";
 export * from "../modules/identity/addresses/customer-address.schema.js";
 export * from "../modules/identity/vendors/vendor.schema.js";
 export * from "../modules/identity/vendor-members/vendor-member.schema.js";
@@ -38,3 +39,4 @@ export * from "../modules/cms/home-layout/home-layout.schema.js";
 export * from "../modules/cms/faq/faq.schema.js";
 export * from "../modules/cms/social-links/social-link.schema.js";
 export * from "../modules/cms/footer-columns/footer-column.schema.js";
+export * from "../modules/cms/pages/page.schema.js";

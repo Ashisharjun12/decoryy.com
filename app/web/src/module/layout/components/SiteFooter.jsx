@@ -5,6 +5,7 @@ import { DEMO_OCCASIONS } from "@/module/home/data/demo-categories";
 import { useSiteShell } from "@/module/site/hooks/use-site-shell.jsx";
 import { FooterTrustBar } from "@/module/layout/components/FooterTrustBar";
 import { SocialIconLink } from "@/module/layout/components/SocialIconLink";
+import { FooterGetTheApp } from "@/module/layout/components/FooterGetTheApp";
 
 const COMPANY = [
   { label: "About Decoryy", href: "/support" },
@@ -22,6 +23,9 @@ const SUPPORT = [
 
 function FooterLink({ item }) {
   const href = item.href;
+  if (!href) {
+    return <span className="text-muted-foreground">{item.label}</span>;
+  }
   if (href.startsWith("/")) {
     return (
       <Link to={href} className="text-muted-foreground transition-colors hover:text-foreground">
@@ -46,7 +50,7 @@ function FooterLinks({ title, items }) {
     <div>
       <h5 className="mb-4 text-sm font-semibold text-foreground">{title}</h5>
       <ul className="space-y-2.5 text-sm">
-        {items.map((item) => (
+        {(items ?? []).map((item) => (
           <li key={`${title}-${item.label}`}>
             <FooterLink item={item} />
           </li>
@@ -121,7 +125,11 @@ export function SiteFooter() {
           ) : null}
         </div>
         {columns.map((column) => (
-          <FooterLinks key={column.id ?? column.title} title={column.title} items={column.links} />
+          <FooterLinks
+            key={column.id ?? column.title}
+            title={column.title}
+            items={column.links ?? []}
+          />
         ))}
       </div>
       <div className="relative overflow-hidden border-t border-border">
@@ -131,9 +139,12 @@ export function SiteFooter() {
         >
           {companyName}
         </span>
-        <div className="relative z-10 mx-auto flex max-w-[1240px] min-h-[5.5rem] flex-wrap items-center justify-between gap-3 px-4 py-8 text-sm text-muted-foreground md:min-h-[7rem] md:px-8">
-          <span>© {new Date().getFullYear()} {companyName}</span>
-          <span>All rights reserved.</span>
+        <div className="relative z-10 mx-auto flex max-w-[1240px] min-h-[5.5rem] flex-col gap-6 px-4 py-8 text-sm text-muted-foreground sm:flex-row sm:flex-wrap sm:items-end sm:justify-between md:min-h-[7rem] md:px-8">
+          <div className="flex flex-col gap-1 sm:gap-0">
+            <span>© {new Date().getFullYear()} {companyName}</span>
+            <span className="text-xs sm:text-sm">All rights reserved.</span>
+          </div>
+          <FooterGetTheApp />
         </div>
       </div>
     </footer>

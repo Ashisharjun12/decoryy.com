@@ -1,3 +1,7 @@
+import { AdminAccountController } from "@/modules/identity/admin-account/admin-account.controller.js";
+import { AdminAccountService } from "@/modules/identity/admin-account/admin-account.service.js";
+import { AdminEmailChangeRepository } from "@/modules/identity/admin-account/admin-email-change.repository.js";
+import { createAdminAccountRouter } from "@/modules/identity/admin-account/admin-account.route.js";
 import { AuthController } from "@/modules/identity/auth/auth.controller.js";
 import { AuthService } from "@/modules/identity/auth/auth.service.js";
 import { createAuthRouter } from "@/modules/identity/auth/auth.route.js";
@@ -65,6 +69,8 @@ const userService = new UserService(userRepository);
 const vendorService = new VendorService(vendorRepository, mediaService, userService);
 const sessionService = new SessionService(sessionRepository, userRepository);
 const authService = new AuthService(userService, vendorService, sessionService, notificationService);
+const adminAccountService = new AdminAccountService(userRepository, new AdminEmailChangeRepository());
+const adminAccountController = new AdminAccountController(adminAccountService);
 const authController = new AuthController(authService);
 const userController = new UserController(authService);
 const vendorController = new VendorController(authService, vendorService);
@@ -115,7 +121,8 @@ const collectionController = new CollectionController(collectionService);
 const walletController = new WalletController(walletService);
 const payoutMethodController = new PayoutMethodController();
 
-export const authRouter = createAuthRouter(authController);
+export const authRouter = createAuthRouter(authController, adminAccountController);
+export const adminAccountAdminRouter = createAdminAccountRouter(adminAccountController);
 export const userRouter = createUserRouter(
     authController,
     userController,

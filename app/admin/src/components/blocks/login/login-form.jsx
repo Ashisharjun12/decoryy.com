@@ -37,10 +37,12 @@ export function LoginForm({
   const [showPassword, setShowPassword] = useState(false)
   const [apiError, setApiError] = useState("")
 
+  const hintEmail = import.meta.env.VITE_ADMIN_HINT_EMAIL?.trim() || ""
+
   const form = useForm({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
+      email: hintEmail,
       password: "",
     },
   })
@@ -54,7 +56,11 @@ export function LoginForm({
         return
       }
       setSession(payload)
-      navigate("/dashboard", { replace: true })
+      if (payload.user?.mustChangePassword) {
+        navigate("/settings?tab=account", { replace: true })
+      } else {
+        navigate("/dashboard", { replace: true })
+      }
     } catch (err) {
       setApiError(getApiError(err))
     }

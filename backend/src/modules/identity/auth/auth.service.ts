@@ -43,6 +43,7 @@ export type PublicUser = {
     avatar: string | null;
     role: User["role"];
     status: User["status"];
+    mustChangePassword?: boolean;
     linkedGoogle: boolean;
     vendor?: PublicVendorProfile;
     partnerMembership?: PublicPartnerMembership;
@@ -102,6 +103,9 @@ function publicUser(
         avatar: user.avatar,
         role: user.role,
         status: user.status,
+        ...(user.role === "admin"
+            ? { mustChangePassword: Boolean(user.mustChangePassword) }
+            : {}),
         linkedGoogle: user.googleId != null,
         ...(vendor ? { vendor } : {}),
         ...(partnerMembership ? { partnerMembership } : {}),
@@ -385,6 +389,10 @@ export class AuthService implements IAuthService {
         if (user) {
             await this.assertAdminPassword(user, input.password);
         } else {
+            const adminCount = await this.users.countByRole("admin");
+            if (adminCount > 0) {
+                throw ApiError.unauthorized("invalid credentials");
+            }
             if (!_config.ADMIN_EMAIL || !_config.ADMIN_PASSWORD) {
                 throw ApiError.unauthorized("invalid credentials");
             }
@@ -398,6 +406,7 @@ export class AuthService implements IAuthService {
                     name: "Admin",
                     role: "admin",
                     passwordHash,
+                    mustChangePassword: true,
                 });
             } catch (err) {
                 if (!isUniqueViolation(err)) {

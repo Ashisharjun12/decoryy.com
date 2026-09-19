@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+    boolean,
     check,
     pgEnum,
     pgTable,
@@ -24,6 +25,7 @@ export const users = pgTable(
         role: userRoleEnum("role").notNull().default("user"),
         status: userStatusEnum("status").notNull().default("active"),
         phoneVerifiedAt: timestamp("phone_verified_at", { withTimezone: true }),
+        mustChangePassword: boolean("must_change_password").notNull().default(false),
         createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
         updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
     },

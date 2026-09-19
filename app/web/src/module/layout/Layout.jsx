@@ -9,6 +9,8 @@ import { SiteFooter } from "@/module/layout/components/SiteFooter";
 import { SiteShellProvider } from "@/module/site/hooks/use-site-shell.jsx";
 import { AnnouncementBar } from "@/module/cms/components/AnnouncementBar";
 import { SiteHeader } from "@/module/layout/components/SiteHeader";
+import { ScrollToTopButton } from "@/module/layout/components/ScrollToTopButton";
+import { ScrollToTopOnNavigate } from "@/module/layout/components/ScrollToTopOnNavigate";
 
 export function Layout() {
   const { pathname } = useLocation();
@@ -21,6 +23,7 @@ export function Layout() {
       <TooltipProvider>
         <SiteShellProvider>
         <Toaster>
+          <ScrollToTopOnNavigate />
           <div className="flex min-h-[100dvh] flex-col bg-background text-foreground">
             <AnnouncementBar />
             <SiteHeader />
@@ -31,6 +34,7 @@ export function Layout() {
             {showFooter ? <SiteFooter /> : null}
             <LoginDialog />
             <CartDrawer />
+            {showFooter ? <ScrollToTopButton /> : null}
           </div>
         </Toaster>
         </SiteShellProvider>

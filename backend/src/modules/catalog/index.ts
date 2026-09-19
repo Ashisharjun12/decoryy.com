@@ -71,6 +71,7 @@ const cmsModule = createCmsModule(
         categoryRepository,
     },
     brandModule.cachedSiteShellService,
+    brandModule.cachedCmsPageService,
 );
 
 export const cmsPublicRouter = cmsModule.cmsPublicRouter;

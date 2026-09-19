@@ -5,6 +5,7 @@ const CMS_PREFIX = `${CACHE_KEY_PREFIX}cms:`;
 export const CMS_CACHE_TTL = {
     homeSeconds: 180,
     siteShellSeconds: 600,
+    pageSeconds: 600,
 } as const;
 
 export function cmsSiteShellKey(platform: string): string {
@@ -23,3 +24,8 @@ export function cmsHomeKey(
 
 export const CMS_HOME_PREFIX = `${CMS_PREFIX}home:`;
 export const CMS_SITE_SHELL_PREFIX = `${CMS_PREFIX}site-shell:`;
+export const CMS_PAGES_PREFIX = `${CMS_PREFIX}pages:`;
+
+export function cmsPageKey(slug: string, platform: string): string {
+    return `${CMS_PAGES_PREFIX}${platform}:${slug}`;
+}

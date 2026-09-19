@@ -5,11 +5,12 @@ import { BookingPolicyPanel } from "@/module/settings/components/BookingPolicyPa
 import { NotificationChannelsPanel } from "@/module/settings/components/NotificationChannelsPanel"
 import { NotificationTemplatesPanel } from "@/module/settings/components/NotificationTemplatesPanel"
 import { AuditLogPage } from "@/module/settings/pages/AuditLogPage"
+import { AdminAccountPanel } from "@/module/settings/components/AdminAccountPanel"
 
-const TABS = ["notifications", "booking", "ai", "audit"]
+const TABS = ["account", "notifications", "booking", "ai", "audit"]
 
 function normalizeTab(value) {
-  return TABS.includes(value) ? value : "notifications"
+  return TABS.includes(value) ? value : "account"
 }
 
 export function SettingsPage() {
@@ -25,17 +26,22 @@ export function SettingsPage() {
       <div>
         <h1 className="font-heading text-2xl font-medium tracking-tight">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Platform notifications, booking policy, AI controls, and admin audit trail.
+          Admin account, notifications, booking policy, AI controls, and audit trail.
         </p>
       </div>
 
       <Tabs value={tab} onValueChange={onTabChange}>
         <TabsList variant="line">
+          <TabsTrigger value="account">Account</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="booking">Booking</TabsTrigger>
           <TabsTrigger value="ai">AI</TabsTrigger>
           <TabsTrigger value="audit">Audit log</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="account" className="pt-4">
+          <AdminAccountPanel />
+        </TabsContent>
 
         <TabsContent value="notifications" className="flex flex-col gap-6 pt-4">
           <NotificationChannelsPanel />

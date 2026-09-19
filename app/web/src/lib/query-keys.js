@@ -1,5 +1,6 @@
 export const queryKeys = {
   siteShell: (platform = "web") => ["site-shell", platform],
+  cmsPage: (slug, platform = "web") => ["cms", "page", platform, slug ?? "_"],
   cmsHome: (cityId, pincode, platform = "web") => [
     "cms",
     "home",

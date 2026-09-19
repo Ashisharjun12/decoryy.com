@@ -153,7 +153,7 @@ On **logout**: revoke that refresh row. Access JWT still verifies until it expir
 
 `purpose` is `"login"` or `"vendor_register"`. Public `POST /auth/otp/request` is **login only** (no `purpose` field). Only `POST /vendor/register` writes `vendor_register`. If `vendor:pending:{phone}` already exists, a later login OTP request **keeps** `vendor_register` so it cannot create a customer.
 
-SMS is **not** sent in the API process. Auth calls `notificationService.assertCanSend("LOGIN_OTP")` then `notify()`. If SMS is disabled, the API returns **503** `sms notifications disabled`. The worker uses `SmsFactory` (`SMS_PROVIDER=dev|twilio|fast2sms`) after the outbox relay.
+SMS is **not** sent in the API process. Auth calls `notificationService.assertCanSend("LOGIN_OTP")` then `notify()`. If SMS is disabled, the API returns **503** `sms notifications disabled`. The worker uses `SmsFactory` (`SMS_PROVIDER=dev|twilio`) after the outbox relay.
 
 OTP is returned in JSON **only** when `NODE_ENV === "development"`. Production never echoes OTP, even if `SMS_PROVIDER=dev`.
 
@@ -365,7 +365,7 @@ Login endpoints (`/auth/otp/verify`, `/auth/google`) remain **login-only**; use 
 
 ### Admin
 
-`POST /auth/admin/login`. Existing admin: **bcrypt only** against `passwordHash` (never env plaintext). First bootstrap: email/password must match `ADMIN_EMAIL` / `ADMIN_PASSWORD`, then the user is created with a hash. If two bootstraps race on unique email, the loser retries `findByEmail` then bcrypt.
+`POST /auth/admin/login`. Existing admin: **bcrypt only** against `passwordHash` (never env plaintext). First bootstrap (only while **no** `role=admin` user exists): email/password must match `ADMIN_EMAIL` / `ADMIN_PASSWORD`, then the user is created with a hash and `must_change_password=true`. Env bootstrap is not used after an admin row exists. Account self-service: `GET/PATCH /admin/account/*`, `POST /admin/account/change-email` with `newEmail`, `newPassword`, `confirmNewPassword` (sends verification; link applies email + password). `GET /auth/verify-email-change?token=`. If two bootstraps race on unique email, the loser retries `findByEmail` then bcrypt.
 
 ---
 

@@ -1,5 +1,6 @@
 import { ApiError } from "@/shared/errors/apiError.js";
 import type { CmsFooterColumnRepository } from "@/modules/cms/footer-columns/footer-column.repository.js";
+import type { CmsPageService } from "@/modules/cms/pages/page.service.js";
 import type { z } from "zod";
 import type {
     createCmsFooterColumnDto,
@@ -13,7 +14,10 @@ type PatchInput = z.infer<typeof patchCmsFooterColumnDto>;
 type LinksInput = z.infer<typeof putCmsFooterColumnLinksDto>;
 
 export class CmsFooterColumnService {
-    constructor(private readonly columns: CmsFooterColumnRepository) {}
+    constructor(
+        private readonly columns: CmsFooterColumnRepository,
+        private readonly pages: CmsPageService,
+    ) {}
 
     async listAdmin() {
         const items = await this.columns.listAdminWithLinks();
@@ -76,7 +80,28 @@ export class CmsFooterColumnService {
     }
 
     async replaceLinks(id: string, input: LinksInput) {
-        const result = await this.columns.replaceLinks(id, input.links);
+        for (const link of input.links) {
+            if (link.linkType === "page") {
+                const page = await this.pages.getPublishedById(link.pageId);
+                if (!page) {
+                    throw ApiError.badRequest("Footer page link must reference a published page");
+                }
+            }
+        }
+        const normalized = input.links.map((link) =>
+            link.linkType === "page"
+                ? {
+                      label: link.label,
+                      linkType: "page" as const,
+                      pageId: link.pageId,
+                  }
+                : {
+                      label: link.label,
+                      linkType: "custom" as const,
+                      href: link.href,
+                  },
+        );
+        const result = await this.columns.replaceLinks(id, normalized);
         if (!result) throw ApiError.notFound("Footer column not found");
         await invalidateSiteShell();
         return result;

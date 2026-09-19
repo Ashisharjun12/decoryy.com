@@ -1,6 +1,7 @@
 import type { SiteBrandService } from "@/modules/brand/site-brand.service.js";
 import type { CmsSocialLinkService } from "@/modules/cms/social-links/social-link.service.js";
 import type { CmsFooterColumnService } from "@/modules/cms/footer-columns/footer-column.service.js";
+import type { CmsPageService } from "@/modules/cms/pages/page.service.js";
 import { resolveCompletedDisplayUrls, urlFromMap } from "@/modules/upload/index.js";
 
 function matchesPlatform(platforms: string[], platform: string) {
@@ -12,6 +13,7 @@ export class SiteShellService {
         private readonly siteBrand: SiteBrandService,
         private readonly socialLinks: CmsSocialLinkService,
         private readonly footerColumns: CmsFooterColumnService,
+        private readonly pages: CmsPageService,
     ) {}
 
     async get(options: { platform?: string } = {}) {
@@ -35,17 +37,17 @@ export class SiteShellService {
             iconUrl: urlFromMap(iconUrlMap, row.iconUploadId),
         }));
 
-        const footerColumns = columnRows
-            .filter((row) => matchesPlatform(row.platforms, platform))
-            .map((row) => ({
+        const footerColumns = [];
+        for (const row of columnRows) {
+            if (!matchesPlatform(row.platforms, platform)) continue;
+            const links = await this.pages.resolveFooterLinks(row.links, platform);
+            if (!links.length) continue;
+            footerColumns.push({
                 id: row.id,
                 title: row.title,
-                links: row.links.map((link) => ({
-                    label: link.label,
-                    href: link.href,
-                })),
-            }))
-            .filter((row) => row.links.length > 0);
+                links,
+            });
+        }
 
         return {
             brand,

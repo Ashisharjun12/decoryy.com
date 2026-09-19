@@ -27,6 +27,8 @@ import { ProductReviewsPage } from "@/module/catalog/pages/ProductReviewsPage";
 import { HomePage } from "@/module/home/pages/HomePage";
 import { ServiceCitiesPage } from "@/module/geo/pages/ServiceCitiesPage";
 import { LoginRedirect } from "@/module/layout/pages/LoginRedirect";
+import { CmsPagePage } from "@/module/cms/pages/CmsPagePage";
+import { NotFoundPage } from "@/module/layout/pages/NotFoundPage";
 import { NotificationsHost } from "@/module/notifications/components/NotificationsHost";
 import { SocketProvider } from "@/providers/socket-provider";
 
@@ -65,6 +67,7 @@ export default function App() {
             <Route path="help/:topicKey/chat" element={<HelpTopicChatPage />} />
             <Route path="notifications" element={<NotificationsPage />} />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
           <Route path="/support" element={<Navigate to="/account/help" replace />} />
           <Route path="/bookings" element={<Navigate to="/account/bookings" replace />} />
@@ -72,6 +75,8 @@ export default function App() {
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/checkout/success/:orderId" element={<OrderConfirmationPage />} />
           <Route path="/bag" element={<BagPage />} />
+          <Route path="/pages/:slug" element={<CmsPagePage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
