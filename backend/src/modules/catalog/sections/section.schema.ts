@@ -8,6 +8,7 @@ export const catalogSections = pgTable("catalog_sections", {
     name: text("name").notNull(),
     slug: text("slug").notNull().unique(),
     sortIndex: integer("sort_index").notNull().default(0),
+    badgeColor: text("badge_color").notNull().default("amber"),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

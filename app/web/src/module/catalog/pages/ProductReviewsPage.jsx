@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DecoryImageFallback } from "@/components/decory-image-fallback";
 import { ProductReviewCard } from "@/module/catalog/components/reviews/ProductReviewCard";
 import { ProductReviewsSummary } from "@/module/catalog/components/reviews/ProductReviewsSummary";
+import { resolveProductReviewCount } from "@/module/catalog/components/reviews/review-count";
 import { isBackendCityId, useLocationStore } from "@/store/location.store";
 
 const PAGE_SIZE = 10;
@@ -62,6 +63,16 @@ export function ProductReviewsPage() {
 
   const total = reviews?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const reviewCount = resolveProductReviewCount({ data: reviews, product, items: reviews?.items });
+  const summary =
+    reviews?.summary ??
+    (reviewCount > 0
+      ? {
+          ratingAvg: product?.ratingAvg != null ? Number(product.ratingAvg) : null,
+          reviewCount,
+          distribution: {},
+        }
+      : null);
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-[840px] px-4 py-8 md:px-8 md:py-12">
@@ -111,7 +122,7 @@ export function ProductReviewsPage() {
             <h2 className="font-heading text-2xl font-medium tracking-tight">Ratings &amp; Reviews</h2>
           </div>
 
-          <ProductReviewsSummary summary={reviews?.summary} />
+          <ProductReviewsSummary summary={summary} />
 
           {reviews?.items?.length ? (
             <div className="flex flex-col gap-3">
@@ -119,6 +130,10 @@ export function ProductReviewsPage() {
                 <ProductReviewCard key={review.id} review={review} />
               ))}
             </div>
+          ) : reviewCount > 0 ? (
+            <p className="rounded-2xl border bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
+              Reviews are temporarily unavailable. Please try again in a moment.
+            </p>
           ) : (
             <p className="rounded-2xl border bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
               No reviews yet for this product.

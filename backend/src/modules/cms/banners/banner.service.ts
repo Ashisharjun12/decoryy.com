@@ -5,6 +5,7 @@ import type { CmsBannerRepository } from "@/modules/cms/banners/banner.repositor
 import type { CmsBanner } from "@/modules/cms/banners/banner.schema.js";
 import type { z } from "zod";
 import type { createCmsBannerDto, patchCmsBannerDto } from "@/modules/cms/cms.dto.js";
+import { invalidateHome } from "@/modules/cms/cache/cms-cache.invalidation.js";
 
 type CreateInput = z.infer<typeof createCmsBannerDto>;
 type PatchInput = z.infer<typeof patchCmsBannerDto>;
@@ -60,7 +61,9 @@ export class CmsBannerService {
             accentColor: input.accentColor ?? null,
             dismissible: input.dismissible ?? true,
         });
-        return this.getAdmin(row.id);
+        const created = await this.getAdmin(row.id);
+        await invalidateHome();
+        return created;
     }
 
     async patch(id: string, input: PatchInput) {
@@ -100,12 +103,15 @@ export class CmsBannerService {
             dismissible: input.dismissible,
         });
         if (!row) throw ApiError.notFound("Banner not found");
-        return this.getAdmin(row.id);
+        const updated = await this.getAdmin(row.id);
+        await invalidateHome();
+        return updated;
     }
 
     async delete(id: string) {
         const ok = await this.banners.delete(id);
         if (!ok) throw ApiError.notFound("Banner not found");
+        await invalidateHome();
         return { id };
     }
 
@@ -115,6 +121,7 @@ export class CmsBannerService {
         } catch {
             throw ApiError.badRequest("Invalid banner reorder payload");
         }
+        await invalidateHome();
         return { placement, ids };
     }
 

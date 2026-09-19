@@ -12,6 +12,7 @@ import { promotionService } from "@/modules/promotions/index.js";
 import { buildCouponEligibilitySummary } from "@/modules/promotions/lib/coupon-summary.js";
 import { resolveCouponTargetLabels } from "@/modules/promotions/targets/coupon-target.resolver.js";
 import type { PromotionLine } from "@/modules/promotions/promotion.service.js";
+import { enrichCartItemsWithAddonImages } from "@/modules/booking/carts/enrich-cart-addon-images.js";
 
 export const GUEST_CART_COOKIE = "guestKey";
 const GUEST_TTL_MS = 14 * 24 * 60 * 60 * 1000;
@@ -36,6 +37,7 @@ export type PublicCartAddon = {
     id: string;
     name: string;
     pricePaise: number;
+    imageUrl: string | null;
 };
 
 export type PublicCartItem = {
@@ -543,6 +545,8 @@ export class CartService implements ICartService {
             }
         }
 
+        const items = await enrichCartItemsWithAddonImages(built.items);
+
         return {
             id: cartId,
             cityId: built.cityId,
@@ -553,7 +557,7 @@ export class CartService implements ICartService {
             discountPaise,
             totalPaise: Math.max(0, built.subtotalPaise - discountPaise),
             appliedCoupon,
-            items: built.items,
+            items,
         };
     }
 
@@ -568,6 +572,7 @@ export class CartService implements ICartService {
                 id: addonId,
                 name: addon?.name ?? "Add-on",
                 pricePaise: priceByAddon[addonId] ?? 0,
+                imageUrl: null,
             });
         }
         return rows;

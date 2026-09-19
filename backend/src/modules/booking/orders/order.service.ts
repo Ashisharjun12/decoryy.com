@@ -91,6 +91,10 @@ export type PublicOrderSummary = {
     subtotalPaise: number;
     cityName: string;
     pincode: string;
+    delivery: {
+        address: string;
+        landmark: string | null;
+    };
     primaryName: string;
     primaryImageUrl: string | null;
     itemCount: number;
@@ -118,6 +122,7 @@ export type PublicAssignee = {
 
 export type PublicOrder = {
     id: string;
+    userId: string;
     reference: string;
     status: string;
     paymentMethod: string;
@@ -281,6 +286,10 @@ export class OrderService implements IOrderService {
                     subtotalPaise: row.subtotalPaise,
                     cityName: row.cityName,
                     pincode: row.pincode,
+                    delivery: {
+                        address: row.addressLine,
+                        landmark: row.landmark,
+                    },
                     primaryName: row.primaryName,
                     primaryImageUrl: row.primaryImageUrl,
                     itemCount: row.itemCount,
@@ -310,6 +319,10 @@ export class OrderService implements IOrderService {
                 subtotalPaise: row.subtotalPaise,
                 cityName: row.cityName,
                 pincode: row.pincode,
+                delivery: {
+                    address: row.addressLine,
+                    landmark: row.landmark,
+                },
                 primaryName: row.primaryName,
                 primaryImageUrl: row.primaryImageUrl,
                 itemCount: row.itemCount,
@@ -856,6 +869,7 @@ export class OrderService implements IOrderService {
     toPublic(order: OrderWithItems): PublicOrder {
         return {
             id: order.id,
+            userId: order.userId,
             reference: order.reference,
             status: order.status,
             paymentMethod: order.paymentMethod,
@@ -907,41 +921,49 @@ export class OrderService implements IOrderService {
         await scheduleBookingReminders(order.id, new Date(order.scheduledAt));
 
         try {
-            const email = order.customer.email?.trim();
+            const enriched = await this.enrichAddonImages(order);
+            const email = enriched.customer.email?.trim();
             await this.notifications.notify({
                 event: "BOOKING_CONFIRMED",
                 userId,
                 recipient: {
                     email: email || undefined,
-                    phone: order.customer.phone,
+                    phone: enriched.customer.phone,
                 },
                 data: {
-                    customerName: order.customer.name,
-                    orderId: order.reference,
-                    orderRef: order.reference,
-                    bookingId: order.id,
-                    trackUrl: bookingTrackUrl(order.id),
-                    scheduledAt: order.scheduledAt,
-                    city: order.delivery.cityName,
+                    customerName: enriched.customer.name,
+                    customerPhone: enriched.customer.phone,
+                    orderId: enriched.reference,
+                    orderRef: enriched.reference,
+                    bookingId: enriched.id,
+                    trackUrl: bookingTrackUrl(enriched.id),
+                    scheduledAt: enriched.scheduledAt,
+                    city: enriched.delivery.cityName,
                     address: [
-                        order.delivery.address,
-                        order.delivery.landmark,
-                        order.delivery.cityName,
-                        order.delivery.pincode,
+                        enriched.delivery.address,
+                        enriched.delivery.landmark,
+                        enriched.delivery.cityName,
+                        enriched.delivery.pincode,
                     ]
                         .filter(Boolean)
                         .join(", "),
-                    totalPaise: String(order.subtotalPaise),
+                    totalPaise: String(enriched.totalPaise),
                     itemsJson: JSON.stringify(
-                        order.items.map((item) => ({
+                        enriched.items.map((item) => ({
                             name: item.name,
                             imageUrl: item.imageUrl,
                             quantity: item.quantity,
                             lineTotalPaise: item.lineTotalPaise,
+                            addons: item.addons.map((addon) => ({
+                                name: addon.name,
+                                imageUrl: addon.imageUrl ?? null,
+                                quantity: addon.quantity,
+                                pricePaise: addon.pricePaise,
+                            })),
                         })),
                     ),
                 },
-                idempotencyKey: `booking-confirmed:${order.id}`,
+                idempotencyKey: `booking-confirmed:${enriched.id}`,
             });
         } catch (err) {
             logger.error({ err, orderId: order.id }, "booking confirmed email failed");

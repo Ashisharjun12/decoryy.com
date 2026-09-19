@@ -41,6 +41,8 @@ const addonRepository = new AddonRepository();
 const cityPriceRepository = new CityPriceRepository();
 const mediaRepository = new MediaRepository();
 
+const brandModule = createBrandModule();
+
 const categoryService = new CategoryService(categoryRepository);
 const addonService = new AddonService(addonRepository, productRepository);
 const cityPriceService = new CityPriceService(cityPriceRepository, productRepository, addonRepository);
@@ -50,6 +52,7 @@ const productService = new ProductService(
     cityPriceRepository,
     mediaRepository,
     categoryRepository,
+    brandModule.siteBrandService,
 );
 const cityRepository = new CityRepository();
 const sectionRepository = new SectionRepository();
@@ -60,8 +63,6 @@ const productController = new ProductController(productService, cityPriceService
 const addonController = new AddonController(addonService, cityPriceService);
 const sectionController = new SectionController(sectionService);
 
-const brandModule = createBrandModule();
-
 const cmsModule = createCmsModule(
     {
         sectionService,
@@ -69,7 +70,7 @@ const cmsModule = createCmsModule(
         categoryService,
         categoryRepository,
     },
-    brandModule.siteShellService,
+    brandModule.cachedSiteShellService,
 );
 
 export const cmsPublicRouter = cmsModule.cmsPublicRouter;

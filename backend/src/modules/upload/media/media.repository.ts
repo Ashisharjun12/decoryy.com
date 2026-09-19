@@ -1,4 +1,4 @@
-import { and, count, desc, eq, ilike, isNull, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, isNull, type SQL } from "drizzle-orm";
 import { db } from "@/db/postgres-client.js";
 import { paginationOffset, type PaginationQuery } from "@/shared/http/pagination.js";
 import {
@@ -38,6 +38,7 @@ export type UploadListFilter = {
 
 export interface IMediaRepository {
     findById(id: string): Promise<Upload | undefined>;
+    findByIds(ids: string[]): Promise<Upload[]>;
     findByKey(key: string): Promise<Upload | undefined>;
     list(
         pagination: PaginationQuery,
@@ -76,6 +77,15 @@ export class MediaRepository implements IMediaRepository {
     async findById(id: string): Promise<Upload | undefined> {
         const [row] = await db.select().from(uploads).where(eq(uploads.id, id)).limit(1);
         return row;
+    }
+
+    async findByIds(ids: string[]): Promise<Upload[]> {
+        const unique = [...new Set(ids.filter(Boolean))];
+        if (unique.length === 0) return [];
+        return db
+            .select()
+            .from(uploads)
+            .where(and(inArray(uploads.id, unique), eq(uploads.status, "completed")));
     }
 
     async findByKey(key: string): Promise<Upload | undefined> {

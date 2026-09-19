@@ -110,6 +110,8 @@ export function normalizeSection(raw) {
     id: raw.id ?? raw.slug,
     slug: raw.slug,
     name: raw.name,
+    badgeColor: raw.badgeColor ?? "amber",
+    badgeLabel: raw.badgeLabel ?? raw.name,
     sortIndex: raw.sortIndex ?? 0,
     items,
   };
@@ -155,6 +157,8 @@ export function normalizeApiSections(response) {
         id: section.id,
         slug: section.slug,
         name: section.name,
+        badgeColor: section.badgeColor,
+        badgeLabel: section.name,
         sortIndex: section.sortIndex,
         items: section.items,
       }),

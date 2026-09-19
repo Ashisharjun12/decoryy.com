@@ -3,9 +3,8 @@ import { orderPayablePaise } from "@/modules/booking/orders/order-totals.js";
 import { OrderRepository } from "@/modules/booking/orders/order.repository.js";
 import { financialAdminService } from "@/modules/payments/admin/financial-admin.service.js";
 import { LedgerEntryRepository } from "@/modules/payments/ledger/ledger-entry.repository.js";
-import { ledgerService } from "@/modules/payments/ledger/ledger.service.js";
 import { orderFinancialService } from "@/modules/payments/order-financials/order-financial.service.js";
-import { PaymentFactory } from "@/infrastructure/payment/payment.factory.js";
+import { refundExecutionService } from "@/modules/booking/refunds/refund-execution.service.js";
 import { PaymentIntentRepository } from "@/modules/payments/intents/payment-intent.repository.js";
 import { settingService } from "@/modules/ops/index.js";
 import { ApiError } from "@/shared/errors/apiError.js";
@@ -103,9 +102,7 @@ export class FinancialAdminController {
         const ledger = await this.entries.listForOrder(orderId);
         const intent = await this.intents.findByOrderId(orderId);
         const currentPolicy = await settingService.getPayoutPolicy();
-        const hasReversal = ledger.some((row) =>
-            String(row.idempotencyKey).startsWith("reverse:"),
-        );
+        const hasReversal = await refundExecutionService.hasLedgerReversal(orderId);
 
         res.status(200).json(
             new ApiResponse(
@@ -150,17 +147,10 @@ export class FinancialAdminController {
         const order = await this.orders.findById(orderId);
         if (!order) throw ApiError.notFound("order not found");
 
-        const intent = await this.intents.findByOrderId(orderId);
-        if (intent?.providerPaymentId && intent.status === "paid") {
-            const provider = PaymentFactory.getProvider(intent.provider);
-            await provider.refund({
-                providerRef: intent.providerPaymentId,
-                amountPaise: orderPayablePaise(order),
-                idempotencyKey: `refund:${orderId}`,
-            });
-        }
-
-        await ledgerService.reverse(orderId, String(req.body.reason ?? "admin refund"));
+        await refundExecutionService.executeOrderRefund(
+            orderId,
+            String(req.body.reason ?? "admin refund"),
+        );
         res.status(200).json(new ApiResponse(200, { orderId }, "refund processed"));
     });
 

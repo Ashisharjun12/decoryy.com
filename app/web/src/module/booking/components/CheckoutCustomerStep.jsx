@@ -14,7 +14,7 @@ export function CheckoutCustomerStep({ value, onChange }) {
         <Input
           id="checkout-name"
           autoComplete="name"
-          placeholder="Name for the booking"
+          placeholder="Full name"
           value={value.name}
           onChange={(event) => patch("name", event.target.value)}
         />
@@ -23,6 +23,7 @@ export function CheckoutCustomerStep({ value, onChange }) {
         <FieldLabel htmlFor="checkout-phone">Phone</FieldLabel>
         <IndiaPhoneInput
           id="checkout-phone"
+          rounded="lg"
           value={value.phone}
           onChange={(next) => patch("phone", next)}
         />
@@ -33,7 +34,7 @@ export function CheckoutCustomerStep({ value, onChange }) {
           id="checkout-email"
           type="email"
           autoComplete="email"
-          placeholder="you@email.com"
+          placeholder="Email address"
           value={value.email}
           onChange={(event) => patch("email", event.target.value)}
         />

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
+import { useNavigate } from "react-router-dom";
 import { ArrowRightIcon } from "lucide-react";
-import { getLenis } from "@/lib/lenis-instance";
 import { listTopLevelCategories } from "@/lib/category-icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -15,10 +15,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  DEMO_BUDGETS,
-} from "@/module/home/data/demo-categories";
+  buildDecorationsSearchUrl,
+  persistSearchEventDate,
+} from "@/module/catalog/lib/catalog-search";
+import { DEMO_BUDGETS } from "@/module/home/data/demo-categories";
 import { useCatalogStore } from "@/store/catalog.store";
-import { useLocationStore } from "@/store/location.store";
+import { useCartStore } from "@/store/cart.store";
+import { isBackendCityId, useLocationStore } from "@/store/location.store";
 
 function Field({ label, children, className }) {
   return (
@@ -40,9 +43,13 @@ const triggerClass =
   "h-auto w-full min-w-0 rounded-none border-0 bg-transparent p-0 text-xs font-semibold shadow-none hover:bg-transparent focus-visible:border-transparent focus-visible:ring-0 md:text-sm dark:bg-transparent dark:hover:bg-transparent";
 
 export function BannerSearch() {
+  const navigate = useNavigate();
   const city = useLocationStore((s) => s.city);
+  const pincode = useLocationStore((s) => s.pincode);
   const cities = useLocationStore((s) => s.cities);
   const setLocation = useLocationStore((s) => s.setLocation);
+  const setPickerOpen = useLocationStore((s) => s.setPickerOpen);
+  const setCartLocation = useCartStore((s) => s.setLocation);
   const categories = useCatalogStore((s) => s.categories);
   const occasions = useMemo(
     () => listTopLevelCategories(categories),
@@ -69,14 +76,36 @@ export function BannerSearch() {
   const budgetLabel =
     DEMO_BUDGETS.find((item) => item.value === budget)?.label ?? "Budget";
 
+  function hasServiceLocation() {
+    return Boolean(pincode?.code) || (city?.id && isBackendCityId(city.id));
+  }
+
   function findSetups() {
-    const target = document.getElementById("home-picks");
-    const lenis = getLenis();
-    if (lenis && target) {
-      lenis.scrollTo(target, { offset: -80 });
+    if (!hasServiceLocation()) {
+      setPickerOpen(true);
       return;
     }
-    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    const activeCity = city ?? cities.find((item) => item.id === cityId);
+    const body = pincode?.code
+      ? { pincode: pincode.code.replace(/\D/g, "").slice(0, 6) }
+      : activeCity?.id && isBackendCityId(activeCity.id)
+        ? { cityId: activeCity.id }
+        : null;
+
+    if (body) {
+      void setCartLocation(body).catch(() => {});
+    }
+
+    persistSearchEventDate(date);
+
+    navigate(
+      buildDecorationsSearchUrl({
+        occasion: occasion || undefined,
+        budget,
+        page: 1,
+      }),
+    );
   }
 
   return (
@@ -160,7 +189,7 @@ export function BannerSearch() {
           type="submit"
           className="col-span-2 mt-1 h-9 w-full rounded-full px-4 text-xs font-bold transition-transform hover:-translate-y-0.5 active:scale-[0.98] md:col-span-1 md:mt-0 md:mr-1 md:h-12 md:w-auto md:px-6 md:text-sm"
         >
-          Find setups
+          Find
           <ArrowRightIcon />
         </Button>
       </div>

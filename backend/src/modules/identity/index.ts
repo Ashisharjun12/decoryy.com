@@ -13,6 +13,10 @@ import { CustomerAdminController } from "@/modules/identity/customers/customer.a
 import { CustomerRepository } from "@/modules/identity/customers/customer.repository.js";
 import { CustomerService } from "@/modules/identity/customers/customer.service.js";
 import { createCustomerAdminRouter } from "@/modules/identity/customers/customer.route.js";
+import { CustomerAddressController } from "@/modules/identity/addresses/customer-address.controller.js";
+import { CustomerAddressService } from "@/modules/identity/addresses/customer-address.service.js";
+import { RefundRequestController } from "@/modules/booking/refunds/refund-request.controller.js";
+import { RefundRequestService } from "@/modules/booking/refunds/refund-request.service.js";
 import {
     VendorAdminController,
     VendorController,
@@ -68,6 +72,10 @@ const vendorAdminController = new VendorAdminController(vendorService);
 const customerRepository = new CustomerRepository();
 const customerService = new CustomerService(customerRepository);
 const customerAdminController = new CustomerAdminController(customerService);
+const customerAddressService = new CustomerAddressService();
+const customerAddressController = new CustomerAddressController(customerAddressService);
+const refundRequestService = new RefundRequestService();
+const refundRequestController = new RefundRequestController(refundRequestService);
 
 const orderRepository = new OrderRepository();
 const assignmentRepository = new AssignmentRepository();
@@ -112,6 +120,8 @@ export const userRouter = createUserRouter(
     authController,
     userController,
     userNotificationController,
+    customerAddressController,
+    refundRequestController,
 );
 export const vendorRouter = createVendorRouter(
     vendorController,

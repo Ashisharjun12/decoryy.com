@@ -79,7 +79,11 @@ export function HomeProductRail({
                 key={product.id}
                 className="basis-[46%] pl-2.5 sm:basis-[31%] md:basis-[24%] lg:basis-1/4"
               >
-                <HomeProductCardRail product={product} />
+                <HomeProductCardRail
+                  product={product}
+                  badgeLabel={section.badgeLabel ?? section.name}
+                  badgeColor={section.badgeColor}
+                />
               </CarouselItem>
             ))}
           </CarouselContent>

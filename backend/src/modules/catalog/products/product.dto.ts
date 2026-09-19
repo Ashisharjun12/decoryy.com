@@ -95,6 +95,7 @@ export const publicProductListQueryDto = z
         minPricePaise: z.string().optional(),
         maxPricePaise: z.string().optional(),
         sort: z.enum(["popularity", "new", "price_asc", "price_desc"]).optional(),
+        q: z.string().trim().min(1).max(80).optional(),
         page: z.string().optional(),
         limit: z.string().optional(),
     })

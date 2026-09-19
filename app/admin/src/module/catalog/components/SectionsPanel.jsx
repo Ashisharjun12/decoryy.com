@@ -153,6 +153,7 @@ export function SectionsPanel() {
     const body = {
       name: values.name,
       sortIndex: values.sortIndex,
+      badgeColor: values.badgeColor,
       isActive: values.isActive,
       ...(values.slug ? { slug: values.slug } : {}),
     }

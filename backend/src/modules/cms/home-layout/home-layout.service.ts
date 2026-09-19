@@ -15,6 +15,7 @@ import type {
     createHomeLayoutBlockDto,
     patchHomeLayoutBlockDto,
 } from "@/modules/cms/home-layout/home-layout.dto.js";
+import { invalidateHome } from "@/modules/cms/cache/cms-cache.invalidation.js";
 
 type CreateInput = z.infer<typeof createHomeLayoutBlockDto>;
 type PatchInput = z.infer<typeof patchHomeLayoutBlockDto>;
@@ -52,6 +53,8 @@ export type PublicProductRailBlock = {
     showTitle: boolean;
     showSubtitle: boolean;
     sectionSlug: string | null;
+    sectionName: string;
+    sectionBadgeColor: string;
     items: ProductForCity[];
 };
 
@@ -139,7 +142,9 @@ export class CmsHomeLayoutService {
             await this.assertCategories(input.categoryIds);
             await this.blocks.replaceBlockCategories(row.id, input.categoryIds);
         }
-        return this.getAdmin(row.id);
+        const created = await this.getAdmin(row.id);
+        await invalidateHome();
+        return created;
     }
 
     async patch(id: string, input: PatchInput) {
@@ -211,12 +216,15 @@ export class CmsHomeLayoutService {
             await this.blocks.replaceBlockCategories(id, input.categoryIds);
         }
 
-        return this.getAdmin(id);
+        const updated = await this.getAdmin(id);
+        await invalidateHome();
+        return updated;
     }
 
     async delete(id: string) {
         const deleted = await this.blocks.delete(id);
         if (!deleted) throw ApiError.notFound("Home layout block not found");
+        await invalidateHome();
         return { id };
     }
 
@@ -226,6 +234,7 @@ export class CmsHomeLayoutService {
         } catch {
             throw ApiError.badRequest("Invalid home layout reorder payload");
         }
+        await invalidateHome();
         return { ok: true };
     }
 
@@ -237,7 +246,9 @@ export class CmsHomeLayoutService {
         }
         await this.assertCategories(categoryIds);
         await this.blocks.replaceBlockCategories(id, categoryIds);
-        return this.getAdmin(id);
+        const result = await this.getAdmin(id);
+        await invalidateHome();
+        return result;
     }
 
     async resolvePublic(query: {
@@ -295,14 +306,22 @@ export class CmsHomeLayoutService {
             childrenByParent.set(cat.parentId, list);
         }
 
+        const categoryRowBlockIds = scope
+            .filter((row) => row.type === "category_row")
+            .map((row) => row.id);
+        const blockCategoriesByBlockId = await this.blocks.listBlockCategoriesForBlockIds(
+            categoryRowBlockIds,
+        );
+
         const resolved: PublicLayoutBlock[] = [];
         for (const block of scope) {
             if (block.type === "category_row") {
-                const mapped = await this.resolveCategoryRow(
+                const mapped = this.resolveCategoryRow(
                     block,
                     categoryById,
                     childrenByParent,
                     flatById,
+                    blockCategoriesByBlockId.get(block.id) ?? [],
                 );
                 if (mapped) resolved.push(mapped);
             } else if (block.type === "product_rail" && block.sectionId) {
@@ -313,14 +332,14 @@ export class CmsHomeLayoutService {
         return resolved;
     }
 
-    private async resolveCategoryRow(
+    private resolveCategoryRow(
         block: CmsHomeLayoutBlock,
         categoryById: Map<string, CategoryAdmin & { children: CategoryAdmin[] }>,
         childrenByParent: Map<string, CategoryAdmin[]>,
         flatById: Map<string, { id: string; isActive: boolean }>,
-    ): Promise<PublicCategoryRowBlock | null> {
+        links: { categoryId: string; sortIndex: number }[],
+    ): PublicCategoryRowBlock | null {
         const config = normalizeCategoryRowConfig(block.config as CategoryRowConfig);
-        const links = await this.blocks.listBlockCategories(block.id);
         const categories: PublicLayoutCategory[] = [];
         for (const link of links) {
             const raw = categoryById.get(link.categoryId);
@@ -385,6 +404,8 @@ export class CmsHomeLayoutService {
             showTitle: block.showTitle,
             showSubtitle: block.showSubtitle,
             sectionSlug: section.slug,
+            sectionName: section.name,
+            sectionBadgeColor: section.badgeColor ?? "amber",
             items,
         };
     }

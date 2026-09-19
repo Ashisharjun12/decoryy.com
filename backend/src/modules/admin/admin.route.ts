@@ -16,6 +16,8 @@ import {
     createFinancialAdminRouter,
     FinancialAdminController,
 } from "@/modules/payments/index.js";
+import { RefundRequestController } from "@/modules/booking/refunds/refund-request.controller.js";
+import { RefundRequestService } from "@/modules/booking/refunds/refund-request.service.js";
 import { promotionsAdminRouter } from "@/modules/promotions/index.js";
 import { reviewsAdminRouter } from "@/modules/reviews/index.js";
 import { brandAdminRouter, cmsAdminRouter } from "@/modules/catalog/index.js";
@@ -41,7 +43,11 @@ adminRouter.use("/settings", settingsAdminRouter);
 adminRouter.use("/audit-logs", auditAdminRouter);
 adminRouter.use("/notification-templates", notificationTemplateAdminRouter);
 adminRouter.use("/chat", adminChatRouter);
-adminRouter.use("/financials", createFinancialAdminRouter(new FinancialAdminController()));
+const refundRequestController = new RefundRequestController(new RefundRequestService());
+adminRouter.use(
+    "/financials",
+    createFinancialAdminRouter(new FinancialAdminController(), refundRequestController),
+);
 adminRouter.use("/promotions", promotionsAdminRouter);
 adminRouter.use("/reviews", reviewsAdminRouter);
 adminRouter.use("/cms", cmsAdminRouter);

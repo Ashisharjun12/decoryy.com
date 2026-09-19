@@ -2,9 +2,23 @@ import { ApiError } from "@/shared/errors/apiError.js";
 import { parsePagination } from "@/shared/http/pagination.js";
 import { isUniqueViolation } from "@/modules/geo/pg-error.js";
 import { slugify } from "@/modules/catalog/slug.js";
-import { displayUrl, getCompletedUpload, toPublicMedia, type PublicMedia } from "@/modules/upload/index.js";
+import {
+    displayUrl,
+    getCompletedUpload,
+    resolveCompletedUploads,
+    toPublicMedia,
+    type PublicMedia,
+} from "@/modules/upload/index.js";
+import { cacheService } from "@/infrastructure/cache/index.js";
+import {
+    CATALOG_CACHE_TTL,
+    catalogCategoriesActiveTreeKey,
+} from "@/modules/catalog/cache/catalog-cache.keys.js";
+import { invalidateCategories as invalidateCategoriesCache } from "@/modules/catalog/cache/catalog-cache.invalidation.js";
+import { invalidateHome } from "@/modules/cms/cache/cms-cache.invalidation.js";
 import type { ICategoryRepository } from "@/modules/catalog/categories/category.repository.js";
 import type { Category } from "@/modules/catalog/categories/category.schema.js";
+import type { Upload } from "@/modules/upload/media/media.schema.js";
 
 export type CategoryImage = (PublicMedia & { url: string }) | null;
 
@@ -42,6 +56,7 @@ export type CategoryAdminListQuery = {
 
 export interface ICategoryService {
     listActiveTree(): Promise<CategoryTree[]>;
+    listActiveTreeCached(): Promise<CategoryTree[]>;
     listAdmin(query: CategoryAdminListQuery): Promise<{
         items: CategoryAdmin[];
         page: number;
@@ -55,9 +70,18 @@ export interface ICategoryService {
 export class CategoryService implements ICategoryService {
     constructor(private readonly categories: ICategoryRepository) {}
 
+    async listActiveTreeCached(): Promise<CategoryTree[]> {
+        const key = catalogCategoriesActiveTreeKey();
+        return cacheService.getOrSet(key, CATALOG_CACHE_TTL.categoriesActiveTreeSeconds, () =>
+            this.listActiveTree(),
+        );
+    }
+
     async listActiveTree(): Promise<CategoryTree[]> {
         const rows = await this.categories.listActive();
-        const withMedia = await Promise.all(rows.map((row) => this.toAdmin(row)));
+        const uploadIds = rows.map((row) => row.imageUploadId).filter(Boolean) as string[];
+        const uploadMap = await resolveCompletedUploads(uploadIds);
+        const withMedia = rows.map((row) => this.toAdminWithUploadMap(row, uploadMap));
         const childrenByParent = new Map<string, CategoryAdmin[]>();
         const tops: CategoryAdmin[] = [];
         for (const row of withMedia) {
@@ -117,7 +141,10 @@ export class CategoryService implements ICategoryService {
                 iconTone: parentId ? null : (input.iconTone ?? "amber"),
                 isActive: input.isActive ?? true,
             });
-            return this.toAdmin(row);
+            const created = await this.toAdmin(row);
+            await invalidateCategoriesCache();
+            await invalidateHome();
+            return created;
         } catch (err) {
             if (isUniqueViolation(err)) {
                 throw ApiError.conflict("category slug already exists");
@@ -164,7 +191,10 @@ export class CategoryService implements ICategoryService {
             if (!row) {
                 throw ApiError.notFound("category not found");
             }
-            return this.toAdmin(row);
+            const updated = await this.toAdmin(row);
+            await invalidateCategoriesCache();
+            await invalidateHome();
+            return updated;
         } catch (err) {
             if (isUniqueViolation(err)) {
                 throw ApiError.conflict("category slug already exists");
@@ -194,8 +224,25 @@ export class CategoryService implements ICategoryService {
         return imageUploadId;
     }
 
+    private toAdminWithUploadMap(
+        row: Category,
+        uploadMap: Map<string, Upload>,
+    ): CategoryAdmin {
+        return { ...row, image: this.toImageFromUploadMap(row.imageUploadId, uploadMap) };
+    }
+
     private async toAdmin(row: Category): Promise<CategoryAdmin> {
         return { ...row, image: await this.toImage(row.imageUploadId) };
+    }
+
+    private toImageFromUploadMap(
+        imageUploadId: string | null,
+        uploadMap: Map<string, Upload>,
+    ): CategoryImage {
+        if (!imageUploadId) return null;
+        const upload = uploadMap.get(imageUploadId);
+        if (!upload) return null;
+        return { ...toPublicMedia(upload), url: displayUrl(upload) };
     }
 
     private async toImage(imageUploadId: string | null): Promise<CategoryImage> {

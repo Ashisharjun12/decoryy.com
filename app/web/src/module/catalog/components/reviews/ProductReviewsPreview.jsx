@@ -7,21 +7,30 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProductReviewCard } from "@/module/catalog/components/reviews/ProductReviewCard";
 import { ProductReviewsSummary } from "@/module/catalog/components/reviews/ProductReviewsSummary";
+import {
+  hasProductReviews,
+  resolveProductReviewCount,
+} from "@/module/catalog/components/reviews/review-count";
 
 export function ProductReviewsPreview({ productId, product }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!productId) return;
     let cancelled = false;
     setLoading(true);
+    setError("");
     listProductReviews(productId, { page: 1, limit: 3 })
       .then((result) => {
         if (!cancelled) setData(result);
       })
       .catch(() => {
-        if (!cancelled) setData(null);
+        if (!cancelled) {
+          setData(null);
+          setError("Couldn't load reviews right now.");
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -31,11 +40,22 @@ export function ProductReviewsPreview({ productId, product }) {
     };
   }, [productId]);
 
-  const summary = data?.summary;
   const items = data?.items ?? [];
-  const reviewCount = summary?.reviewCount ?? product?.reviewCount ?? 0;
+  const reviewCount = resolveProductReviewCount({ data, product, items });
+  const showSection =
+    loading || hasProductReviews({ data, product, items }) || (error && Number(product?.reviewCount) > 0);
 
-  if (!loading && !reviewCount) return null;
+  if (!showSection) return null;
+
+  const summary =
+    data?.summary ??
+    (reviewCount > 0
+      ? {
+          ratingAvg: product?.ratingAvg != null ? Number(product.ratingAvg) : null,
+          reviewCount,
+          distribution: {},
+        }
+      : null);
 
   const hasPhotos = items.some((item) => item.photos?.length > 0);
   const hasVerified = items.some((item) => item.isVerified);
@@ -59,6 +79,10 @@ export function ProductReviewsPreview({ productId, product }) {
         </div>
       ) : (
         <>
+          {error ? (
+            <p className="text-sm text-muted-foreground">{error}</p>
+          ) : null}
+
           <ProductReviewsSummary summary={summary} />
 
           <div className="flex flex-wrap gap-2">

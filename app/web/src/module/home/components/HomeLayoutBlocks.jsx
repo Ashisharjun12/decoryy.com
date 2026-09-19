@@ -40,6 +40,8 @@ export function HomeLayoutBlocks({ blocks = [], loading = false }) {
                 id: block.id,
                 slug: block.sectionSlug ?? block.id,
                 name: block.title ?? "Popular setups",
+                badgeLabel: block.sectionName ?? block.title ?? "Popular setups",
+                badgeColor: block.sectionBadgeColor ?? "amber",
                 items,
               }}
               title={block.title}

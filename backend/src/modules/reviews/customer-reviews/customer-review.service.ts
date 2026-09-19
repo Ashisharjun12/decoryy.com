@@ -94,12 +94,20 @@ export class CustomerReviewService {
         if (!product || !product.isActive) {
             throw new ApiError(404, "Product not found");
         }
+        await this.publishCustomerDraftsIfAny(productId);
+
         const pagination = parsePagination(query);
+        let reviewCount = await this.reviews.countPublishedByProduct(productId);
+        if ((product.reviewCount ?? 0) !== reviewCount) {
+            await this.stats.recalcProduct(productId);
+        }
+
         const { items, total } = await this.reviews.listPublishedByProduct(productId, pagination);
+        reviewCount = await this.reviews.countPublishedByProduct(productId);
+
         const distribution = await this.reviews.ratingDistribution(productId);
-        const reviewCount = await this.reviews.countPublishedByProduct(productId);
         const ratingAvg =
-            product.ratingAvg != null ? Number(product.ratingAvg) : reviewCount > 0 ? await this.reviews.avgRatingPublished(productId) : null;
+            reviewCount > 0 ? await this.reviews.avgRatingPublished(productId) : null;
 
         return {
             summary: {
@@ -112,6 +120,15 @@ export class CustomerReviewService {
             limit: pagination.limit,
             total,
         };
+    }
+
+    private async publishCustomerDraftsIfAny(productId: string): Promise<void> {
+        const drafts = await this.reviews.listCustomerDraftsForProduct(productId);
+        if (!drafts.length) return;
+        for (const row of drafts) {
+            await this.reviews.update(row.id, { status: "published" });
+        }
+        await this.stats.recalcProduct(productId);
     }
 
     async getAdmin(id: string) {
@@ -306,8 +323,12 @@ export class CustomerReviewService {
     }
 
     private async mediaFor(uploadId: string) {
-        const upload = await getCompletedUpload(uploadId);
-        const media = toPublicMedia(upload);
-        return { ...media, url: media.optimizedUrl ?? media.publicUrl };
+        try {
+            const upload = await getCompletedUpload(uploadId);
+            const media = toPublicMedia(upload);
+            return { ...media, url: media.optimizedUrl ?? media.publicUrl };
+        } catch {
+            return null;
+        }
     }
 }

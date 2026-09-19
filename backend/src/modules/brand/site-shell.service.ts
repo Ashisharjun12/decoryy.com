@@ -1,6 +1,7 @@
 import type { SiteBrandService } from "@/modules/brand/site-brand.service.js";
 import type { CmsSocialLinkService } from "@/modules/cms/social-links/social-link.service.js";
 import type { CmsFooterColumnService } from "@/modules/cms/footer-columns/footer-column.service.js";
+import { resolveCompletedDisplayUrls, urlFromMap } from "@/modules/upload/index.js";
 
 function matchesPlatform(platforms: string[], platform: string) {
     return platforms.includes(platform);
@@ -22,17 +23,17 @@ export class SiteShellService {
             this.footerColumns.listPublished(),
         ]);
 
-        const socialLinks = await Promise.all(
-            socialRows
-                .filter((row) => matchesPlatform(row.platforms, platform))
-                .map(async (row) => ({
-                    id: row.id,
-                    label: row.label,
-                    href: row.href,
-                    iconPreset: row.iconPreset,
-                    iconUrl: row.iconUploadId ? await this.socialLinks.mediaUrl(row.iconUploadId) : null,
-                })),
+        const filteredSocial = socialRows.filter((row) => matchesPlatform(row.platforms, platform));
+        const iconUrlMap = await resolveCompletedDisplayUrls(
+            filteredSocial.map((row) => row.iconUploadId).filter(Boolean) as string[],
         );
+        const socialLinks = filteredSocial.map((row) => ({
+            id: row.id,
+            label: row.label,
+            href: row.href,
+            iconPreset: row.iconPreset,
+            iconUrl: urlFromMap(iconUrlMap, row.iconUploadId),
+        }));
 
         const footerColumns = columnRows
             .filter((row) => matchesPlatform(row.platforms, platform))

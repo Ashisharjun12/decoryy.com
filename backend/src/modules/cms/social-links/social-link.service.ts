@@ -4,6 +4,7 @@ import { getCompletedUpload, toPublicMedia } from "@/modules/upload/index.js";
 import type { CmsSocialLinkRepository } from "@/modules/cms/social-links/social-link.repository.js";
 import type { z } from "zod";
 import type { createCmsSocialLinkDto, patchCmsSocialLinkDto } from "@/modules/cms/social-links/social-link.dto.js";
+import { invalidateSiteShell } from "@/modules/cms/cache/cms-cache.invalidation.js";
 
 type CreateInput = z.infer<typeof createCmsSocialLinkDto>;
 type PatchInput = z.infer<typeof patchCmsSocialLinkDto>;
@@ -48,7 +49,9 @@ export class CmsSocialLinkService {
             status: input.status,
             sortIndex,
         });
-        return this.toAdmin(row);
+        const created = await this.toAdmin(row);
+        await invalidateSiteShell();
+        return created;
     }
 
     async patch(id: string, input: PatchInput) {
@@ -69,12 +72,15 @@ export class CmsSocialLinkService {
             sortIndex: input.sortIndex,
         });
         if (!row) throw ApiError.notFound("Social link not found");
-        return this.toAdmin(row);
+        const updated = await this.toAdmin(row);
+        await invalidateSiteShell();
+        return updated;
     }
 
     async delete(id: string) {
         const ok = await this.links.delete(id);
         if (!ok) throw ApiError.notFound("Social link not found");
+        await invalidateSiteShell();
         return { id };
     }
 
@@ -84,6 +90,7 @@ export class CmsSocialLinkService {
         } catch {
             throw ApiError.badRequest("Invalid social link reorder payload");
         }
+        await invalidateSiteShell();
         return { ok: true };
     }
 

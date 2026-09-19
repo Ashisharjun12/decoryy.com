@@ -6,7 +6,8 @@ export class CategoryController {
     constructor(private readonly categories: ICategoryService) {}
 
     listActive = asyncHandler(async (_req, res) => {
-        const data = await this.categories.listActiveTree();
+        const data = await this.categories.listActiveTreeCached();
+        res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
         res.status(200).json(new ApiResponse(200, data, "ok"));
     });
 

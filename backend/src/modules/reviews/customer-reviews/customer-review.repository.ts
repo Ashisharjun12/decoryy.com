@@ -50,6 +50,7 @@ export interface ICustomerReviewRepository {
         pagination: PaginationQuery,
     ): Promise<{ items: CustomerReview[]; total: number }>;
     countPublishedByProduct(productId: string): Promise<number>;
+    listCustomerDraftsForProduct(productId: string): Promise<CustomerReview[]>;
     ratingDistribution(productId: string): Promise<Record<number, number>>;
     insert(data: NewCustomerReview): Promise<CustomerReview>;
     update(id: string, data: CustomerReviewPatch): Promise<CustomerReview | undefined>;
@@ -156,6 +157,19 @@ export class CustomerReviewRepository implements ICustomerReviewRepository {
                 and(eq(customerReviews.productId, productId), eq(customerReviews.status, "published")),
             );
         return Number(total ?? 0);
+    }
+
+    async listCustomerDraftsForProduct(productId: string): Promise<CustomerReview[]> {
+        return db
+            .select()
+            .from(customerReviews)
+            .where(
+                and(
+                    eq(customerReviews.productId, productId),
+                    eq(customerReviews.source, "customer"),
+                    eq(customerReviews.status, "draft"),
+                ),
+            );
     }
 
     async ratingDistribution(productId: string): Promise<Record<number, number>> {

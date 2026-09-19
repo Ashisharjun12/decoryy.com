@@ -1,5 +1,7 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { getSiteShell } from "@/api/cms.api";
+import { queryKeys } from "@/lib/query-keys";
 
 const EMPTY_SHELL = {
   brand: {
@@ -16,31 +18,20 @@ const EMPTY_SHELL = {
   footerColumns: [],
 };
 
+const SHELL_STALE_MS = 15 * 60_000;
+
 const SiteShellContext = createContext({ ...EMPTY_SHELL, loading: true });
 
 export function SiteShellProvider({ children }) {
-  const [remote, setRemote] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    getSiteShell({ platform: "web" })
-      .then((data) => {
-        if (!cancelled) setRemote(data);
-      })
-      .catch(() => {
-        if (!cancelled) setRemote(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const query = useQuery({
+    queryKey: queryKeys.siteShell("web"),
+    queryFn: () => getSiteShell({ platform: "web" }),
+    staleTime: SHELL_STALE_MS,
+  });
 
   const value = useMemo(() => {
+    const loading = query.isLoading && query.data === undefined;
+    const remote = query.data;
     if (!remote) {
       return { ...EMPTY_SHELL, loading };
     }
@@ -50,7 +41,7 @@ export function SiteShellProvider({ children }) {
       footerColumns: remote.footerColumns ?? [],
       loading,
     };
-  }, [remote, loading]);
+  }, [query.data, query.isLoading]);
 
   return <SiteShellContext.Provider value={value}>{children}</SiteShellContext.Provider>;
 }

@@ -56,6 +56,7 @@ export type PublicPricedFilter = {
     minPricePaise?: number;
     maxPricePaise?: number;
     sort?: PublicProductSort;
+    q?: string;
 };
 
 export type CategoryFacet = {
@@ -79,6 +80,7 @@ export interface IProductRepository {
     update(id: string, data: ProductPatch): Promise<Product | undefined>;
     delete(id: string): Promise<boolean>;
     listImages(productId: string): Promise<ProductImage[]>;
+    listImagesForProductIds(productIds: string[]): Promise<ProductImage[]>;
     replaceImages(productId: string, uploadIds: string[]): Promise<void>;
     listPricedForCity(cityId: string, filter?: { categoryId?: string }): Promise<PricedProduct[]>;
     listPricedForCityPage(
@@ -143,6 +145,12 @@ function publicPricedWhere(
     }
     if (filter.maxPricePaise != null) {
         conditions.push(sql`${sell} <= ${filter.maxPricePaise}`);
+    }
+    const q = filter.q?.trim().replace(/[%_\\]/g, "");
+    if (q) {
+        const pattern = `%${q}%`;
+        const match = or(ilike(products.name, pattern), ilike(products.slug, pattern));
+        if (match) conditions.push(match);
     }
     return conditions;
 }
@@ -250,6 +258,16 @@ export class ProductRepository implements IProductRepository {
             .from(productImages)
             .where(eq(productImages.productId, productId))
             .orderBy(asc(productImages.sortIndex));
+    }
+
+    async listImagesForProductIds(productIds: string[]): Promise<ProductImage[]> {
+        const unique = [...new Set(productIds.filter(Boolean))];
+        if (unique.length === 0) return [];
+        return db
+            .select()
+            .from(productImages)
+            .where(inArray(productImages.productId, unique))
+            .orderBy(asc(productImages.productId), asc(productImages.sortIndex));
     }
 
     async replaceImages(productId: string, uploadIds: string[]): Promise<void> {

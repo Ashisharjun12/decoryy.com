@@ -6,6 +6,7 @@ import { assertServiceable, getActiveCityById } from "@/modules/geo/index.js";
 import { slugify } from "@/modules/catalog/slug.js";
 import { displayUrl, getCompletedUpload, toPublicMedia, type PublicMedia } from "@/modules/upload/index.js";
 import type { IMediaRepository } from "@/modules/upload/media/media.repository.js";
+import type { Upload } from "@/modules/upload/media/media.schema.js";
 import type { ICategoryRepository } from "@/modules/catalog/categories/category.repository.js";
 import type { IAddonRepository } from "@/modules/catalog/addons/addon.repository.js";
 import type { Category } from "@/modules/catalog/categories/category.schema.js";
@@ -15,11 +16,20 @@ import type { IProductRepository } from "@/modules/catalog/products/product.repo
 import type { Product, ProductFaq } from "@/modules/catalog/products/product.schema.js";
 import type { CityPrice } from "@/modules/catalog/pricing/city-price.schema.js";
 import type { PublicCity } from "@/modules/geo/cities/city.public.js";
+import type { SiteBrandService } from "@/modules/brand/site-brand.service.js";
+import { appendTrustGallerySlide } from "@/modules/catalog/products/product-trust-gallery.js";
+import { cacheService } from "@/infrastructure/cache/index.js";
+import {
+    CATALOG_CACHE_TTL,
+    catalogProductDetailKey,
+} from "@/modules/catalog/cache/catalog-cache.keys.js";
+import { invalidateProductDetail } from "@/modules/catalog/cache/catalog-cache.invalidation.js";
 
 export type ProductImagePublic = PublicMedia & {
     uploadId: string;
     sortIndex: number;
     url: string;
+    role?: "trust";
 };
 
 export type ProductAdmin = Product & {
@@ -111,9 +121,16 @@ export type PublicProductListQuery = {
     minPricePaise?: unknown;
     maxPricePaise?: unknown;
     sort?: unknown;
+    q?: unknown;
     page?: unknown;
     limit?: unknown;
 };
+
+function parsePublicSearchQuery(query: PublicProductListQuery): string | undefined {
+    const raw = typeof query.q === "string" ? query.q.trim().replace(/[%_\\]/g, "") : "";
+    if (!raw || raw.length > 80) return undefined;
+    return raw;
+}
 
 type PublicProductSort = "popularity" | "new" | "price_asc" | "price_desc";
 
@@ -223,6 +240,7 @@ export class ProductService implements IProductService {
         private readonly prices: ICityPriceRepository,
         private readonly media: IMediaRepository,
         private readonly categories: ICategoryRepository,
+        private readonly siteBrand: SiteBrandService,
     ) {}
 
     async listAdmin(query: ProductAdminListQuery) {
@@ -303,7 +321,9 @@ export class ProductService implements IProductService {
                 await this.assertPublishable(row.id);
                 await this.products.update(row.id, { isActive: true });
             }
-            return this.getAdmin(row.id);
+            const created = await this.getAdmin(row.id);
+            await invalidateProductDetail(row.id);
+            return created;
         } catch (err) {
             if (isUniqueViolation(err)) {
                 throw ApiError.conflict("product slug already exists");
@@ -378,7 +398,9 @@ export class ProductService implements IProductService {
             if (input.isActive === true && !existing.isActive) {
                 await this.products.update(id, { isActive: true });
             }
-            return this.getAdmin(existing.id);
+            const updated = await this.getAdmin(existing.id);
+            await invalidateProductDetail(id);
+            return updated;
         } catch (err) {
             if (isUniqueViolation(err)) {
                 throw ApiError.conflict("product slug already exists");
@@ -396,6 +418,7 @@ export class ProductService implements IProductService {
         if (!deleted) {
             throw ApiError.notFound("product not found");
         }
+        await invalidateProductDetail(id);
     }
 
     async listByPincode(query: PublicProductListQuery) {
@@ -408,11 +431,13 @@ export class ProductService implements IProductService {
             limit: query.limit ?? "24",
         });
 
+        const searchQ = parsePublicSearchQuery(query);
         const filter = {
             categoryIds: categoryIds.length ? categoryIds : undefined,
             minPricePaise,
             maxPricePaise,
             sort: parsePublicSort(query),
+            q: searchQ,
         };
 
         const [{ items: rows, total }, categories, price] = await Promise.all([
@@ -458,9 +483,12 @@ export class ProductService implements IProductService {
         query: Pick<PublicProductListQuery, "pincode" | "cityId">,
     ): Promise<ProductPublicDetail> {
         const city = await this.resolvePublicCity(query);
-        const product = await this.getForCity(productId, city.id);
-        const addons = await this.mappedAddonsForCity(product.addonIds, city.id);
-        return { ...product, city, addons };
+        const key = catalogProductDetailKey(productId, city.id);
+        return cacheService.getOrSet(key, CATALOG_CACHE_TTL.productDetailSeconds, async () => {
+            const product = await this.getForCity(productId, city.id);
+            const addons = await this.mappedAddonsForCity(product.addonIds, city.id);
+            return { ...product, city, addons };
+        });
     }
 
     async adminByIds(ids: string[]): Promise<ProductAdmin[]> {
@@ -478,11 +506,40 @@ export class ProductService implements IProductService {
     async listForCityByIds(cityId: string, productIds: string[]): Promise<ProductForCity[]> {
         const rows = await this.products.listPricedByIds(cityId, productIds);
         const byId = new Map(rows.map((row) => [row.product.id, row]));
+        const pricedIds = productIds.filter((id) => byId.has(id));
+        if (pricedIds.length === 0) return [];
+
+        const allImageRows = await this.products.listImagesForProductIds(pricedIds);
+        const uploadIds = [...new Set(allImageRows.map((row) => row.uploadId))];
+        const uploads = await this.media.findByIds(uploadIds);
+        const uploadById = new Map(uploads.map((upload) => [upload.id, upload]));
+
+        const imageRowsByProduct = new Map<string, typeof allImageRows>();
+        for (const row of allImageRows) {
+            const list = imageRowsByProduct.get(row.productId) ?? [];
+            list.push(row);
+            imageRowsByProduct.set(row.productId, list);
+        }
+
+        const addonIdsByProduct = new Map<string, string[]>();
+        await Promise.all(
+            pricedIds.map(async (id) => {
+                addonIdsByProduct.set(id, await this.addons.listMappedIds(id));
+            }),
+        );
+
         const items: ProductForCity[] = [];
         for (const id of productIds) {
             const row = byId.get(id);
             if (!row) continue;
-            items.push(await this.toCityProduct(row.product, row.pricePaise));
+            const baseImages = this.buildProductImages(imageRowsByProduct.get(id) ?? [], uploadById);
+            const images = await appendTrustGallerySlide(baseImages, this.siteBrand);
+            items.push({
+                ...row.product,
+                pricePaise: row.pricePaise,
+                images,
+                addonIds: addonIdsByProduct.get(id) ?? [],
+            });
         }
         return items;
     }
@@ -514,11 +571,13 @@ export class ProductService implements IProductService {
         await this.products.replaceImages(productId, uploadIds);
     }
 
-    private async imagesFor(productId: string): Promise<ProductImagePublic[]> {
-        const rows = await this.products.listImages(productId);
+    private buildProductImages(
+        rows: { uploadId: string; sortIndex: number }[],
+        uploadById: Map<string, Upload>,
+    ): ProductImagePublic[] {
         const images: ProductImagePublic[] = [];
         for (const row of rows) {
-            const upload = await this.media.findById(row.uploadId);
+            const upload = uploadById.get(row.uploadId);
             if (!upload) continue;
             images.push({
                 ...toPublicMedia(upload),
@@ -528,6 +587,14 @@ export class ProductService implements IProductService {
             });
         }
         return images;
+    }
+
+    private async imagesFor(productId: string): Promise<ProductImagePublic[]> {
+        const rows = await this.products.listImages(productId);
+        const uploadIds = rows.map((row) => row.uploadId);
+        const uploads = await this.media.findByIds(uploadIds);
+        const uploadById = new Map(uploads.map((upload) => [upload.id, upload]));
+        return this.buildProductImages(rows, uploadById);
     }
 
     private async toAdmin(product: Product): Promise<ProductAdmin> {
@@ -540,7 +607,8 @@ export class ProductService implements IProductService {
 
     private async toCityProduct(product: Product, pricePaise: number): Promise<ProductForCity> {
         const admin = await this.toAdmin(product);
-        return { ...admin, pricePaise };
+        const images = await appendTrustGallerySlide(admin.images, this.siteBrand);
+        return { ...admin, pricePaise, images };
     }
 
     private async mappedAddonsForCity(addonIds: string[], cityId: string): Promise<PublicAddonForCity[]> {

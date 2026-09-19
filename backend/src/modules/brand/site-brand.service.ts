@@ -9,6 +9,7 @@ import {
 } from "@/modules/brand/site-brand.js";
 import type { z } from "zod";
 import type { patchSiteBrandDto } from "@/modules/brand/brand.dto.js";
+import { invalidateSiteShell } from "@/modules/cms/cache/cms-cache.invalidation.js";
 
 type PatchInput = z.infer<typeof patchSiteBrandDto>;
 
@@ -17,14 +18,18 @@ export class SiteBrandService {
 
     async getAdmin() {
         const brand = await this.load();
-        const [logoLightUrl, logoDarkUrl] = await Promise.all([
+        const [logoLightUrl, logoDarkUrl, productTrustGalleryUrl] = await Promise.all([
             brand.logoLightUploadId ? this.mediaUrl(brand.logoLightUploadId) : null,
             brand.logoDarkUploadId ? this.mediaUrl(brand.logoDarkUploadId) : null,
+            brand.productTrustGalleryUploadId
+                ? this.mediaUrl(brand.productTrustGalleryUploadId)
+                : null,
         ]);
         return {
             ...brand,
             logoLightUrl,
             logoDarkUrl,
+            productTrustGalleryUrl,
         };
     }
 
@@ -48,13 +53,29 @@ export class SiteBrandService {
                     ? input.contactEmail === "" ? null : input.contactEmail
                     : current.contactEmail,
             whatsappUrl: input.whatsappUrl !== undefined ? input.whatsappUrl : current.whatsappUrl,
+            productTrustGalleryEnabled:
+                input.productTrustGalleryEnabled !== undefined
+                    ? input.productTrustGalleryEnabled
+                    : current.productTrustGalleryEnabled,
+            productTrustGalleryUploadId:
+                input.productTrustGalleryUploadId !== undefined
+                    ? input.productTrustGalleryUploadId
+                    : current.productTrustGalleryUploadId,
         };
 
         if (next.logoLightUploadId) await this.validateLogo(next.logoLightUploadId);
         if (next.logoDarkUploadId) await this.validateLogo(next.logoDarkUploadId);
+        if (next.productTrustGalleryUploadId) {
+            await this.validateTrustGalleryImage(next.productTrustGalleryUploadId);
+        }
+        if (next.productTrustGalleryEnabled && !next.productTrustGalleryUploadId) {
+            throw ApiError.badRequest("choose a trust gallery image before enabling");
+        }
 
         await this.settings.upsert(SITE_BRAND_KEY, next);
-        return this.getAdmin();
+        const admin = await this.getAdmin();
+        await invalidateSiteShell();
+        return admin;
     }
 
     async getPublicBrand() {
@@ -83,10 +104,34 @@ export class SiteBrandService {
         return brand;
     }
 
+    async getProductTrustGallerySlide() {
+        const brand = await this.load();
+        if (!brand.productTrustGalleryEnabled || !brand.productTrustGalleryUploadId) {
+            return null;
+        }
+        const upload = await getCompletedUpload(brand.productTrustGalleryUploadId);
+        if (upload.kind !== "image") {
+            return null;
+        }
+        const media = toPublicMedia(upload);
+        const url = media.optimizedUrl ?? media.publicUrl;
+        return {
+            uploadId: brand.productTrustGalleryUploadId,
+            url,
+        };
+    }
+
     private async validateLogo(uploadId: string) {
         const upload = await getCompletedUpload(uploadId);
         if (upload.kind !== "image") {
             throw ApiError.badRequest("logo must be an image");
+        }
+    }
+
+    private async validateTrustGalleryImage(uploadId: string) {
+        const upload = await getCompletedUpload(uploadId);
+        if (upload.kind !== "image") {
+            throw ApiError.badRequest("trust gallery slide must be an image");
         }
     }
 

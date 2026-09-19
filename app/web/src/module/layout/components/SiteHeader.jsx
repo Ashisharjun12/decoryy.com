@@ -25,6 +25,7 @@ export function SiteHeader() {
   const user = useAuthStore((s) => s.user);
   const setLoginOpen = useAuthStore((s) => s.setLoginOpen);
   const isAccount = location.pathname.startsWith("/account");
+  const isCheckout = location.pathname.startsWith("/checkout");
   const isHome = location.pathname === "/";
 
   useMotionValueEvent(scrollY, "change", (value) => {
@@ -96,7 +97,7 @@ export function SiteHeader() {
           <ModeToggle />
         </div>
       </div>
-      {!isAccount ? (
+      {!isAccount && !isCheckout ? (
         <div
           className={cn(
             "hidden overflow-hidden border-t border-border transition-[max-height,opacity] duration-200 md:block",

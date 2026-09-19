@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { hydrateAuth } from "@/module/auth/hydrate";
 import { hydrateLocation } from "@/module/geo/hydrate-location";
-import { useCatalogStore } from "@/store/catalog.store";
+import { CatalogQuerySync } from "@/module/catalog/components/CatalogQuerySync";
 import { useCartStore } from "@/store/cart.store";
 import { Layout } from "@/module/layout/Layout";
 import { BagPage } from "@/module/layout/pages/BagPage";
@@ -16,6 +16,8 @@ import { BookingDetailPage } from "@/module/account/pages/BookingDetailPage";
 import { ProfilePage } from "@/module/account/pages/ProfilePage";
 import { NotificationsPage } from "@/module/account/pages/NotificationsPage";
 import { SettingsPage } from "@/module/account/pages/SettingsPage";
+import { AddressesPage } from "@/module/account/pages/AddressesPage";
+import { ReturnsRefundsPage } from "@/module/account/pages/ReturnsRefundsPage";
 import { CheckoutPage } from "@/module/booking/pages/CheckoutPage";
 import { OrderConfirmationPage } from "@/module/booking/pages/OrderConfirmationPage";
 import { CategoryPage } from "@/module/catalog/pages/CategoryPage";
@@ -32,12 +34,12 @@ export default function App() {
   useEffect(() => {
     void hydrateAuth();
     void hydrateLocation();
-    void useCatalogStore.getState().load();
     void useCartStore.getState().load().catch(() => {});
   }, []);
 
   return (
     <SocketProvider>
+    <CatalogQuerySync />
     <NotificationsHost />
     <BrowserRouter>
       <Routes>
@@ -53,6 +55,9 @@ export default function App() {
           <Route path="/account" element={<AccountShell />}>
             <Route index element={<ProfilePage />} />
             <Route path="bookings" element={<BookingsPage />} />
+            <Route path="orders" element={<Navigate to="/account/bookings" replace />} />
+            <Route path="addresses" element={<AddressesPage />} />
+            <Route path="returns" element={<ReturnsRefundsPage />} />
             <Route path="bookings/:orderId" element={<BookingDetailPage />} />
             <Route path="bookings/:orderId/chat" element={<BookingChatPage />} />
             <Route path="bookings/:orderId/complaint" element={<ComplaintChatPage />} />

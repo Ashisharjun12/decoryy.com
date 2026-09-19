@@ -6,6 +6,7 @@ import type {
     patchCmsFooterColumnDto,
     putCmsFooterColumnLinksDto,
 } from "@/modules/cms/footer-columns/footer-column.dto.js";
+import { invalidateSiteShell } from "@/modules/cms/cache/cms-cache.invalidation.js";
 
 type CreateInput = z.infer<typeof createCmsFooterColumnDto>;
 type PatchInput = z.infer<typeof patchCmsFooterColumnDto>;
@@ -35,6 +36,7 @@ export class CmsFooterColumnService {
             status: input.status,
             sortIndex,
         });
+        await invalidateSiteShell();
         return { ...row, links: [] };
     }
 
@@ -52,12 +54,14 @@ export class CmsFooterColumnService {
         });
         if (!row) throw ApiError.notFound("Footer column not found");
         const links = await this.columns.listLinksForColumn(id);
+        await invalidateSiteShell();
         return { ...row, links };
     }
 
     async delete(id: string) {
         const ok = await this.columns.delete(id);
         if (!ok) throw ApiError.notFound("Footer column not found");
+        await invalidateSiteShell();
         return { id };
     }
 
@@ -67,12 +71,14 @@ export class CmsFooterColumnService {
         } catch {
             throw ApiError.badRequest("Invalid footer column reorder payload");
         }
+        await invalidateSiteShell();
         return { ok: true };
     }
 
     async replaceLinks(id: string, input: LinksInput) {
         const result = await this.columns.replaceLinks(id, input.links);
         if (!result) throw ApiError.notFound("Footer column not found");
+        await invalidateSiteShell();
         return result;
     }
 

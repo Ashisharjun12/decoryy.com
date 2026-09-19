@@ -4,8 +4,9 @@ import { CommissionPanel } from "@/module/payouts/components/CommissionPanel"
 import { OnlineGatewaysPanel } from "@/module/payouts/components/OnlineGatewaysPanel"
 import { PayOnDeliveryPanel } from "@/module/payouts/components/PayOnDeliveryPanel"
 import { SettlementsPanel } from "@/module/payouts/components/SettlementsPanel"
+import { RefundRequestsPanel } from "@/module/payouts/components/RefundRequestsPanel"
 
-const TABS = ["commission", "cod", "settlements", "gateways"]
+const TABS = ["commission", "cod", "settlements", "refunds", "gateways"]
 const COD_SUBS = ["awaiting", "rules"]
 const SETTLEMENT_SUBS = ["liability", "requests"]
 
@@ -46,15 +47,16 @@ export function PayoutsPage() {
       <div>
         <h1 className="font-heading text-2xl font-medium tracking-tight">Payouts</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Commission split, pay on delivery, settlements, and online payment gateways.
+          Commission, settlements, customer refund requests, and payment gateways.
         </p>
       </div>
 
       <Tabs value={tab} onValueChange={onTabChange}>
-        <TabsList variant="line">
+        <TabsList variant="line" className="max-w-full overflow-x-auto">
           <TabsTrigger value="commission">Commission</TabsTrigger>
           <TabsTrigger value="cod">Pay on delivery</TabsTrigger>
           <TabsTrigger value="settlements">Settlements</TabsTrigger>
+          <TabsTrigger value="refunds">Customer refunds</TabsTrigger>
           <TabsTrigger value="gateways">Online gateways</TabsTrigger>
         </TabsList>
 
@@ -66,6 +68,12 @@ export function PayoutsPage() {
         </TabsContent>
         <TabsContent value="settlements" className="pt-4">
           <SettlementsPanel sub={sub} onSubChange={onSubChange} />
+        </TabsContent>
+        <TabsContent value="refunds" className="pt-4">
+          <RefundRequestsPanel
+            title="Customer refund requests"
+            description="Review requests from customers on cancelled or disputed bookings. Approve online refunds to run the payment gateway automatically."
+          />
         </TabsContent>
         <TabsContent value="gateways" className="pt-4">
           <OnlineGatewaysPanel />

@@ -51,6 +51,49 @@ export function isUpcomingBooking(booking) {
   return Number.isFinite(slot) && slot >= Date.now();
 }
 
+export function orderListBucket(status) {
+  if (status === "COMPLETED") return "completed";
+  if (status === "CANCELLED") return "cancelled";
+  return "upcoming";
+}
+
+export function sortOrdersForList(items) {
+  const upcoming = [];
+  const rest = [];
+  for (const item of items) {
+    if (orderListBucket(item.status) === "upcoming") {
+      upcoming.push(item);
+    } else {
+      rest.push(item);
+    }
+  }
+  const byScheduled = (a, b) =>
+    new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime();
+  upcoming.sort(byScheduled);
+  rest.sort(byScheduled);
+  return [...upcoming, ...rest];
+}
+
+export function filterOrdersByTab(items, tab) {
+  if (tab === "all") return sortOrdersForList(items);
+  if (tab === "upcoming") {
+    return items
+      .filter((item) => orderListBucket(item.status) === "upcoming")
+      .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime());
+  }
+  if (tab === "completed") {
+    return items
+      .filter((item) => item.status === "COMPLETED")
+      .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime());
+  }
+  if (tab === "cancelled") {
+    return items
+      .filter((item) => item.status === "CANCELLED")
+      .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime());
+  }
+  return items;
+}
+
 export const BOOKING_TIMELINE = [
   { key: "CONFIRMED", label: "Booking confirmed" },
   { key: "ASSIGNED", label: "Decorator assigned" },

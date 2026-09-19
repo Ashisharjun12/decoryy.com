@@ -3,6 +3,7 @@ import { parsePagination } from "@/shared/http/pagination.js";
 import type { CmsHomeFaqRepository } from "@/modules/cms/faq/faq.repository.js";
 import type { z } from "zod";
 import type { createCmsFaqDto, patchCmsFaqDto } from "@/modules/cms/faq/faq.dto.js";
+import { invalidateHome } from "@/modules/cms/cache/cms-cache.invalidation.js";
 
 type CreateInput = z.infer<typeof createCmsFaqDto>;
 type PatchInput = z.infer<typeof patchCmsFaqDto>;
@@ -39,6 +40,7 @@ export class CmsHomeFaqService {
             status: input.status,
             sortIndex,
         });
+        await invalidateHome();
         return row;
     }
 
@@ -57,12 +59,14 @@ export class CmsHomeFaqService {
             sortIndex: input.sortIndex,
         });
         if (!row) throw ApiError.notFound("FAQ not found");
+        await invalidateHome();
         return row;
     }
 
     async delete(id: string) {
         const ok = await this.faqs.delete(id);
         if (!ok) throw ApiError.notFound("FAQ not found");
+        await invalidateHome();
         return { id };
     }
 
@@ -72,6 +76,7 @@ export class CmsHomeFaqService {
         } catch {
             throw ApiError.badRequest("Invalid FAQ reorder payload");
         }
+        await invalidateHome();
         return { ok: true };
     }
 

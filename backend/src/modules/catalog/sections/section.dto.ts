@@ -1,4 +1,15 @@
 import { z } from "zod";
+import {
+    isSectionBadgeHex,
+    isSectionBadgePreset,
+} from "@/modules/catalog/sections/section-badge-color.js";
+
+const sectionBadgeColorSchema = z
+    .string()
+    .max(7)
+    .refine((value) => isSectionBadgePreset(value) || isSectionBadgeHex(value), {
+        message: "badgeColor must be a preset or hex (#RGB / #RRGGBB)",
+    });
 
 export const publicSectionListQueryDto = z
     .object({
@@ -13,6 +24,7 @@ export const createSectionDto = z.object({
     name: z.string().min(2),
     slug: z.string().min(2).optional(),
     sortIndex: z.number().int().optional(),
+    badgeColor: sectionBadgeColorSchema.optional(),
     isActive: z.boolean().optional(),
 });
 
@@ -20,6 +32,7 @@ export const patchSectionDto = z.object({
     name: z.string().min(2).optional(),
     slug: z.string().min(2).optional(),
     sortIndex: z.number().int().optional(),
+    badgeColor: sectionBadgeColorSchema.optional(),
     isActive: z.boolean().optional(),
 });
 

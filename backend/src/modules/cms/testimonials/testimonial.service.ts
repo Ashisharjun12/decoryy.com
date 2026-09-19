@@ -4,6 +4,7 @@ import { getCompletedUpload, toPublicMedia } from "@/modules/upload/index.js";
 import type { CmsTestimonialRepository } from "@/modules/cms/testimonials/testimonial.repository.js";
 import type { z } from "zod";
 import type { createCmsTestimonialDto, patchCmsTestimonialDto } from "@/modules/cms/cms.dto.js";
+import { invalidateHome } from "@/modules/cms/cache/cms-cache.invalidation.js";
 
 type CreateInput = z.infer<typeof createCmsTestimonialDto>;
 type PatchInput = z.infer<typeof patchCmsTestimonialDto>;
@@ -44,7 +45,9 @@ export class CmsTestimonialService {
             status: input.status,
             sortIndex: input.sortIndex ?? 0,
         });
-        return this.getAdmin(row.id);
+        const created = await this.getAdmin(row.id);
+        await invalidateHome();
+        return created;
     }
 
     async patch(id: string, input: PatchInput) {
@@ -64,12 +67,15 @@ export class CmsTestimonialService {
             sortIndex: input.sortIndex,
         });
         if (!row) throw ApiError.notFound("Testimonial not found");
-        return this.getAdmin(row.id);
+        const updated = await this.getAdmin(row.id);
+        await invalidateHome();
+        return updated;
     }
 
     async delete(id: string) {
         const ok = await this.testimonials.delete(id);
         if (!ok) throw ApiError.notFound("Testimonial not found");
+        await invalidateHome();
         return { id };
     }
 

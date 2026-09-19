@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
 import {
-  CalendarDaysIcon,
   LogOutIcon,
+  MapPinIcon,
+  PackageIcon,
   SettingsIcon,
   UserRoundIcon,
 } from "lucide-react";
@@ -21,8 +22,9 @@ import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils";
 
 const MENU_LINKS = [
-  { label: "Profile", href: "/account", icon: UserRoundIcon },
-  { label: "Bookings", href: "/account/bookings", icon: CalendarDaysIcon },
+  { label: "Personal Info", href: "/account", icon: UserRoundIcon },
+  { label: "My Orders", href: "/account/bookings", icon: PackageIcon },
+  { label: "Addresses", href: "/account/addresses", icon: MapPinIcon },
   { label: "Settings", href: "/account/settings", icon: SettingsIcon },
 ];
 

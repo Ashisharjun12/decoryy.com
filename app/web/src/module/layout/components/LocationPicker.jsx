@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -7,6 +7,7 @@ import {
   SearchIcon,
 } from "lucide-react";
 import { getApiError } from "@/api/api";
+import { getLenis } from "@/lib/lenis-instance";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,7 +18,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import { detectLocationFromDevice } from "@/module/geo/detect-location";
@@ -78,6 +78,21 @@ export function LocationPicker({ variant = "default" }) {
         item.state.toLowerCase().includes(q),
     );
   }, [cities, query]);
+
+  useEffect(() => {
+    if (!pickerOpen) return undefined;
+
+    const lenis = getLenis();
+    lenis?.stop();
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      lenis?.start();
+    };
+  }, [pickerOpen]);
 
   async function onDetectLocation() {
     if (pending) return;
@@ -145,77 +160,109 @@ export function LocationPicker({ variant = "default" }) {
           if (!open) setQuery("");
         }}
       >
-        <DialogContent className="gap-4 sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Select your area</DialogTitle>
-            <DialogDescription>
-              Use your location or pick a city for local pricing.
-            </DialogDescription>
-          </DialogHeader>
-          <Button
-            type="button"
-            className="h-11 w-full rounded-full"
-            disabled={pending}
-            onClick={onDetectLocation}
-          >
-            {pending ? (
-              <Spinner className="size-4" />
-            ) : (
-              <LocateFixedIcon className="size-4" />
-            )}
-            Use my location
-          </Button>
-          <div className="relative">
-            <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search city"
-              className="pl-9"
-              autoComplete="off"
+        <DialogContent
+          className="top-[12vh] flex max-h-[min(32rem,85vh)] translate-y-0 flex-col gap-0 overflow-hidden rounded-3xl p-0 sm:max-w-[min(100%-1.25rem,26rem)]"
+        >
+          <div className="shrink-0 px-4 pt-5 pr-12 pb-3">
+            <DialogHeader className="gap-1 text-left">
+              <DialogTitle className="font-heading text-lg">Select your area</DialogTitle>
+              <DialogDescription>
+                Use your location or pick a city for local pricing and availability.
+              </DialogDescription>
+            </DialogHeader>
+
+            <Button
+              type="button"
+              className="mt-4 h-11 w-full rounded-full font-semibold"
               disabled={pending}
-            />
+              onClick={onDetectLocation}
+            >
+              {pending ? (
+                <Spinner className="size-4" />
+              ) : (
+                <LocateFixedIcon className="size-4" />
+              )}
+              Use my location
+            </Button>
+
+            <div className="relative mt-3">
+              <SearchIcon
+                className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden
+              />
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search city or state"
+                className="h-11 rounded-2xl border-border/60 bg-muted/40 pl-10 shadow-none"
+                autoComplete="off"
+                disabled={pending}
+              />
+            </div>
+
+            <p className="mt-3 px-0.5 text-xs font-medium text-muted-foreground">
+              Cities we serve
+            </p>
           </div>
-          <ScrollArea className="h-[min(18rem,45vh)]">
-            <div className="flex flex-col pr-2">
-              {cities.length === 0 ? (
-                <p className="px-2 py-6 text-center text-sm text-muted-foreground">
-                  No cities available yet.
-                </p>
-              ) : null}
-              {cities.length > 0 && filtered.length === 0 ? (
-                <p className="px-2 py-6 text-center text-sm text-muted-foreground">
-                  No city matches that search.
-                </p>
-              ) : null}
+
+          <div
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-3"
+            data-lenis-prevent
+          >
+            {cities.length === 0 ? (
+              <p className="px-2 py-8 text-center text-sm text-muted-foreground">
+                No cities available yet.
+              </p>
+            ) : null}
+            {cities.length > 0 && filtered.length === 0 ? (
+              <p className="px-2 py-8 text-center text-sm text-muted-foreground">
+                No city matches that search.
+              </p>
+            ) : null}
+            <ul className="flex flex-col gap-0.5">
               {filtered.map((item) => {
                 const selected = city?.id === item.id;
                 return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    disabled={pending}
-                    onClick={() => selectCity(item)}
-                    className={cn(
-                      "flex w-full cursor-pointer items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted",
-                      selected && "bg-muted",
-                    )}
-                  >
-                    <MapPinIcon className="size-4 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-medium">{item.name}</span>
-                      <span className="block text-xs text-muted-foreground">
-                        {item.state}
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => selectCity(item)}
+                      className={cn(
+                        "flex w-full cursor-pointer items-center gap-3 rounded-xl px-2.5 py-2.5 text-left text-sm transition-colors hover:bg-muted/80",
+                        selected && "bg-muted ring-1 ring-border/60",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "flex size-9 shrink-0 items-center justify-center rounded-md bg-muted",
+                          selected && "bg-primary/15",
+                        )}
+                      >
+                        <MapPinIcon
+                          className={cn(
+                            "size-4 text-muted-foreground",
+                            selected && "text-primary",
+                          )}
+                        />
                       </span>
-                    </span>
-                    {selected ? (
-                      <CheckIcon className="size-4 shrink-0 text-foreground" />
-                    ) : null}
-                  </button>
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-medium text-foreground">
+                          {item.name}
+                        </span>
+                        <span className="block text-xs text-muted-foreground">
+                          {item.state}
+                        </span>
+                      </span>
+                      {selected ? (
+                        <CheckIcon className="size-4 shrink-0 text-primary" aria-hidden />
+                      ) : null}
+                    </button>
+                  </li>
                 );
               })}
-            </div>
-          </ScrollArea>
+            </ul>
+          </div>
         </DialogContent>
       </Dialog>
     </>

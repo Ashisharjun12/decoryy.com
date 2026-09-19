@@ -8,6 +8,8 @@ export type SiteBrand = {
     contactPhone: string | null;
     contactEmail: string | null;
     whatsappUrl: string | null;
+    productTrustGalleryEnabled: boolean;
+    productTrustGalleryUploadId: string | null;
 };
 
 export const DEFAULT_SITE_BRAND: SiteBrand = {
@@ -19,6 +21,8 @@ export const DEFAULT_SITE_BRAND: SiteBrand = {
     contactPhone: null,
     contactEmail: null,
     whatsappUrl: null,
+    productTrustGalleryEnabled: false,
+    productTrustGalleryUploadId: null,
 };
 
 export function mergeSiteBrand(value: unknown): SiteBrand {
@@ -38,7 +42,9 @@ export function mergeSiteBrand(value: unknown): SiteBrand {
         return typeof v === "string" ? v.trim() : null;
     };
 
-    const uuidOrNull = (key: "logoLightUploadId" | "logoDarkUploadId"): string | null => {
+    const uuidOrNull = (
+        key: "logoLightUploadId" | "logoDarkUploadId" | "productTrustGalleryUploadId",
+    ): string | null => {
         const v = raw[key];
         if (v === null || v === undefined || v === "") return null;
         return typeof v === "string" ? v : null;
@@ -52,5 +58,7 @@ export function mergeSiteBrand(value: unknown): SiteBrand {
         contactPhone: nullableStr("contactPhone"),
         contactEmail: nullableStr("contactEmail"),
         whatsappUrl: nullableStr("whatsappUrl"),
+        productTrustGalleryEnabled: raw.productTrustGalleryEnabled === true,
+        productTrustGalleryUploadId: uuidOrNull("productTrustGalleryUploadId"),
     };
 }

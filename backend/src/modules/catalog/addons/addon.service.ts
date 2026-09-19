@@ -5,6 +5,10 @@ import { slugify } from "@/modules/catalog/slug.js";
 import { displayUrl, getCompletedUpload, toPublicMedia, type PublicMedia } from "@/modules/upload/index.js";
 import type { IAddonRepository } from "@/modules/catalog/addons/addon.repository.js";
 import type { IProductRepository } from "@/modules/catalog/products/product.repository.js";
+import {
+    invalidateAllProductDetails,
+    invalidateProductDetail,
+} from "@/modules/catalog/cache/catalog-cache.invalidation.js";
 import { normalizeDefaultPaisePair } from "@/modules/catalog/pricing/paise-pair.js";
 import type { Addon, AddonColor } from "@/modules/catalog/addons/addon.schema.js";
 
@@ -162,6 +166,7 @@ export class AddonService implements IAddonService {
             if (!row) {
                 throw ApiError.notFound("addon not found");
             }
+            await invalidateAllProductDetails();
             return row;
         } catch (err) {
             if (isUniqueViolation(err)) {
@@ -181,6 +186,7 @@ export class AddonService implements IAddonService {
             throw ApiError.notFound("addon not found");
         }
         await this.addons.map(productId, addonId);
+        await invalidateProductDetail(productId);
         return { productId, addonId };
     }
 
@@ -190,6 +196,7 @@ export class AddonService implements IAddonService {
             throw ApiError.notFound("product not found");
         }
         await this.addons.unmap(productId, addonId);
+        await invalidateProductDetail(productId);
     }
 
     listMappedIds(productId: string): Promise<string[]> {

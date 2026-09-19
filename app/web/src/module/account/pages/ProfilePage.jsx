@@ -1,17 +1,17 @@
 import { useEffect, useState } from "react";
 import { REGEXP_ONLY_DIGITS } from "input-otp";
-import { PhoneIcon } from "lucide-react";
+import { PhoneIcon, UploadIcon } from "lucide-react";
 import { getApiError } from "@/api/api";
 import { linkGoogle, linkPhone, requestOtp } from "@/api/auth.api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Field,
   FieldDescription,
@@ -35,6 +35,8 @@ import {
   isValidIndianMobile,
   RESEND_SECONDS,
 } from "@/module/auth/phone-login";
+import { AccountInfoRow } from "@/module/account/components/AccountInfoRow";
+import { AccountPageTitle } from "@/module/account/components/AccountPageTitle";
 import { useAuthStore } from "@/store/auth.store";
 
 function GoogleMark({ className }) {
@@ -69,6 +71,18 @@ function initials(name = "") {
     .join("");
 }
 
+function EditLinkButton({ onClick, children = "Edit" }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-sm font-medium text-foreground underline underline-offset-4 hover:text-muted-foreground"
+    >
+      {children}
+    </button>
+  );
+}
+
 export function ProfilePage() {
   const user = useAuthStore((s) => s.user);
   const updateUser = useAuthStore((s) => s.updateUser);
@@ -78,6 +92,8 @@ export function ProfilePage() {
   const [phoneStep, setPhoneStep] = useState("phone");
   const [resendSeconds, setResendSeconds] = useState(0);
   const [pending, setPending] = useState(false);
+  const [phoneDialogOpen, setPhoneDialogOpen] = useState(false);
+  const [googleDialogOpen, setGoogleDialogOpen] = useState(false);
 
   useEffect(() => {
     if (resendSeconds <= 0) return undefined;
@@ -121,6 +137,7 @@ export function ProfilePage() {
       setPhoneStep("phone");
       setPhone("");
       setOtp("");
+      setPhoneDialogOpen(false);
       toast.add({ title: "Phone linked to your account", type: "success" });
     } catch (err) {
       setOtp("");
@@ -138,6 +155,7 @@ export function ProfilePage() {
       const idToken = await promptGoogleSignIn();
       const data = await linkGoogle({ idToken });
       updateUser(data.user);
+      setGoogleDialogOpen(false);
       toast.add({ title: "Google linked to your account", type: "success" });
     } catch (err) {
       if (err?.code !== "PROMPT_BLOCKED") {
@@ -151,46 +169,69 @@ export function ProfilePage() {
   const hasPhone = Boolean(user.phone);
   const hasGoogle = Boolean(user.linkedGoogle);
 
+  function openPhoneDialog() {
+    setPhoneStep("phone");
+    setPhone("");
+    setOtp("");
+    setPhoneDialogOpen(true);
+  }
+
   return (
     <div className="w-full max-w-3xl">
-      <div className="mb-8">
-        <h1 className="font-heading text-2xl font-extrabold tracking-tight">Profile</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Manage how you sign in to Decoryy.
-        </p>
+      <AccountPageTitle>Personal Info</AccountPageTitle>
+
+      <div className="mt-8 flex flex-wrap items-center gap-4">
+        <Avatar className="size-20">
+          {user.avatar ? <AvatarImage src={user.avatar} alt="" /> : null}
+          <AvatarFallback className="text-lg">{initials(user.name)}</AvatarFallback>
+        </Avatar>
+        <Button type="button" variant="outline" size="sm" disabled title="Coming soon">
+          <UploadIcon className="size-4" />
+          Upload photo
+        </Button>
       </div>
 
-      <Card className="mb-6 shadow-none ring-0">
-        <CardHeader>
-          <CardTitle className="text-lg">Your account</CardTitle>
-          <CardDescription>Signed in as {user.name}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex items-center gap-4">
-          <Avatar size="lg">
-            {user.avatar ? <AvatarImage src={user.avatar} alt="" /> : null}
-            <AvatarFallback>{initials(user.name)}</AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 text-sm">
-            <p className="font-medium">{user.name}</p>
-            {user.email ? (
-              <p className="truncate text-muted-foreground">{user.email}</p>
-            ) : null}
-            {user.phone ? (
-              <p className="text-muted-foreground">{formatPhonePreview(user.phone)}</p>
-            ) : null}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="mt-6">
+        <AccountInfoRow label="Name" value={user.name || "—"} />
+        <AccountInfoRow
+          label="Email"
+          value={user.email || "Not linked"}
+        />
+        <AccountInfoRow
+          label="Phone number"
+          value={hasPhone ? formatPhonePreview(user.phone) : "Not linked"}
+          action={
+            <EditLinkButton onClick={openPhoneDialog}>
+              {hasPhone ? "Edit" : "Add"}
+            </EditLinkButton>
+          }
+        />
+        <AccountInfoRow
+          label="Sign-in"
+          value={
+            hasGoogle
+              ? "Google linked"
+              : hasPhone
+                ? "Phone OTP"
+                : "Link Google or phone to sign in"
+          }
+          action={
+            !hasGoogle ? (
+              <EditLinkButton onClick={() => setGoogleDialogOpen(true)}>Link</EditLinkButton>
+            ) : null
+          }
+        />
+      </div>
 
-      {!hasPhone ? (
-        <Card className="mb-6 shadow-none ring-0">
-          <CardHeader>
-            <CardTitle className="text-lg">Link phone number</CardTitle>
-            <CardDescription>
+      <Dialog open={phoneDialogOpen} onOpenChange={setPhoneDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{hasPhone ? "Update phone" : "Link phone number"}</DialogTitle>
+            <DialogDescription>
               Add your mobile for bookings and OTP sign-in on one account.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
             {phoneStep === "phone" ? (
               <>
                 <div className="relative">
@@ -271,42 +312,28 @@ export function ProfilePage() {
                 </div>
               </>
             )}
-          </CardContent>
-        </Card>
-      ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
 
-      {!hasGoogle ? (
-        <Card className="shadow-none ring-0">
-          <CardHeader>
-            <CardTitle className="text-lg">Link Google</CardTitle>
-            <CardDescription>
-              Connect Google sign-in to this account.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full rounded-full"
-              disabled={pending}
-              onClick={onLinkGoogle}
-            >
-              {pending ? (
-                <Spinner className="size-4" />
-              ) : (
-                <GoogleMark className="size-4" />
-              )}
-              Link Google account
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {hasPhone && hasGoogle ? (
-        <p className="mt-6 text-sm text-muted-foreground">
-          Phone and Google are linked. You can sign in with either method on this account.
-        </p>
-      ) : null}
+      <Dialog open={googleDialogOpen} onOpenChange={setGoogleDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Link Google</DialogTitle>
+            <DialogDescription>Connect Google sign-in to this account.</DialogDescription>
+          </DialogHeader>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full rounded-full"
+            disabled={pending}
+            onClick={onLinkGoogle}
+          >
+            {pending ? <Spinner className="size-4" /> : <GoogleMark className="size-4" />}
+            Link Google account
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -18,8 +18,8 @@ export function CheckoutPaymentStep({ value, onChange, allowCod = true, allowOnl
       onValueChange={onChange}
     >
       {allowOnline ? (
-        <FieldLabel>
-          <Field orientation="horizontal" className="rounded-3xl border border-border bg-card p-4">
+        <FieldLabel className="w-full has-[>[data-slot=field]]:rounded-lg">
+          <Field orientation="horizontal" className="rounded-lg bg-card">
             <RadioGroupItem value="online" />
             <div className="min-w-0">
               <FieldTitle>Pay online</FieldTitle>
@@ -29,8 +29,8 @@ export function CheckoutPaymentStep({ value, onChange, allowCod = true, allowOnl
         </FieldLabel>
       ) : null}
       {allowCod ? (
-        <FieldLabel>
-          <Field orientation="horizontal" className="rounded-3xl border border-border bg-card p-4">
+        <FieldLabel className="w-full has-[>[data-slot=field]]:rounded-lg">
+          <Field orientation="horizontal" className="rounded-lg bg-card">
             <RadioGroupItem value="cod" />
             <div className="min-w-0">
               <FieldTitle>Cash on delivery</FieldTitle>

@@ -1,0 +1,29 @@
+export const queryKeys = {
+  siteShell: (platform = "web") => ["site-shell", platform],
+  cmsHome: (cityId, pincode, platform = "web") => [
+    "cms",
+    "home",
+    platform,
+    cityId ?? "_",
+    pincode ?? "_",
+  ],
+  categories: () => ["catalog", "categories"],
+  addresses: () => ["user", "addresses"],
+  productSearch: (cityId, pincode, q, categoryIds) => [
+    "catalog",
+    "product-search",
+    cityId ?? "_",
+    pincode ?? "_",
+    q ?? "",
+    categoryIds?.length ? categoryIds.join(",") : "_",
+  ],
+  productDetail: (productId, cityId, pincode) => [
+    "catalog",
+    "product",
+    productId ?? "_",
+    cityId ?? "_",
+    pincode ?? "_",
+  ],
+  refunds: () => ["user", "refunds"],
+  orderRefund: (orderId) => ["user", "refunds", "order", orderId ?? "_"],
+};

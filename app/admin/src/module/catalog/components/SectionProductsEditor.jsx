@@ -15,7 +15,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { GripVerticalIcon, LayoutListIcon, PlusIcon, Trash2Icon } from "lucide-react"
+import { GripVerticalIcon, LayoutListIcon, PlusIcon } from "lucide-react"
 import { putSectionProducts, deleteSectionCityOverride } from "@/api/sections.api"
 import { getApiError } from "@/api/api"
 import { toast } from "@/components/ui/toast"
@@ -40,7 +40,7 @@ function coverSrc(product) {
   return cover?.thumbnailUrl || cover?.url || cover?.publicUrl || cover?.optimizedUrl || ""
 }
 
-function SortableProductRow({ item, disabled, busy, onRemove }) {
+function SortableProductRow({ item, disabled, removing, onRemove }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.productId,
     disabled,
@@ -86,13 +86,26 @@ function SortableProductRow({ item, disabled, busy, onRemove }) {
       </div>
       <Button
         type="button"
-        variant="ghost"
-        size="icon-sm"
-        disabled={disabled || busy}
-        aria-label={`Remove ${item.product?.name ?? "product"}`}
+        variant="destructive"
+        size="sm"
+        className="min-w-[5.75rem] gap-1.5"
+        disabled={disabled || removing}
+        aria-busy={removing}
+        aria-label={
+          removing
+            ? `Removing ${item.product?.name ?? "product"}`
+            : `Remove ${item.product?.name ?? "product"}`
+        }
         onClick={() => onRemove(item.productId)}
       >
-        {busy ? <Spinner /> : <Trash2Icon />}
+        {removing ? (
+          <>
+            <Spinner className="size-3.5" />
+            Removing…
+          </>
+        ) : (
+          "Remove"
+        )}
       </Button>
     </div>
   )
@@ -101,6 +114,7 @@ function SortableProductRow({ item, disabled, busy, onRemove }) {
 export function SectionProductsEditor({ sectionId, cityId, membership, onMembershipChange }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [removingId, setRemovingId] = useState(null)
   const source = membership?.source ?? "global"
   const items = membership?.items ?? []
   const inheriting = Boolean(cityId) && source === "global"
@@ -112,8 +126,11 @@ export function SectionProductsEditor({ sectionId, cityId, membership, onMembers
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
-  async function persist(productIds) {
+  async function persist(productIds, { removingProductId = null } = {}) {
     setBusy(true)
+    if (removingProductId) {
+      setRemovingId(removingProductId)
+    }
     try {
       const data = await putSectionProducts(sectionId, {
         cityId: cityId || null,
@@ -124,6 +141,7 @@ export function SectionProductsEditor({ sectionId, cityId, membership, onMembers
       toast.add({ title: getApiError(err), type: "error" })
     } finally {
       setBusy(false)
+      setRemovingId(null)
     }
   }
 
@@ -143,8 +161,11 @@ export function SectionProductsEditor({ sectionId, cityId, membership, onMembers
   }
 
   async function remove(productId) {
-    if (!editable) return
-    await persist(ids.filter((id) => id !== productId))
+    if (!editable || busy) return
+    await persist(
+      ids.filter((id) => id !== productId),
+      { removingProductId: productId },
+    )
   }
 
   async function onDragEnd(event) {
@@ -264,7 +285,7 @@ export function SectionProductsEditor({ sectionId, cityId, membership, onMembers
                   key={item.productId}
                   item={item}
                   disabled={!editable || busy}
-                  busy={busy}
+                  removing={removingId === item.productId}
                   onRemove={remove}
                 />
               ))}

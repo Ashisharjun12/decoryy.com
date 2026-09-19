@@ -195,6 +195,10 @@ export class DashboardService {
             subtotalPaise: row.subtotalPaise,
             cityName: row.cityName,
             pincode: row.pincode,
+            delivery: {
+                address: row.addressLine,
+                landmark: row.landmark,
+            },
             primaryName: row.primaryName,
             primaryImageUrl: row.primaryImageUrl,
             itemCount: row.itemCount,

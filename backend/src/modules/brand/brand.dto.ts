@@ -8,6 +8,8 @@ export const patchSiteBrandDto = z.object({
     contactPhone: z.string().trim().max(40).nullable().optional(),
     contactEmail: z.union([z.string().trim().email().max(200), z.literal("")]).nullable().optional(),
     whatsappUrl: z.string().trim().max(500).nullable().optional(),
+    productTrustGalleryEnabled: z.boolean().optional(),
+    productTrustGalleryUploadId: z.string().uuid().nullable().optional(),
 });
 
 export {

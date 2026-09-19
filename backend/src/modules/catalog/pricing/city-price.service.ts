@@ -5,6 +5,10 @@ import type { IProductRepository } from "@/modules/catalog/products/product.repo
 import type { ICityPriceRepository } from "@/modules/catalog/pricing/city-price.repository.js";
 import type { AddonCityPrice, CityPrice } from "@/modules/catalog/pricing/city-price.schema.js";
 import { assertPaisePair, resolvedSellPaise } from "@/modules/catalog/pricing/paise-pair.js";
+import {
+    invalidateAllProductDetails,
+    invalidateProductDetail,
+} from "@/modules/catalog/cache/catalog-cache.invalidation.js";
 
 export type PriceQuote = {
     productId: string;
@@ -53,12 +57,14 @@ export class CityPriceService implements ICityPriceService {
         }
         const compareAtPaise = assertPaisePair(input.pricePaise, input.compareAtPaise);
         try {
-            return await this.prices.upsertProductPrice({
+            const row = await this.prices.upsertProductPrice({
                 productId,
                 cityId: input.cityId,
                 pricePaise: input.pricePaise,
                 compareAtPaise,
             });
+            await invalidateProductDetail(productId);
+            return row;
         } catch (err) {
             if (isForeignKeyViolation(err)) {
                 throw ApiError.badRequest("city not found");
@@ -76,6 +82,7 @@ export class CityPriceService implements ICityPriceService {
         if (!deleted) {
             throw ApiError.notFound("city price not found");
         }
+        await invalidateProductDetail(productId);
     }
 
     async listAddonPrices(addonId: string): Promise<AddonCityPrice[]> {
@@ -93,12 +100,14 @@ export class CityPriceService implements ICityPriceService {
         }
         const compareAtPaise = assertPaisePair(input.pricePaise, input.compareAtPaise);
         try {
-            return await this.prices.upsertAddonPrice({
+            const row = await this.prices.upsertAddonPrice({
                 addonId,
                 cityId: input.cityId,
                 pricePaise: input.pricePaise,
                 compareAtPaise,
             });
+            await invalidateAllProductDetails();
+            return row;
         } catch (err) {
             if (isForeignKeyViolation(err)) {
                 throw ApiError.badRequest("city not found");
@@ -116,6 +125,7 @@ export class CityPriceService implements ICityPriceService {
         if (!deleted) {
             throw ApiError.notFound("city price not found");
         }
+        await invalidateAllProductDetails();
     }
 
     async quote(productId: string, cityId: string, addonIds: string[]): Promise<PriceQuote> {

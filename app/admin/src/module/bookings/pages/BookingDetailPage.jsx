@@ -14,6 +14,7 @@ import { BookingDeliveryStatusCard } from "@/module/bookings/components/BookingD
 import { BookingItemsTable } from "@/module/bookings/components/BookingItemsTable"
 import { BookingScheduleCard } from "@/module/bookings/components/BookingScheduleCard"
 import { BookingPaymentCard } from "@/module/bookings/components/BookingPaymentCard"
+import { RefundRequestCard } from "@/module/bookings/components/RefundRequestCard"
 import { BookingStatusBadge } from "@/module/bookings/components/BookingStatusBadge"
 
 function canAssign(status) {
@@ -129,7 +130,7 @@ export function BookingDetailPage() {
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <BookingCustomerCard customer={order.customer} />
+        <BookingCustomerCard customer={order.customer} customerId={order.userId} />
         <BookingAssigneeCard
           assignee={order.assignee}
           cityName={order.delivery?.cityName}
@@ -144,7 +145,10 @@ export function BookingDetailPage() {
 
       <BookingItemsTable items={order.items} subtotalPaise={order.subtotalPaise} />
 
-      <BookingPaymentCard orderId={order.id} />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <BookingPaymentCard orderId={order.id} />
+        <RefundRequestCard orderId={order.id} />
+      </div>
     </div>
   )
 }

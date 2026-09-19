@@ -19,6 +19,7 @@ import { toast } from "@/components/ui/toast"
 import { formatPaise } from "@/lib/money"
 import { CustomerStatusBadge } from "@/module/people/components/CustomerStatusBadge"
 import { PersonBookingsPanel } from "@/module/people/components/PersonBookingsPanel"
+import { CustomerRefundsPanel } from "@/module/people/components/CustomerRefundsPanel"
 import { formatJoinedDate } from "@/module/people/lib/people-format"
 
 function DetailRow({ label, value, mono = false }) {
@@ -180,6 +181,8 @@ export function CustomerDetailPage() {
       </Card>
 
       <PersonBookingsPanel userId={customer.id} title="Bookings" />
+
+      <CustomerRefundsPanel customerId={customer.id} customerName={customer.name} />
 
       <AlertDialog
         open={Boolean(dialog)}

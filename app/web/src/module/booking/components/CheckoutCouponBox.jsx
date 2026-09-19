@@ -1,21 +1,9 @@
 import { useEffect, useState } from "react"
-import { ChevronDownIcon, TagIcon, XIcon } from "lucide-react"
-import { formatPaise } from "@/lib/money"
+import { XIcon } from "lucide-react"
 import { getApiError } from "@/api/api"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput,
-} from "@/components/ui/input-group"
+import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 import { useCartStore } from "@/store/cart.store"
@@ -33,11 +21,10 @@ export function CheckoutCouponBox({
   const removeCoupon = useCartStore((s) => s.removeCoupon)
 
   const appliedCoupon = cart?.appliedCoupon
-  const discount = cart?.discountPaise ?? 0
   const needsCity = couponRequiresCity(cart)
   const paymentWarning = getCouponPaymentWarning(appliedCoupon, paymentMethod)
 
-  const [open, setOpen] = useState(Boolean(appliedCoupon))
+  const [open, setOpen] = useState(false)
   const [code, setCode] = useState(appliedCoupon?.code ?? "")
   const [applying, setApplying] = useState(false)
   const [error, setError] = useState("")
@@ -45,7 +32,7 @@ export function CheckoutCouponBox({
   useEffect(() => {
     if (appliedCoupon?.code) {
       setCode(appliedCoupon.code)
-      setOpen(true)
+      setOpen(false)
     }
   }, [appliedCoupon?.code])
 
@@ -57,6 +44,7 @@ export function CheckoutCouponBox({
     setError("")
     try {
       await applyCoupon(trimmed)
+      setOpen(false)
     } catch (err) {
       setError(getApiError(err))
     } finally {
@@ -86,42 +74,24 @@ export function CheckoutCouponBox({
   if (appliedCoupon) {
     return (
       <div className={cn("flex flex-col gap-2", className)}>
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <Badge
-              variant="secondary"
-              className="h-7 max-w-full gap-1.5 rounded-full px-2.5 font-mono text-xs tracking-wide"
-            >
-              <TagIcon className="size-3 shrink-0" />
-              <span className="truncate uppercase">{appliedCoupon.code}</span>
-            </Badge>
-            {discount > 0 ? (
-              <span className="text-xs font-medium text-emerald-700 tabular-nums dark:text-emerald-400">
-                −{formatPaise(discount)}
-              </span>
-            ) : null}
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className="shrink-0 text-muted-foreground"
-            aria-label="Remove coupon"
-            disabled={applying}
-            onClick={onRemove}
-          >
-            {applying ? <Spinner className="size-3.5" /> : <XIcon className="size-4" />}
-          </Button>
-        </div>
-
         {paymentWarning ? (
-          <Alert variant="destructive" className="rounded-xl py-2.5">
+          <Alert variant="destructive" className="rounded-lg py-2.5">
             <AlertDescription className="text-xs leading-relaxed">{paymentWarning}</AlertDescription>
           </Alert>
         ) : null}
-
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-auto w-fit px-0 text-xs text-muted-foreground"
+          disabled={applying}
+          onClick={onRemove}
+        >
+          {applying ? <Spinner className="size-3.5" /> : <XIcon className="mr-1 inline size-3.5" />}
+          Remove coupon
+        </Button>
         {error ? (
-          <Alert variant="destructive" className="rounded-xl py-2.5">
+          <Alert variant="destructive" className="rounded-lg py-2.5">
             <AlertDescription className="text-xs leading-relaxed">{error}</AlertDescription>
           </Alert>
         ) : null}
@@ -129,67 +99,57 @@ export function CheckoutCouponBox({
     )
   }
 
+  if (!open) {
+    return (
+      <div className={cn(className)}>
+        <button
+          type="button"
+          className="text-sm font-semibold text-foreground underline-offset-4 hover:underline"
+          onClick={() => setOpen(true)}
+        >
+          Add coupon code
+        </button>
+      </div>
+    )
+  }
+
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className={className}>
-      <CollapsibleTrigger
+    <div className={cn("flex flex-col gap-3", className)}>
+      <Input
+        placeholder="Paste coupon code"
+        value={code}
+        onChange={(event) => {
+          setCode(event.target.value.toUpperCase())
+          if (error) setError("")
+        }}
+        onKeyDown={onKeyDown}
+        aria-label="Coupon code"
+        aria-invalid={Boolean(error)}
+        disabled={applying || needsCity}
+        autoComplete="off"
+        spellCheck={false}
+        className="rounded-lg font-semibold uppercase tracking-wide"
+      />
+      <Button
         type="button"
-        className="flex w-full items-center justify-between gap-2 rounded-xl border border-dashed border-border/80 bg-muted/20 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/40"
+        className="w-full rounded-lg bg-emerald-600 font-semibold text-white hover:bg-emerald-700"
+        onClick={onApply}
+        disabled={applying || needsCity || !code.trim()}
       >
-        <span className="inline-flex items-center gap-2 font-medium">
-          <TagIcon className="size-4 text-muted-foreground" />
-          Have a promo code?
-        </span>
-        <ChevronDownIcon
-          className={cn(
-            "size-4 shrink-0 text-muted-foreground transition-transform",
-            open && "rotate-180",
-          )}
-        />
-      </CollapsibleTrigger>
+        {applying ? <Spinner className="size-4" /> : "Apply"}
+      </Button>
 
-      <CollapsibleContent className="pt-2">
-        <div className="flex flex-col gap-2">
-          <InputGroup>
-            <InputGroupInput
-              placeholder="Enter code"
-              value={code}
-              onChange={(event) => {
-                setCode(event.target.value.toUpperCase())
-                if (error) setError("")
-              }}
-              onKeyDown={onKeyDown}
-              aria-label="Coupon code"
-              aria-invalid={Boolean(error)}
-              disabled={applying || needsCity}
-              autoComplete="off"
-              spellCheck={false}
-            />
-            <InputGroupAddon align="inline-end">
-              <InputGroupButton
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={onApply}
-                disabled={applying || needsCity || !code.trim()}
-              >
-                {applying ? <Spinner className="size-3.5" /> : "Apply"}
-              </InputGroupButton>
-            </InputGroupAddon>
-          </InputGroup>
+      {needsCity ? (
+        <p className="text-xs text-muted-foreground">
+          Select your delivery city first to apply a coupon.
+        </p>
+      ) : null}
 
-          {needsCity ? (
-            <p className="text-xs text-muted-foreground">
-              Select your delivery city first to apply a coupon.
-            </p>
-          ) : null}
-
-          {error ? (
-            <Alert variant="destructive" className="rounded-xl py-2.5">
-              <AlertDescription className="text-xs leading-relaxed">{error}</AlertDescription>
-            </Alert>
-          ) : null}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
+      {error ? (
+        <Alert variant="destructive" className="rounded-lg py-2.5">
+          <AlertDescription className="text-xs leading-relaxed">{error}</AlertDescription>
+        </Alert>
+      ) : null}
+    </div>
   )
 }

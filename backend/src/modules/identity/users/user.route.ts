@@ -7,6 +7,10 @@ import {
     vendorNotificationsQueryDto,
 } from "@/modules/notifications/devices/device.dto.js";
 import type { UserNotificationController } from "@/modules/notifications/user-notification.controller.js";
+import type { CustomerAddressController } from "@/modules/identity/addresses/customer-address.controller.js";
+import { createCustomerAddressRouter } from "@/modules/identity/addresses/customer-address.route.js";
+import type { RefundRequestController } from "@/modules/booking/refunds/refund-request.controller.js";
+import { createRefundRequestUserRouter } from "@/modules/booking/refunds/refund-request.route.js";
 import { authRequired } from "@/shared/middlewares/auth.middleware.js";
 import { validate } from "@/shared/middlewares/validate.middleware.js";
 
@@ -14,8 +18,12 @@ export function createUserRouter(
     authController: AuthController,
     userController: UserController,
     userNotificationController: UserNotificationController,
+    customerAddressController: CustomerAddressController,
+    refundRequestController: RefundRequestController,
 ) {
     const router = Router();
+    router.use("/addresses", createCustomerAddressRouter(customerAddressController));
+    router.use("/refunds", createRefundRequestUserRouter(refundRequestController));
     router.get("/me", authRequired, authController.me);
     router.post("/link-phone", authRequired, validate(linkPhoneDto), userController.linkPhone);
     router.post("/link-google", authRequired, validate(linkGoogleDto), userController.linkGoogle);

@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { _config } from "@/config/config.js";
 import type { NotificationEvent } from "@/modules/notifications/policy/events.js";
 import { formatBookingSchedule } from "@/modules/notifications/templates/email/booking-confirmed.render.js";
+import { EMAIL_THEME } from "@/modules/notifications/templates/email/email-theme.js";
 
 export type TripEmailVariant = "en_route" | "on_site" | "delivery_code" | "completed";
 
@@ -59,6 +60,7 @@ export async function renderTripStatusEmailHtml(input: {
         : input.scheduledAt;
 
     return ejs.renderFile(TEMPLATE_PATH, {
+        theme: EMAIL_THEME,
         ...meta,
         intro: input.intro,
         customerName: input.customerName,

@@ -6,12 +6,9 @@ import { formatPaise } from "@/lib/money";
 import { DecoryImageFallback } from "@/components/decory-image-fallback";
 import { Skeleton } from "@/components/ui/skeleton";
 import { staggerItem } from "@/lib/motion-variants";
+import { discountPercent } from "@/lib/product-price";
+import { sectionBadgeAppearance } from "@/lib/section-badge-color";
 import { cn } from "@/lib/utils";
-
-function discountPercent(pricePaise, compareAtPaise) {
-  if (compareAtPaise == null || compareAtPaise <= pricePaise) return 0;
-  return Math.round((1 - pricePaise / compareAtPaise) * 100);
-}
 
 function formatRating(value) {
   if (value == null || Number.isNaN(Number(value))) return null;
@@ -220,7 +217,23 @@ export function HomeProductCardCompact({ product }) {
   return <HomeProductCard product={product} variant="compact" />;
 }
 
-function RailProductCardContent({ product }) {
+function SectionProductBadge({ label, color }) {
+  if (!label?.trim()) return null;
+  const { className, style } = sectionBadgeAppearance(color);
+  return (
+    <span
+      className={cn(
+        "absolute top-2 right-2 z-1 max-w-[85%] truncate rounded-md px-2 py-0.5 text-[10px] font-bold leading-tight shadow-sm sm:text-[11px]",
+        className,
+      )}
+      style={style}
+    >
+      {label}
+    </span>
+  );
+}
+
+function RailProductCardContent({ product, badgeLabel, badgeColor }) {
   const [broken, setBroken] = useState(false);
   const src = product.imageUrl ?? product.images?.[0]?.url;
   const ratingLabel = formatRating(product.rating);
@@ -231,6 +244,7 @@ function RailProductCardContent({ product }) {
       className="group flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm transition-[box-shadow,border-color] duration-200 hover:border-border hover:shadow-md"
     >
       <div className="relative aspect-[5/4] w-full shrink-0 overflow-hidden rounded-t-2xl bg-muted">
+        <SectionProductBadge label={badgeLabel} color={badgeColor} />
         {src && !broken ? (
           <img
             src={src}
@@ -263,10 +277,14 @@ function RailProductCardContent({ product }) {
   );
 }
 
-export function HomeProductCardRail({ product }) {
+export function HomeProductCardRail({ product, badgeLabel, badgeColor }) {
   return (
     <div className="min-w-0">
-      <RailProductCardContent product={product} />
+      <RailProductCardContent
+        product={product}
+        badgeLabel={badgeLabel}
+        badgeColor={badgeColor}
+      />
     </div>
   );
 }

@@ -24,7 +24,7 @@ export function HelpPage() {
             <AccordionTrigger>{topic.title}</AccordionTrigger>
             <AccordionContent>
               <p className="mb-4 text-sm text-muted-foreground">{topic.description}</p>
-              <Button asChild size="sm" variant="outline">
+              <Button asChild size="sm" className="rounded-lg">
                 <Link to={`/account/help/${topic.topicKey}/chat`}>Chat about this</Link>
               </Button>
             </AccordionContent>

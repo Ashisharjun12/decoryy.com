@@ -13,6 +13,8 @@ import { SiteHeader } from "@/module/layout/components/SiteHeader";
 export function Layout() {
   const { pathname } = useLocation();
   const isAccountArea = pathname.startsWith("/account");
+  const isCheckoutArea = pathname.startsWith("/checkout");
+  const showFooter = !isAccountArea && !isCheckoutArea;
 
   return (
     <LenisProvider>
@@ -26,7 +28,7 @@ export function Layout() {
             <main className={isAccountArea ? "flex min-h-0 flex-1 flex-col" : "flex-1"}>
               <Outlet />
             </main>
-            {!isAccountArea ? <SiteFooter /> : null}
+            {showFooter ? <SiteFooter /> : null}
             <LoginDialog />
             <CartDrawer />
           </div>

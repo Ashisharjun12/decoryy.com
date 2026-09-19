@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { CheckIcon } from "lucide-react";
+import { CheckIcon, ChevronLeftIcon } from "lucide-react";
 import { getApiError } from "@/api/api";
 import { getPaymentMethods, verifyPayment } from "@/api/payments.api";
 import { createOrder } from "@/api/orders.api";
 import { openCashfreeCheckout, openRazorpayCheckout } from "@/module/booking/lib/online-checkout";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Stepper,
   StepperContent,
@@ -20,7 +19,8 @@ import {
   StepperTitle,
   StepperTrigger,
 } from "@/components/reui/stepper";
-import { Spinner } from "@/components/ui/spinner";
+import { CheckoutPageSkeleton } from "@/module/booking/components/CheckoutPageSkeleton";
+import { cn } from "@/lib/utils";
 import { isValidIndianMobile } from "@/module/auth/phone-login";
 import { CheckoutCustomerStep } from "@/module/booking/components/CheckoutCustomerStep";
 import { CheckoutDeliveryStep } from "@/module/booking/components/CheckoutDeliveryStep";
@@ -36,6 +36,62 @@ const STEPS = [
   { step: 3, title: "Payment", description: "How to pay" },
   { step: 4, title: "Review", description: "Confirm" },
 ];
+
+const STEP_SECTIONS = {
+  1: {
+    title: "Customer details",
+    description: "We'll use this to confirm your booking.",
+  },
+  2: {
+    title: "Delivery",
+    description: "We check the PIN against cities we serve.",
+  },
+  3: {
+    title: "Payment",
+    description: "Choose how you'll pay. Nothing is charged yet.",
+  },
+  4: {
+    title: "Review",
+    description: "Check everything before you place the booking.",
+  },
+};
+
+function CheckoutTopBar() {
+  return (
+    <div className="border-b border-border/60 bg-background">
+      <div className="mx-auto max-w-[1400px] px-6 py-4 lg:px-10">
+        <Link
+          to="/decorations"
+          className="inline-flex items-center gap-1 text-sm font-medium text-foreground transition-colors hover:text-muted-foreground"
+        >
+          <ChevronLeftIcon className="size-4" aria-hidden />
+          Continue shopping
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function StepSection({ step, children }) {
+  const section = STEP_SECTIONS[step];
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-heading text-xl font-semibold tracking-tight">{section.title}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{section.description}</p>
+      </div>
+      <div
+        className={cn(
+          "checkout-form space-y-4",
+          "[&_input]:rounded-lg [&_input]:placeholder:text-muted-foreground [&_textarea]:rounded-lg [&_textarea]:placeholder:text-muted-foreground",
+          "[&_[data-slot=input-group]]:rounded-lg [&_[data-slot=input-group]]:overflow-hidden",
+        )}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
 
 function isEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value).trim());
@@ -212,154 +268,130 @@ export function CheckoutPage() {
 
   if (!user) {
     return (
-      <div className="mx-auto w-full max-w-[1240px] px-4 py-8 md:px-8 md:py-12">
-        <Card>
-          <CardHeader>
-            <CardTitle>Sign in to checkout</CardTitle>
-            <CardDescription>Use the login dialog to continue your booking.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button type="button" onClick={() => setLoginOpen(true)}>
-              Sign in
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="flex flex-col">
+        <CheckoutTopBar />
+        <div className="mx-auto flex w-full max-w-lg flex-col items-start gap-4 px-6 py-12 lg:px-10">
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">Sign in to checkout</h1>
+          <p className="text-sm text-muted-foreground">Use the login dialog to continue your booking.</p>
+          <Button type="button" onClick={() => setLoginOpen(true)}>
+            Sign in
+          </Button>
+        </div>
       </div>
     );
   }
 
   if (!cartReady || (cartStatus === "loading" && !hasItems)) {
-    return (
-      <div className="flex min-h-64 items-center justify-center">
-        <Spinner className="size-8" />
-      </div>
-    );
+    return <CheckoutPageSkeleton />;
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1240px] px-4 py-8 md:px-8 md:py-12">
-      <p className="mb-6 text-sm text-muted-foreground">
-        <Link to="/" className="hover:text-foreground">
-          Home
-        </Link>
-        {" / "}
-        <span className="text-foreground">Checkout</span>
-      </p>
-      <h1 className="mb-6 font-heading text-3xl font-semibold tracking-tight">Checkout</h1>
+    <div className="flex flex-col">
+      <CheckoutTopBar />
 
-      <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_18rem] md:items-start xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="min-w-0">
+      <div className="mx-auto grid w-full max-w-[1400px] lg:grid-cols-[minmax(0,1fr)_min(420px,38%)]">
+        <div className="order-1 min-w-0 bg-background px-6 py-8 lg:px-10 lg:py-10">
           <Stepper
             value={step}
             onValueChange={goTo}
             className="space-y-8"
             indicators={{
-              completed: <CheckIcon className="size-3.5" />,
+              completed: <CheckIcon className="size-3" />,
             }}
           >
-            <StepperNav>
-              {STEPS.map((item, index) => (
-                <StepperItem
-                  key={item.step}
-                  step={item.step}
-                  completed={step > item.step}
-                  disabled={item.step > maxStep}
-                >
-                  <StepperTrigger>
-                    <StepperIndicator>{item.step}</StepperIndicator>
-                    <span className="flex min-w-0 flex-col text-left">
-                      <StepperTitle className="text-xs sm:text-sm">{item.title}</StepperTitle>
-                      <StepperDescription className="hidden sm:block">
-                        {item.description}
-                      </StepperDescription>
-                    </span>
-                  </StepperTrigger>
-                  {index < STEPS.length - 1 ? <StepperSeparator /> : null}
-                </StepperItem>
-              ))}
-            </StepperNav>
+            <div className="space-y-2">
+              <StepperNav className="gap-1 [&_[data-slot=stepper-separator]]:bg-border/50">
+                {STEPS.map((item, index) => (
+                  <StepperItem
+                    key={item.step}
+                    step={item.step}
+                    completed={step > item.step}
+                    disabled={item.step > maxStep}
+                    className="min-w-0 flex-1"
+                  >
+                    <StepperTrigger className="gap-2 py-1">
+                      <StepperIndicator className="size-7 text-xs">{item.step}</StepperIndicator>
+                      <span className="flex min-w-0 flex-col text-left">
+                        <StepperTitle className="text-xs font-medium sm:text-sm">{item.title}</StepperTitle>
+                        <StepperDescription className="hidden text-xs sm:block">
+                          {item.description}
+                        </StepperDescription>
+                      </span>
+                    </StepperTrigger>
+                    {index < STEPS.length - 1 ? <StepperSeparator className="mx-1" /> : null}
+                  </StepperItem>
+                ))}
+              </StepperNav>
+              <p className="text-xs text-muted-foreground lg:hidden">Step {step} of 4</p>
+            </div>
 
             <StepperPanel>
               <StepperContent value={1}>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Customer details</CardTitle>
-                    <CardDescription>We’ll use this to confirm your booking.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <CheckoutCustomerStep value={customer} onChange={setCustomer} />
-                  </CardContent>
-                </Card>
+                <StepSection step={1}>
+                  <CheckoutCustomerStep value={customer} onChange={setCustomer} />
+                </StepSection>
               </StepperContent>
               <StepperContent value={2}>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Delivery</CardTitle>
-                    <CardDescription>We check the PIN against cities we serve.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <CheckoutDeliveryStep
-                      value={delivery}
-                      onChange={setDelivery}
-                      cartCityId={cart.cityId}
-                    />
-                  </CardContent>
-                </Card>
+                <StepSection step={2}>
+                  <CheckoutDeliveryStep
+                    value={delivery}
+                    onChange={setDelivery}
+                    cartCityId={cart.cityId}
+                  />
+                </StepSection>
               </StepperContent>
               <StepperContent value={3}>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Payment</CardTitle>
-                    <CardDescription>Choose how you’ll pay. Nothing is charged yet.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <CheckoutPaymentStep
-                      value={payment}
-                      onChange={setPayment}
-                      allowCod={allowCod}
-                      allowOnline={allowOnline}
-                    />
-                  </CardContent>
-                </Card>
+                <StepSection step={3}>
+                  <CheckoutPaymentStep
+                    value={payment}
+                    onChange={setPayment}
+                    allowCod={allowCod}
+                    allowOnline={allowOnline}
+                  />
+                </StepSection>
               </StepperContent>
               <StepperContent value={4}>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Review</CardTitle>
-                    <CardDescription>Check everything before you place the booking.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <CheckoutReviewStep
-                      customer={customer}
-                      delivery={delivery}
-                      payment={payment}
-                      scheduledAt={cart.scheduledAt}
-                      subtotalPaise={cart.subtotalPaise}
-                      discountPaise={cart.discountPaise}
-                      totalPaise={cart.totalPaise}
-                      appliedCoupon={cart.appliedCoupon}
-                      onPlace={onPlace}
-                      placing={placing}
-                    />
-                  </CardContent>
-                </Card>
+                <StepSection step={4}>
+                  <CheckoutReviewStep
+                    customer={customer}
+                    delivery={delivery}
+                    payment={payment}
+                    scheduledAt={cart.scheduledAt}
+                    subtotalPaise={cart.subtotalPaise}
+                    discountPaise={cart.discountPaise}
+                    totalPaise={cart.totalPaise}
+                    appliedCoupon={cart.appliedCoupon}
+                    onPlace={onPlace}
+                    placing={placing}
+                  />
+                </StepSection>
               </StepperContent>
             </StepperPanel>
           </Stepper>
 
           {step < 4 ? (
-            <div className="mt-6 flex flex-wrap gap-2">
+            <div className="mt-8 flex w-full gap-2 sm:w-auto">
               {step > 1 ? (
-                <Button type="button" variant="outline" onClick={() => goTo(step - 1)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={() => goTo(step - 1)}
+                >
                   Back
                 </Button>
               ) : null}
-              <Button type="button" disabled={!canNext} onClick={onNext}>
-                Next
+              <Button
+                type="button"
+                className="flex-1 sm:flex-none sm:min-w-40"
+                disabled={!canNext}
+                onClick={onNext}
+              >
+                Continue
               </Button>
             </div>
           ) : (
-            <div className="mt-6">
+            <div className="mt-8">
               <Button type="button" variant="outline" onClick={() => goTo(3)}>
                 Back
               </Button>
@@ -367,9 +399,11 @@ export function CheckoutPage() {
           )}
         </div>
 
-        <div className="min-w-0 md:sticky md:top-24">
+        <aside
+          className="order-2 border-t border-border/60 bg-muted/30 px-6 py-8 lg:order-2 lg:min-h-[calc(100dvh-8rem)] lg:border-t-0 lg:border-l lg:px-8 lg:py-10 lg:sticky lg:top-20 lg:self-start"
+        >
           <CheckoutSummary cart={cart} paymentMethod={payment} />
-        </div>
+        </aside>
       </div>
     </div>
   );

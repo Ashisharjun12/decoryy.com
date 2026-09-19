@@ -47,7 +47,10 @@ function CommandDialog({
         <DialogDescription>{description}</DialogDescription>
       </DialogHeader>
       <DialogContent
-        className={cn("top-1/3 translate-y-0 overflow-hidden rounded-4xl! p-0", className)}
+        className={cn(
+          "top-1/3 translate-y-0 overflow-hidden rounded-3xl! p-0 ring-border/40",
+          className,
+        )}
         showCloseButton={showCloseButton}>
         {children}
       </DialogContent>
@@ -57,11 +60,24 @@ function CommandDialog({
 
 function CommandInput({
   className,
+  wrapperClassName,
+  inputGroupClassName,
+  iconPosition = "end",
   ...props
 }) {
+  const icon = (
+    <InputGroupAddon align={iconPosition === "start" ? "inline-start" : "inline-end"}>
+      <SearchIcon className="size-4 shrink-0 opacity-50" />
+    </InputGroupAddon>
+  );
+
   return (
-    <div data-slot="command-input-wrapper" className="p-1 pb-0">
-      <InputGroup className="h-9 bg-input/50">
+    <div
+      data-slot="command-input-wrapper"
+      className={cn("p-1 pb-0", wrapperClassName)}
+    >
+      <InputGroup className={cn("h-9 bg-input/50", inputGroupClassName)}>
+        {iconPosition === "start" ? icon : null}
         <CommandPrimitive.Input
           data-slot="command-input"
           className={cn(
@@ -69,9 +85,7 @@ function CommandInput({
             className
           )}
           {...props} />
-        <InputGroupAddon>
-          <SearchIcon className="size-4 shrink-0 opacity-50" />
-        </InputGroupAddon>
+        {iconPosition === "end" ? icon : null}
       </InputGroup>
     </div>
   );

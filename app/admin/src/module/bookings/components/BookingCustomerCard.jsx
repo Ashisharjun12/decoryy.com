@@ -1,4 +1,6 @@
 import { MailIcon, PhoneIcon, UserIcon } from "lucide-react"
+import { Link } from "react-router-dom"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Empty,
@@ -24,7 +26,7 @@ function ContactRow({ icon: Icon, label, value }) {
   )
 }
 
-export function BookingCustomerCard({ customer }) {
+export function BookingCustomerCard({ customer, customerId }) {
   const name = customer?.name?.trim?.() ?? ""
   const email = customer?.email?.trim?.() ?? ""
   const phone = customer?.phone?.trim?.() ?? ""
@@ -32,8 +34,13 @@ export function BookingCustomerCard({ customer }) {
 
   return (
     <Card className="h-full">
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
         <CardTitle className="text-base">Customer</CardTitle>
+        {customerId ? (
+          <Button variant="link" className="h-auto px-0 text-xs" asChild>
+            <Link to={`/people/customers/${customerId}`}>View profile</Link>
+          </Button>
+        ) : null}
       </CardHeader>
       <CardContent>
         {hasDetails ? (

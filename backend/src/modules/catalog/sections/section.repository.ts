@@ -10,7 +10,9 @@ import {
     type NewCatalogSection,
 } from "@/modules/catalog/sections/section.schema.js";
 
-export type SectionPatch = Partial<Pick<CatalogSection, "name" | "slug" | "sortIndex" | "isActive">>;
+export type SectionPatch = Partial<
+    Pick<CatalogSection, "name" | "slug" | "sortIndex" | "badgeColor" | "isActive">
+>;
 
 export interface ISectionRepository {
     listAll(): Promise<CatalogSection[]>;

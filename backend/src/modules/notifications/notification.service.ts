@@ -262,6 +262,7 @@ export class NotificationService implements INotificationService {
             body = await renderBookingConfirmedHtml({
                 intro: body,
                 customerName: input.data.customerName ?? "",
+                customerPhone: input.data.customerPhone ?? input.data.phone ?? "",
                 orderRef: input.data.orderRef || input.data.orderId || "",
                 scheduledAt: formatBookingSchedule(input.data.scheduledAt ?? ""),
                 city: input.data.city ?? "",

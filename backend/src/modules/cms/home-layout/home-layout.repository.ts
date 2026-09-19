@@ -115,6 +115,29 @@ export class CmsHomeLayoutRepository {
         return rows;
     }
 
+    async listBlockCategoriesForBlockIds(blockIds: string[]): Promise<Map<string, BlockCategoryRow[]>> {
+        const unique = [...new Set(blockIds.filter(Boolean))];
+        const result = new Map<string, BlockCategoryRow[]>();
+        if (unique.length === 0) return result;
+
+        const rows = await db
+            .select({
+                blockId: cmsHomeBlockCategories.blockId,
+                categoryId: cmsHomeBlockCategories.categoryId,
+                sortIndex: cmsHomeBlockCategories.sortIndex,
+            })
+            .from(cmsHomeBlockCategories)
+            .where(inArray(cmsHomeBlockCategories.blockId, unique))
+            .orderBy(asc(cmsHomeBlockCategories.sortIndex));
+
+        for (const row of rows) {
+            const list = result.get(row.blockId) ?? [];
+            list.push({ categoryId: row.categoryId, sortIndex: row.sortIndex });
+            result.set(row.blockId, list);
+        }
+        return result;
+    }
+
     async replaceBlockCategories(blockId: string, categoryIds: string[]): Promise<void> {
         const unique = [...new Set(categoryIds)];
         await db.transaction(async (tx) => {

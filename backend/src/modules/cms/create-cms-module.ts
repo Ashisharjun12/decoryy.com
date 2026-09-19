@@ -3,6 +3,7 @@ import { createCmsAdminRouter } from "@/modules/cms/cms.admin.route.js";
 import { CmsPublicController } from "@/modules/cms/cms.public.controller.js";
 import { createCmsPublicRouter } from "@/modules/cms/cms.public.route.js";
 import { CmsPublicService } from "@/modules/cms/cms.public.service.js";
+import { CachedCmsPublicService } from "@/modules/cms/cached-cms-public.service.js";
 import { CmsBannerRepository } from "@/modules/cms/banners/banner.repository.js";
 import { CmsBannerService } from "@/modules/cms/banners/banner.service.js";
 import { CmsTestimonialRepository } from "@/modules/cms/testimonials/testimonial.repository.js";
@@ -15,7 +16,7 @@ import type { ICategoryService } from "@/modules/catalog/categories/category.ser
 import type { ICategoryRepository } from "@/modules/catalog/categories/category.repository.js";
 import type { ISectionService } from "@/modules/catalog/sections/section.service.js";
 import type { ISectionRepository } from "@/modules/catalog/sections/section.repository.js";
-import type { SiteShellService } from "@/modules/brand/site-shell.service.js";
+import type { CachedSiteShellService } from "@/modules/brand/cached-site-shell.service.js";
 
 export type CmsModuleDeps = {
     sectionService: ISectionService;
@@ -24,7 +25,7 @@ export type CmsModuleDeps = {
     categoryRepository: ICategoryRepository;
 };
 
-export function createCmsModule(deps: CmsModuleDeps, siteShellService: SiteShellService) {
+export function createCmsModule(deps: CmsModuleDeps, siteShellService: CachedSiteShellService) {
     const bannerRepository = new CmsBannerRepository();
     const testimonialRepository = new CmsTestimonialRepository();
     const layoutRepository = new CmsHomeLayoutRepository();
@@ -41,11 +42,13 @@ export function createCmsModule(deps: CmsModuleDeps, siteShellService: SiteShell
         deps.categoryRepository,
     );
 
-    const cmsPublicService = new CmsPublicService(
-        bannerRepository,
-        testimonialRepository,
-        cmsHomeLayoutService,
-        faqRepository,
+    const cmsPublicService = new CachedCmsPublicService(
+        new CmsPublicService(
+            bannerRepository,
+            testimonialRepository,
+            cmsHomeLayoutService,
+            faqRepository,
+        ),
     );
 
     const cmsAdminController = new CmsAdminController(

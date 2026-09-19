@@ -7,11 +7,17 @@ import { publicCity, type PublicCity } from "@/modules/geo/cities/city.public.js
 import type { IProductService, ProductAdmin, ProductForCity } from "@/modules/catalog/products/product.service.js";
 import type { ISectionRepository } from "@/modules/catalog/sections/section.repository.js";
 import type { CatalogSection } from "@/modules/catalog/sections/section.schema.js";
+import {
+    DEFAULT_SECTION_BADGE_COLOR,
+    parseSectionBadgeColor,
+} from "@/modules/catalog/sections/section-badge-color.js";
+import { invalidateHome } from "@/modules/cms/cache/cms-cache.invalidation.js";
 
 export type CreateSectionInput = {
     name: string;
     slug?: string;
     sortIndex?: number;
+    badgeColor?: string;
     isActive?: boolean;
 };
 
@@ -19,6 +25,7 @@ export type PatchSectionInput = {
     name?: string;
     slug?: string;
     sortIndex?: number;
+    badgeColor?: string;
     isActive?: boolean;
 };
 
@@ -77,12 +84,15 @@ export class SectionService implements ISectionService {
             throw ApiError.badRequest("invalid section slug");
         }
         try {
-            return await this.sections.insert({
+            const row = await this.sections.insert({
                 name,
                 slug,
                 sortIndex: input.sortIndex ?? 0,
+                badgeColor: parseSectionBadgeColor(input.badgeColor ?? DEFAULT_SECTION_BADGE_COLOR),
                 isActive: input.isActive ?? true,
             });
+            await invalidateHome();
+            return row;
         } catch (err) {
             if (isUniqueViolation(err)) {
                 throw ApiError.conflict("section slug already exists");
@@ -103,12 +113,16 @@ export class SectionService implements ISectionService {
             data.slug = slugify(input.name);
         }
         if (input.sortIndex !== undefined) data.sortIndex = input.sortIndex;
+        if (input.badgeColor !== undefined) {
+            data.badgeColor = parseSectionBadgeColor(input.badgeColor);
+        }
         if (input.isActive !== undefined) data.isActive = input.isActive;
         try {
             const row = await this.sections.update(id, data);
             if (!row) {
                 throw ApiError.notFound("section not found");
             }
+            await invalidateHome();
             return row;
         } catch (err) {
             if (isUniqueViolation(err)) {
@@ -124,6 +138,7 @@ export class SectionService implements ISectionService {
         if (!deleted) {
             throw ApiError.notFound("section not found");
         }
+        await invalidateHome();
     }
 
     async listProducts(id: string, cityId?: string): Promise<SectionMembership> {
@@ -141,6 +156,7 @@ export class SectionService implements ISectionService {
         }
         await this.assertProductsExist(input.productIds);
         await this.sections.replaceProducts(id, input.cityId, input.productIds);
+        await invalidateHome();
         return this.membership(id, input.cityId ?? undefined);
     }
 
@@ -151,6 +167,7 @@ export class SectionService implements ISectionService {
         if (!deleted) {
             throw ApiError.notFound("city override not found");
         }
+        await invalidateHome();
         return this.membership(id, cityId);
     }
 

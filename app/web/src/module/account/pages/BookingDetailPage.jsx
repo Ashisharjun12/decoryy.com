@@ -10,6 +10,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { formatPaise } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { VendorContactCard } from "@/module/account/components/VendorContactCard";
+import { BookingRefundSection } from "@/module/account/components/BookingRefundSection";
 import { BOOKING_STATUS_EVENT } from "@/module/account/lib/booking.events";
 import {
   BOOKING_TIMELINE,
@@ -234,6 +235,8 @@ export function BookingDetailPage() {
       {canChatWithVendor && order.assignee ? (
         <VendorContactCard assignee={order.assignee} orderId={orderId} />
       ) : null}
+
+      <BookingRefundSection order={order} />
 
       <BookingReviewCard order={order} onWriteReview={() => setReviewDialogOpen(true)} />
 

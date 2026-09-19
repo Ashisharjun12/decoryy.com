@@ -7,16 +7,27 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-export function NavMain({ items, pathname = "" }) {
+function navItemActive(itemUrl, pathname, search) {
+  if (itemUrl.includes("?")) {
+    const [path, query] = itemUrl.split("?")
+    return pathname === path && search === `?${query}`
+  }
+  if (itemUrl === "/dashboard") {
+    return pathname === "/dashboard"
+  }
+  if (itemUrl === "/payouts") {
+    return pathname.startsWith("/payouts") && (!search || search === "" || !search.includes("tab=refunds"))
+  }
+  return pathname.startsWith(itemUrl)
+}
+
+export function NavMain({ items, pathname = "", search = "" }) {
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Workspace</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => {
-          const isActive =
-            item.url === "/dashboard"
-              ? pathname === "/dashboard"
-              : pathname.startsWith(item.url)
+          const isActive = navItemActive(item.url, pathname, search)
 
           return (
             <SidebarMenuItem key={item.title}>

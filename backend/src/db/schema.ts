@@ -1,4 +1,5 @@
 export * from "../modules/identity/users/user.schema.js";
+export * from "../modules/identity/addresses/customer-address.schema.js";
 export * from "../modules/identity/vendors/vendor.schema.js";
 export * from "../modules/identity/vendor-members/vendor-member.schema.js";
 export * from "../modules/assignment/field-assignments/order-field-assignment.schema.js";
@@ -13,6 +14,7 @@ export * from "../modules/catalog/pricing/city-price.schema.js";
 export * from "../modules/catalog/sections/section.schema.js";
 export * from "../modules/booking/carts/cart.schema.js";
 export * from "../modules/booking/orders/order.schema.js";
+export * from "../modules/booking/refunds/refund-request.schema.js";
 export * from "../modules/ops/settings/setting.schema.js";
 export * from "../modules/ops/audit/audit-log.schema.js";
 export * from "../modules/notifications/schema.js";

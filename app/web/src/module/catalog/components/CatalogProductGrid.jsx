@@ -18,7 +18,7 @@ import {
 import { normalizeProduct } from "@/module/home/lib/home-catalog";
 import { isBackendCityId, useLocationStore } from "@/store/location.store";
 
-const LIMIT = 24;
+const DEFAULT_LIMIT = 24;
 
 function parsePriceParam(value) {
   if (value == null || value === "") return null;
@@ -33,6 +33,7 @@ export function CatalogProductGrid({
   emptyTitle = "No packages yet",
   emptyDescription = "Check back soon or try another city.",
   pageParam = "page",
+  limit = DEFAULT_LIMIT,
 }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const city = useLocationStore((s) => s.city);
@@ -140,7 +141,7 @@ export function CatalogProductGrid({
       minPricePaise,
       maxPricePaise,
       page,
-      limit: LIMIT,
+      limit,
     })
       .then((data) => {
         if (cancelled) return;
@@ -168,7 +169,7 @@ export function CatalogProductGrid({
     return () => {
       cancelled = true;
     };
-  }, [hasLocation, pincode?.code, city?.id, listingKey, filterKey, sort, minPriceRupees, maxPriceRupees, page]);
+  }, [hasLocation, pincode?.code, city?.id, listingKey, filterKey, sort, minPriceRupees, maxPriceRupees, page, limit]);
 
   const showListingControls = hasLocation && status !== "need-location";
   const listingBusy = status === "loading";
@@ -267,7 +268,7 @@ export function CatalogProductGrid({
           </div>
           <CatalogPagination
             page={page}
-            limit={LIMIT}
+            limit={limit}
             total={total}
             onPageChange={setPage}
           />

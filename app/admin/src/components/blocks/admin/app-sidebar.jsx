@@ -1,6 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom"
 import { useEffect } from "react"
-import { LayoutDashboardIcon, MapPinIcon, ImagesIcon, TagsIcon, TicketPercentIcon, StarIcon, CalendarClockIcon, UsersIcon, Settings, MessageSquareIcon, WalletIcon, LayoutTemplateIcon, PaletteIcon } from "lucide-react"
+import { LayoutDashboardIcon, MapPinIcon, ImagesIcon, TagsIcon, TicketPercentIcon, StarIcon, CalendarClockIcon, UsersIcon, Settings, MessageSquareIcon, WalletIcon, LayoutTemplateIcon, PaletteIcon, RotateCcwIcon } from "lucide-react"
 import { getUnreadCount } from "@/api/chat.api"
 import { useChatStore } from "@/store/chat.store"
 import { NavMain } from "@/components/blocks/admin/nav-main"
@@ -78,6 +78,11 @@ const navItems = [
     icon: <WalletIcon />,
   },
   {
+    title: "Customer refunds",
+    url: "/payouts?tab=refunds",
+    icon: <RotateCcwIcon />,
+  },
+  {
     title: "Settings",
     url: "/settings",
     icon: <Settings />,
@@ -120,7 +125,7 @@ export function AppSidebar(props) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={items} pathname={location.pathname} />
+        <NavMain items={items} pathname={location.pathname} search={location.search} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

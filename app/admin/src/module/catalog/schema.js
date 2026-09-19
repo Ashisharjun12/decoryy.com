@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isValidSectionBadgeColor } from "@/module/catalog/lib/section-badge-color";
 
 export const CATEGORY_ICON_KEYS = [
   "cake",
@@ -106,6 +107,13 @@ export const addonFormSchema = z.object({
   isActive: z.boolean(),
 });
 
+const sectionBadgeColorSchema = z
+  .string()
+  .max(7)
+  .refine(isValidSectionBadgeColor, {
+    message: "Pick a preset or enter a valid hex color (#RGB or #RRGGBB)",
+  })
+
 export const sectionSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters"),
   slug: z
@@ -113,5 +121,6 @@ export const sectionSchema = z.object({
     .trim()
     .refine((v) => v.length === 0 || v.length >= 2, "Slug must be at least 2 characters"),
   sortIndex: z.coerce.number().int(),
+  badgeColor: sectionBadgeColorSchema,
   isActive: z.boolean(),
 });

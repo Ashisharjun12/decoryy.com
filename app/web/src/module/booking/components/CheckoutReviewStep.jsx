@@ -2,7 +2,6 @@ import { format } from "date-fns";
 import { formatPaise } from "@/lib/money";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { getCouponPaymentWarning } from "@/module/booking/lib/coupon-eligibility";
 
 function formatSlot(iso) {
@@ -98,10 +97,10 @@ export function CheckoutReviewStep({
         onClick={onPlace}
       >
         {placing ? (
-          <>
-            <Spinner className="size-4" />
+          <span className="inline-flex items-center gap-2">
+            <span className="size-4 animate-pulse rounded-md bg-primary-foreground/40" aria-hidden />
             Placing booking…
-          </>
+          </span>
         ) : (
           "Place booking"
         )}
