@@ -10,6 +10,9 @@ export type VendorRegisterPayload = {
   shopAddress: string;
   pincode: string;
   shopImageUploadId?: string;
+  baseLatitude?: number;
+  baseLongitude?: number;
+  baseGeoSource?: 'place_pin' | 'geocode_ola' | 'geocode_manual' | 'pincode_centroid' | 'device';
   androidAppHash?: string;
 };
 

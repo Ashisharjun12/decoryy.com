@@ -6,7 +6,12 @@ export class PincodeController {
     constructor(private readonly pincodes: IPincodeService) {}
 
     resolve = asyncHandler(async (req, res) => {
-        const data = await this.pincodes.resolve(String(req.query.pincode ?? ""));
+        const pincode = String(req.query.pincode ?? "");
+        const cityId =
+            typeof req.query.cityId === "string" && req.query.cityId.trim()
+                ? req.query.cityId.trim()
+                : undefined;
+        const data = await this.pincodes.lookup(pincode, cityId);
         res.status(200).json(new ApiResponse(200, data, "ok"));
     });
 

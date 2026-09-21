@@ -117,7 +117,10 @@ export function CheckoutPage() {
     cityId: null,
     pinStatus: "idle",
     pinMessage: "",
+    latitude: null,
+    longitude: null,
   });
+  const [deliveryGeoConfirmed, setDeliveryGeoConfirmed] = useState(false);
   const [payment, setPayment] = useState("");
   const [platformPay, setPlatformPay] = useState({ cod: true, online: false, provider: null });
   const [placing, setPlacing] = useState(false);
@@ -168,6 +171,19 @@ export function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cart?.pincode]);
 
+  const seededCartGeoRef = useRef(false);
+  useEffect(() => {
+    if (seededCartGeoRef.current) return;
+    if (cart?.deliveryLatitude == null || cart?.deliveryLongitude == null) return;
+    seededCartGeoRef.current = true;
+    setDeliveryGeoConfirmed(true);
+    setDelivery((prev) => ({
+      ...prev,
+      latitude: cart.deliveryLatitude,
+      longitude: cart.deliveryLongitude,
+    }));
+  }, [cart?.deliveryLatitude, cart?.deliveryLongitude]);
+
   const hasItems = Boolean(cart.items?.length);
   const cartReady = cartStatus === "ready" || cartStatus === "error";
   const items = cart.items ?? [];
@@ -190,12 +206,24 @@ export function CheckoutPage() {
     }
   }, [cartReady, cartStatus, hasItems, navigate]);
 
+  const isInstantCart = cart?.fulfillmentType === "instant";
+  const hasCartDeliveryGeo =
+    cart?.deliveryLatitude != null && cart?.deliveryLongitude != null && deliveryGeoConfirmed;
+
   const customerOk =
     customer.name.trim().length > 1 && isValidIndianMobile(customer.phone) && isEmail(customer.email);
-  const deliveryOk = delivery.pinStatus === "ok" && delivery.address.trim().length > 5;
+  const deliveryFieldsOk = delivery.pinStatus === "ok" && delivery.address.trim().length > 5;
+  const deliveryGeoOk = !isInstantCart || hasCartDeliveryGeo;
+  const deliveryOk = deliveryFieldsOk && deliveryGeoOk;
   const paymentOk = payment === "online" || payment === "cod";
 
   const canNext = step === 1 ? customerOk : step === 2 ? deliveryOk : step === 3 ? paymentOk : false;
+  const setCartLocation = useCartStore((s) => s.setLocation);
+
+  function handleDeliveryChange(next) {
+    setDelivery(next);
+    setDeliveryGeoConfirmed(false);
+  }
 
   function goTo(next) {
     if (next < 1 || next > 4) return;
@@ -203,9 +231,41 @@ export function CheckoutPage() {
     setStep(next);
   }
 
+  function deliveryStepHint() {
+    if (deliveryFieldsOk && !deliveryGeoOk && isInstantCart) {
+      return "Confirm your delivery location on the map for instant delivery.";
+    }
+    if (!deliveryFieldsOk) {
+      if (delivery.pinStatus === "error" && delivery.pinMessage) {
+        return delivery.pinMessage;
+      }
+      return "Enter a serviceable delivery PIN and full address.";
+    }
+    return "Complete delivery details to continue.";
+  }
+
+  async function syncCartDeliveryPin() {
+    if (!cart?.cityId || !delivery.pincode) return;
+    const pin = delivery.pincode.replace(/\D/g, "").slice(0, 6);
+    if (pin.length !== 6 || delivery.pinStatus !== "ok") return;
+    try {
+      await setCartLocation({ cityId: cart.cityId, pincode: pin });
+    } catch {
+      // checkout can still proceed; order uses delivery payload
+    }
+  }
+
   function onNext() {
-    if (!canNext) return;
+    if (!canNext) {
+      if (step === 2) {
+        toast.add({ title: deliveryStepHint(), type: "error" });
+      }
+      return;
+    }
     const next = Math.min(4, step + 1);
+    if (step === 2) {
+      void syncCartDeliveryPin();
+    }
     setMaxStep((prev) => Math.max(prev, next));
     setStep(next);
   }
@@ -214,6 +274,10 @@ export function CheckoutPage() {
     if (placing) return;
     if (!delivery.cityId) {
       toast.add({ title: "Enter a serviceable delivery PIN", type: "error" });
+      return;
+    }
+    if (isInstantCart && !hasCartDeliveryGeo) {
+      toast.add({ title: "Confirm your delivery location on the map", type: "error" });
       return;
     }
 
@@ -230,6 +294,12 @@ export function CheckoutPage() {
           address: delivery.address.trim(),
           landmark: delivery.landmark.trim() || undefined,
           cityId: delivery.cityId,
+          ...(cart.deliveryLatitude != null && cart.deliveryLongitude != null
+            ? {
+                latitude: cart.deliveryLatitude,
+                longitude: cart.deliveryLongitude,
+              }
+            : {}),
         },
         paymentMethod: payment,
         idempotencyKey: idempotencyKeyRef.current,
@@ -335,8 +405,10 @@ export function CheckoutPage() {
                 <StepSection step={2}>
                   <CheckoutDeliveryStep
                     value={delivery}
-                    onChange={setDelivery}
+                    onChange={handleDeliveryChange}
                     cartCityId={cart.cityId}
+                    geoConfirmed={deliveryGeoConfirmed}
+                    onGeoConfirmed={setDeliveryGeoConfirmed}
                   />
                 </StepSection>
               </StepperContent>

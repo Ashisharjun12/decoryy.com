@@ -1,6 +1,6 @@
 import { ApiError } from "@/shared/errors/apiError.js";
 import { isUniqueViolation } from "@/modules/geo/pg-error.js";
-import { assertServiceable } from "@/modules/geo/index.js";
+import { getActiveCityById, lookupPincode } from "@/modules/geo/index.js";
 import { slugify } from "@/modules/catalog/slug.js";
 import type { ICityRepository } from "@/modules/geo/cities/city.repository.js";
 import { publicCity, type PublicCity } from "@/modules/geo/cities/city.public.js";
@@ -50,8 +50,15 @@ export type PublicSection = CatalogSection & {
     items: ProductForCity[];
 };
 
+export type GlobalProductOccupancyItem = {
+    productId: string;
+    sectionId: string;
+    sectionName: string;
+};
+
 export interface ISectionService {
     listAdmin(): Promise<{ items: CatalogSection[] }>;
+    listGlobalProductOccupancy(): Promise<{ items: GlobalProductOccupancyItem[] }>;
     create(input: CreateSectionInput): Promise<CatalogSection>;
     patch(id: string, input: PatchSectionInput): Promise<CatalogSection>;
     delete(id: string): Promise<void>;
@@ -74,6 +81,11 @@ export class SectionService implements ISectionService {
 
     async listAdmin(): Promise<{ items: CatalogSection[] }> {
         const items = await this.sections.listAll();
+        return { items };
+    }
+
+    async listGlobalProductOccupancy(): Promise<{ items: GlobalProductOccupancyItem[] }> {
+        const items = await this.sections.findGlobalProductOccupancy();
         return { items };
     }
 
@@ -155,6 +167,9 @@ export class SectionService implements ISectionService {
             await this.requireCity(input.cityId);
         }
         await this.assertProductsExist(input.productIds);
+        if (input.cityId === null) {
+            await this.assertGlobalSectionExclusive(id, input.productIds);
+        }
         await this.sections.replaceProducts(id, input.cityId, input.productIds);
         await invalidateHome();
         return this.membership(id, input.cityId ?? undefined);
@@ -235,15 +250,26 @@ export class SectionService implements ISectionService {
         pincode?: string;
         cityId?: string;
     }): Promise<PublicCity> {
-        if (query.cityId) {
-            const row = await this.cities.findById(query.cityId);
-            if (!row || !row.isActive) {
-                throw ApiError.badRequest("city not serviceable");
+        const cityId = query.cityId?.trim() ?? "";
+        const pincode = String(query.pincode ?? "").trim();
+        if (cityId) {
+            const city = await getActiveCityById(cityId);
+            if (pincode) {
+                const lookup = await lookupPincode(pincode, city.id);
+                if (!lookup.deliverable) {
+                    throw ApiError.badRequest("pincode not serviceable");
+                }
             }
-            return publicCity(row);
+            return city;
         }
-        const resolved = await assertServiceable(String(query.pincode ?? ""));
-        return resolved.city;
+        if (pincode) {
+            const lookup = await lookupPincode(pincode);
+            if (!lookup.deliverable || !lookup.city) {
+                throw ApiError.badRequest("pincode not serviceable");
+            }
+            return lookup.city;
+        }
+        throw ApiError.badRequest("pincode or cityId is required");
     }
 
     private async membership(sectionId: string, cityId?: string): Promise<SectionMembership> {
@@ -281,6 +307,20 @@ export class SectionService implements ISectionService {
         const found = await this.products.findByIds(productIds);
         if (found.length !== productIds.length) {
             throw ApiError.badRequest("product not found");
+        }
+    }
+
+    private async assertGlobalSectionExclusive(sectionId: string, productIds: string[]): Promise<void> {
+        if (productIds.length === 0) return;
+        const rows = await this.sections.findGlobalProductOccupancy();
+        const byProduct = new Map(rows.map((row) => [row.productId, row]));
+        for (const productId of productIds) {
+            const existing = byProduct.get(productId);
+            if (existing && existing.sectionId !== sectionId) {
+                throw ApiError.badRequest(
+                    `product is already in global section "${existing.sectionName}"`,
+                );
+            }
         }
     }
 }

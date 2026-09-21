@@ -11,6 +11,21 @@ import {
   emptyAddressForm,
 } from "@/module/account/components/AddressFormDialog";
 import { useAddressMutations, useAddressesQuery } from "@/module/account/hooks/use-addresses-query";
+import { useCartStore } from "@/store/cart.store";
+
+function checkoutAddressInitial(delivery) {
+  const pin = (delivery?.pincode ?? "").replace(/\D/g, "").slice(0, 6);
+  return {
+    ...emptyAddressForm,
+    pincode: pin,
+    address: delivery?.address ?? "",
+    landmark: delivery?.landmark ?? "",
+    cityName: delivery?.cityName ?? "",
+    cityId: delivery?.cityId ?? null,
+    latitude: delivery?.latitude ?? null,
+    longitude: delivery?.longitude ?? null,
+  };
+}
 
 function applyAddressToDelivery(address, cartCityId) {
   const mismatch = cartCityId && address.cityId && address.cityId !== cartCityId;
@@ -20,9 +35,11 @@ function applyAddressToDelivery(address, cartCityId) {
     landmark: address.landmark ?? "",
     cityName: address.cityName,
     cityId: address.cityId,
+    latitude: address.latitude ?? null,
+    longitude: address.longitude ?? null,
     pinStatus: mismatch ? "error" : "ok",
     pinMessage: mismatch
-      ? `This address is in ${address.cityName}. Your bag is priced for a different city.`
+      ? `This address is in ${address.cityName}. Your order is priced for a different city.`
       : address.cityName
         ? `We deliver to ${address.cityName}`
         : "We deliver here",
@@ -37,18 +54,40 @@ export function CheckoutAddressPicker({
   onUseManualChange,
   onReturnToSaved,
   onExitManual,
+  onGeoConfirmed,
 }) {
   const { data: addresses = [], isLoading } = useAddressesQuery();
   const { create } = useAddressMutations();
+  const setDeliveryGeo = useCartStore((s) => s.setDeliveryGeo);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [addressFormInitial, setAddressFormInitial] = useState(emptyAddressForm);
   const [selectedId, setSelectedId] = useState(null);
+
+  function openAddressDialog() {
+    setAddressFormInitial(checkoutAddressInitial(value));
+    setDialogOpen(true);
+  }
 
   const hasSaved = addresses.length > 0;
 
-  function selectAddress(address) {
+  async function selectAddress(address) {
     setSelectedId(address.id);
     onExitManual?.();
     onChange({ ...value, ...applyAddressToDelivery(address, cartCityId) });
+    if (address.latitude != null && address.longitude != null) {
+      try {
+        await setDeliveryGeo({
+          latitude: address.latitude,
+          longitude: address.longitude,
+        });
+        onGeoConfirmed?.(true);
+      } catch (err) {
+        onGeoConfirmed?.(false);
+        toast.add({ title: getApiError(err), type: "error" });
+      }
+    } else {
+      onGeoConfirmed?.(false);
+    }
   }
 
   function startManualEntry() {
@@ -94,7 +133,7 @@ export function CheckoutAddressPicker({
               type="button"
               size="sm"
               className="shrink-0 gap-1.5"
-              onClick={() => setDialogOpen(true)}
+              onClick={openAddressDialog}
             >
               <PlusIcon className="size-4" />
               Add address
@@ -119,6 +158,9 @@ export function CheckoutAddressPicker({
                       <span className="text-sm font-semibold">{row.label}</span>
                       {row.isDefault ? (
                         <Badge variant="secondary" className="text-[10px]">Default</Badge>
+                      ) : null}
+                      {row.latitude != null && row.longitude != null ? (
+                        <Badge variant="outline" className="text-[10px]">Pin saved</Badge>
                       ) : null}
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
@@ -172,7 +214,7 @@ export function CheckoutAddressPicker({
               type="button"
               size="sm"
               className="shrink-0 gap-1.5"
-              onClick={() => setDialogOpen(true)}
+              onClick={openAddressDialog}
             >
               <PlusIcon className="size-4" />
               Add address
@@ -194,7 +236,10 @@ export function CheckoutAddressPicker({
       <AddressFormDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        initial={emptyAddressForm}
+        title="Add delivery address"
+        description="Enter where we should set up your decoration. You will pin the exact spot next."
+        submitLabel="Save & use for order"
+        initial={addressFormInitial}
         submitting={create.isPending}
         onSubmit={(body) => void onCreateAddress(body)}
       />

@@ -7,7 +7,7 @@ import { getAiPolicy } from "@/api/settings.api"
 import { createProduct, deleteCityPrice, getAdmin, patchProduct, setCityPrice } from "@/api/products.api"
 import { listAdmin as listCategories } from "@/api/categories.api"
 import { listAdmin as listCities } from "@/api/cities.api"
-import { getPaymentMethods } from "@/api/settings.api"
+import { getInstantMarketplacePolicy, getPaymentMethods } from "@/api/settings.api"
 import { getApiError } from "@/api/api"
 import { toSellAndCompare } from "@/lib/money"
 import {
@@ -46,6 +46,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { InputGroup, InputGroupTextarea } from "@/components/ui/input-group"
 import {
   Select,
@@ -59,6 +60,13 @@ import { Spinner } from "@/components/ui/spinner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ProductAiGenerateButton } from "@/module/catalog/components/ProductAiGenerateButton"
 import { ProductAiGenerateDialog } from "@/module/catalog/components/ProductAiGenerateDialog"
+import { AdminInfoTip } from "@/components/admin-info-tip"
+import {
+  fulfillmentCardInfoContent,
+  INSTANT_COPY_SECTION_INFO,
+  INSTANT_SWITCH_INFO,
+  PRODUCT_DETAILS_INFO,
+} from "@/module/catalog/lib/fulfillment-info-copy"
 
 const CATALOG_PRODUCTS = "/catalog?tab=products"
 
@@ -80,12 +88,17 @@ export function ProductFormPage() {
       isActive: false,
       scheduledEnabled: true,
       instantEnabled: false,
+      instantShowBadge: true,
+      instantBadgeLabel: "",
+      instantPdpNote: "",
+      instantEtaMinutes: "",
       paymentCod: true,
       paymentOnline: false,
     },
   })
   const parentCategoryId = form.watch("parentCategoryId")
   const categoryId = form.watch("categoryId")
+  const instantEnabled = form.watch("instantEnabled")
   const nameValue = form.watch("name")
   const slugValue = form.watch("slug")
   const descriptionValue = form.watch("description")
@@ -113,6 +126,7 @@ export function ProductFormPage() {
   const [aiPolicyLoading, setAiPolicyLoading] = useState(true)
   const [loadedCategoryName, setLoadedCategoryName] = useState("")
   const [aiDialogOpen, setAiDialogOpen] = useState(false)
+  const [marketplaceInstant, setMarketplaceInstant] = useState(null)
 
   const refreshAiPolicy = useCallback(async () => {
     try {
@@ -167,6 +181,29 @@ export function ProductFormPage() {
       refreshAiPolicy()
     }
   }, [aiDialogOpen, refreshAiPolicy])
+
+  const refreshMarketplaceInstant = useCallback(async () => {
+    try {
+      const policy = await getInstantMarketplacePolicy()
+      setMarketplaceInstant(policy)
+      return policy
+    } catch {
+      setMarketplaceInstant({ enabled: false })
+      return null
+    }
+  }, [])
+
+  useEffect(() => {
+    void refreshMarketplaceInstant()
+  }, [refreshMarketplaceInstant])
+
+  useEffect(() => {
+    function onFocus() {
+      void refreshMarketplaceInstant()
+    }
+    window.addEventListener("focus", onFocus)
+    return () => window.removeEventListener("focus", onFocus)
+  }, [refreshMarketplaceInstant])
 
   useEffect(() => {
     let cancelled = false
@@ -225,6 +262,11 @@ export function ProductFormPage() {
           isActive: Boolean(product.isActive),
           scheduledEnabled: product.scheduledEnabled !== false,
           instantEnabled: Boolean(product.instantEnabled),
+          instantShowBadge: product.instantShowBadge !== false,
+          instantBadgeLabel: product.instantBadgeLabel ?? "",
+          instantPdpNote: product.instantPdpNote ?? "",
+          instantEtaMinutes:
+            product.instantEtaMinutes != null ? String(product.instantEtaMinutes) : "",
           paymentCod: product.paymentCod !== false,
           paymentOnline: Boolean(product.paymentOnline),
         })
@@ -369,6 +411,19 @@ export function ProductFormPage() {
       faqs: fromFaqRows(faqs),
       scheduledEnabled: values.scheduledEnabled,
       instantEnabled: values.instantEnabled,
+      ...(values.instantEnabled
+        ? {
+            instantShowBadge: values.instantShowBadge,
+            instantBadgeLabel: values.instantBadgeLabel.trim() || null,
+            instantPdpNote: values.instantPdpNote.trim() || null,
+            instantEtaMinutes: values.instantEtaMinutes ?? null,
+          }
+        : {
+            instantShowBadge: false,
+            instantBadgeLabel: null,
+            instantPdpNote: null,
+            instantEtaMinutes: null,
+          }),
       paymentCod: values.paymentCod,
       paymentOnline: values.paymentOnline,
       pricePaise: defaults.pricePaise,
@@ -493,8 +548,11 @@ export function ProductFormPage() {
           <Card>
             <CardHeader className="flex flex-row items-start justify-between gap-4">
               <div>
-                <CardTitle>Product details</CardTitle>
-                <CardDescription>Name and copy shown on the booking menu.</CardDescription>
+                <CardTitle className="flex items-center gap-0.5">
+                  Product details
+                  <AdminInfoTip content={PRODUCT_DETAILS_INFO} />
+                </CardTitle>
+                <CardDescription>Menu copy</CardDescription>
               </div>
               <ProductAiGenerateButton
                 aiPolicy={aiPolicy}
@@ -730,7 +788,17 @@ export function ProductFormPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Fulfillment</CardTitle>
+              <CardTitle className="flex items-center gap-0.5">
+                Fulfillment
+                <AdminInfoTip
+                  content={fulfillmentCardInfoContent({
+                    policyLoaded: marketplaceInstant != null,
+                    marketplaceEnabled: Boolean(marketplaceInstant?.enabled),
+                    productInstantEnabled: instantEnabled,
+                  })}
+                />
+              </CardTitle>
+              <CardDescription>Booking modes</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               <Controller
@@ -740,7 +808,7 @@ export function ProductFormPage() {
                   <Field orientation="horizontal" data-invalid={fieldState.invalid}>
                     <div className="flex min-w-0 flex-col gap-1">
                       <FieldLabel htmlFor="scheduled-enabled">Scheduled</FieldLabel>
-                      <FieldDescription>Customer picks a slot.</FieldDescription>
+                      <FieldDescription>Date &amp; time slot</FieldDescription>
                     </div>
                     <Switch
                       id="scheduled-enabled"
@@ -756,8 +824,11 @@ export function ProductFormPage() {
                 render={({ field }) => (
                   <Field orientation="horizontal">
                     <div className="flex min-w-0 flex-col gap-1">
-                      <FieldLabel htmlFor="instant-enabled">Instant</FieldLabel>
-                      <FieldDescription>Stored for later. Booking does not dispatch Instant yet.</FieldDescription>
+                      <FieldLabel htmlFor="instant-enabled" className="inline-flex items-center gap-0.5">
+                        Instant
+                        <AdminInfoTip content={INSTANT_SWITCH_INFO} />
+                      </FieldLabel>
+                      <FieldDescription>Fast booking</FieldDescription>
                     </div>
                     <Switch
                       id="instant-enabled"
@@ -769,6 +840,81 @@ export function ProductFormPage() {
               />
               {form.formState.errors.scheduledEnabled ? (
                 <FieldError errors={[form.formState.errors.scheduledEnabled]} />
+              ) : null}
+              {instantEnabled ? (
+                <div className="flex flex-col gap-4 border-t border-border pt-4">
+                  <p className="flex items-center gap-0.5 text-sm font-medium text-foreground">
+                    Storefront copy
+                    <AdminInfoTip content={INSTANT_COPY_SECTION_INFO} />
+                  </p>
+                  <Controller
+                    name="instantShowBadge"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Field orientation="horizontal">
+                        <div className="flex min-w-0 flex-col gap-1">
+                          <FieldLabel htmlFor="instant-show-badge">Show badge on cards</FieldLabel>
+                          <FieldDescription>Web catalog and home rails.</FieldDescription>
+                        </div>
+                        <Switch
+                          id="instant-show-badge"
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    name="instantBadgeLabel"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Field>
+                        <FieldLabel htmlFor="instant-badge-label">Badge label</FieldLabel>
+                        <FieldDescription>Defaults to “Instant” when empty.</FieldDescription>
+                        <Input
+                          id="instant-badge-label"
+                          placeholder="Instant"
+                          {...field}
+                        />
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    name="instantPdpNote"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Field>
+                        <FieldLabel htmlFor="instant-pdp-note">PDP note</FieldLabel>
+                        <FieldDescription>Short line under instant option on product page.</FieldDescription>
+                        <Textarea
+                          id="instant-pdp-note"
+                          rows={3}
+                          placeholder="Decorator assigned as soon as payment confirms."
+                          {...field}
+                        />
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    name="instantEtaMinutes"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Field>
+                        <FieldLabel htmlFor="instant-eta">Typical ETA (minutes)</FieldLabel>
+                        <FieldDescription>Optional; shown on PDP when set (15–480).</FieldDescription>
+                        <Input
+                          id="instant-eta"
+                          type="number"
+                          min={15}
+                          max={480}
+                          placeholder="60"
+                          value={field.value ?? ""}
+                          onChange={(event) => field.onChange(event.target.value)}
+                        />
+                      </Field>
+                    )}
+                  />
+                </div>
               ) : null}
             </CardContent>
           </Card>

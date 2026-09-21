@@ -27,6 +27,8 @@ export * from "../modules/payments/collections/collection-session.schema.js";
 export * from "../modules/payments/payout-methods/vendor-payout-method.schema.js";
 export * from "../modules/payments/payouts/payout-request.schema.js";
 export * from "../modules/assignment/assignments/assignment.schema.js";
+export * from "../modules/dispatch/offers/dispatch-offer.schema.js";
+export * from "../modules/booking/domain/geo-enums.js";
 export * from "../modules/chat/conversations/conversation.schema.js";
 export * from "../modules/promotions/coupons/coupon.schema.js";
 export * from "../modules/promotions/targets/coupon-target.schema.js";

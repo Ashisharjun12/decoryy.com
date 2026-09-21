@@ -34,6 +34,11 @@ export class CartController {
         res.status(200).json(new ApiResponse(200, data, "location updated"));
     });
 
+    setDeliveryGeo = asyncHandler(async (req, res) => {
+        const data = await this.carts.setDeliveryGeo(req, res, req.actor, req.body);
+        res.status(200).json(new ApiResponse(200, data, "delivery location saved"));
+    });
+
     merge = asyncHandler(async (req, res) => {
         if (!req.actor?.id) {
             throw ApiError.unauthorized("login required");

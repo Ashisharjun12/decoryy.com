@@ -7,6 +7,7 @@ const NOTIFICATION_PROMPT_KEY = 'decoryy_vendor_notification_prompt_completed';
 const LOCATION_PROMPT_KEY = 'decoryy_vendor_location_prompt_completed';
 const PERMISSIONS_SETUP_KEY = 'decoryy_vendor_permissions_setup_completed';
 const APP_THEME_KEY = 'decoryy_vendor_app_theme';
+const ACTIVE_EN_ROUTE_ORDER_KEY = 'decoryy_vendor_active_en_route_order_id';
 
 export async function loadAccessToken() {
   return SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
@@ -90,4 +91,17 @@ export async function loadAppTheme() {
 
 export async function saveAppTheme(theme: 'light' | 'dark') {
   await SecureStore.setItemAsync(APP_THEME_KEY, theme);
+}
+
+export async function loadActiveEnRouteOrderId(): Promise<string | null> {
+  const value = await SecureStore.getItemAsync(ACTIVE_EN_ROUTE_ORDER_KEY);
+  return value?.trim() ? value.trim() : null;
+}
+
+export async function saveActiveEnRouteOrderId(orderId: string) {
+  await SecureStore.setItemAsync(ACTIVE_EN_ROUTE_ORDER_KEY, orderId);
+}
+
+export async function clearActiveEnRouteOrderId() {
+  await SecureStore.deleteItemAsync(ACTIVE_EN_ROUTE_ORDER_KEY);
 }

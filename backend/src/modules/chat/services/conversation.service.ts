@@ -16,6 +16,7 @@ import type { IChatAclService } from "@/modules/chat/services/chat-acl.service.j
 import type { UserRole } from "@/modules/identity/users/user.schema.js";
 import type { IMessageRepository } from "@/modules/chat/messages/message.repository.js";
 import { presenceStore } from "@/infrastructure/realtime/presence.store.js";
+import { resolveServiceContact } from "@/modules/booking/lib/resolve-service-contact.js";
 
 export type ChatPeerView = {
     name: string;
@@ -505,29 +506,18 @@ export class ConversationService implements IConversationService {
     }
 
     private async resolveBookingChatPeer(orderId: string): Promise<ChatPeerView | null> {
-        const assignment = await this.assignments.findActiveByOrderId(orderId);
-        if (!assignment) return null;
-
-        const vendor = await this.vendors.findById(assignment.vendorId);
-        if (!vendor) return null;
-
-        const fieldRows = await this.fieldAssignments.listForOrder(assignment.vendorId, orderId);
-        const worker = fieldRows[0];
-        if (worker?.userId) {
-            const workerUser = await this.users.findById(worker.userId);
-            return {
-                kind: "worker",
-                name: worker.displayName || workerUser?.name || "Your decorator",
-                phone: workerUser?.phone ?? null,
-            };
-        }
-
-        const shopDetail = await this.vendors.findAdminDetail(vendor.id);
-        const shopUser = await this.users.findById(vendor.userId);
+        const order = await this.orders.findById(orderId);
+        const contact = await resolveServiceContact(orderId, order?.status ?? "", {
+            assignments: this.assignments,
+            fieldAssignments: this.fieldAssignments,
+            vendors: this.vendors,
+            users: this.users,
+        });
+        if (!contact) return null;
         return {
-            kind: "shop",
-            name: shopDetail?.name ?? shopUser?.name ?? "Your decorator",
-            phone: shopDetail?.phone ?? shopUser?.phone ?? null,
+            kind: contact.kind,
+            name: contact.name,
+            phone: contact.phone,
         };
     }
 }

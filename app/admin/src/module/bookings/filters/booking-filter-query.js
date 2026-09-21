@@ -34,6 +34,15 @@ export function queryToBookingListParams(query) {
     ) {
       params.paymentMethod = value;
     }
+    if (cond.field === "fulfillmentType" && (value === "instant" || value === "scheduled")) {
+      params.fulfillmentType = value;
+    }
+    if (
+      cond.field === "dispatchStatus" &&
+      ["idle", "searching", "offering", "accepted", "exhausted", "cancelled"].includes(value)
+    ) {
+      params.dispatchStatus = value;
+    }
   }
   return params;
 }

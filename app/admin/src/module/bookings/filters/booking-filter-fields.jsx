@@ -1,4 +1,4 @@
-import { CircleDotIcon, CreditCardIcon, MapPinIcon } from "lucide-react"
+import { CircleDotIcon, CreditCardIcon, MapPinIcon, ZapIcon } from "lucide-react"
 import { BOOKING_STATUS_OPTIONS } from "@/module/bookings/lib/booking-status"
 
 const IS = [{ value: "is", label: "is", arity: "one" }];
@@ -44,6 +44,35 @@ export function buildBookingFilterFields({ cities = [] } = {}) {
         { value: "PREPAID", label: "Already paid" },
       ],
       icon: <CreditCardIcon />,
+    },
+    {
+      id: "fulfillmentType",
+      label: "Fulfillment",
+      type: "select",
+      defaultOperator: "is",
+      operators: IS,
+      searchable: false,
+      options: [
+        { value: "instant", label: "Instant" },
+        { value: "scheduled", label: "Scheduled" },
+      ],
+      icon: <ZapIcon />,
+    },
+    {
+      id: "dispatchStatus",
+      label: "Dispatch",
+      type: "select",
+      defaultOperator: "is",
+      operators: IS,
+      searchable: false,
+      options: [
+        { value: "exhausted", label: "Dispatch exhausted" },
+        { value: "offering", label: "Offer pending" },
+        { value: "searching", label: "Searching" },
+        { value: "accepted", label: "Dispatch accepted" },
+        { value: "idle", label: "Dispatch idle" },
+      ],
+      icon: <ZapIcon />,
     },
   ];
 }

@@ -3,6 +3,9 @@ import { aiSettingsRouter } from "@/modules/ai/index.js";
 import type { SettingController } from "@/modules/ops/settings/setting.controller.js";
 import {
     patchBookingPolicyDto,
+    patchInstantDispatchDto,
+    patchInstantMapsDto,
+    patchInstantMarketplaceDto,
     patchNotificationChannelsDto,
     patchPaymentMethodsDto,
     patchPayoutPolicyDto,
@@ -36,6 +39,21 @@ export function createSettingsAdminRouter(controller: SettingController) {
         "/booking-policy",
         validate(patchBookingPolicyDto),
         controller.patchBookingPolicy,
+    );
+    router.get("/instant-dispatch", controller.getInstantDispatch);
+    router.patch(
+        "/instant-dispatch",
+        validate(patchInstantDispatchDto),
+        controller.patchInstantDispatch,
+    );
+    router.post("/instant-dispatch/system-user", controller.resolveInstantDispatchSystemUser);
+    router.get("/instant-maps", controller.getInstantMaps);
+    router.patch("/instant-maps", validate(patchInstantMapsDto), controller.patchInstantMaps);
+    router.get("/instant-marketplace", controller.getInstantMarketplace);
+    router.patch(
+        "/instant-marketplace",
+        validate(patchInstantMarketplaceDto),
+        controller.patchInstantMarketplace,
     );
     router.use("/ai", aiSettingsRouter);
     return router;

@@ -52,6 +52,9 @@ export async function submitVendorRegistration(
     shopAddress: payload.shopAddress,
     pincode: payload.pincode,
     shopImageUploadId,
+    baseLatitude: payload.baseLatitude,
+    baseLongitude: payload.baseLongitude,
+    baseGeoSource: payload.baseLatitude != null ? 'place_pin' : undefined,
     androidAppHash: await getAndroidOtpAppHash(),
   });
 
@@ -67,6 +70,8 @@ type ReapplyPayload = {
   shopAddress: string;
   pincode: string;
   shopImageUri?: string;
+  baseLatitude?: number;
+  baseLongitude?: number;
 };
 
 export async function submitVendorReapply(payload: ReapplyPayload) {
@@ -92,5 +97,8 @@ export async function submitVendorReapply(payload: ReapplyPayload) {
     shopAddress: payload.shopAddress,
     pincode: payload.pincode,
     shopImageUploadId,
+    baseLatitude: payload.baseLatitude,
+    baseLongitude: payload.baseLongitude,
+    baseGeoSource: payload.baseLatitude != null ? 'place_pin' : undefined,
   });
 }

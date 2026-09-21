@@ -28,14 +28,30 @@ import {
     assertAcceptingBookings,
     assertBookableSlot,
 } from "@/modules/booking/slots/slot.service.js";
+import {
+    assertInstantMarketplaceAllowed,
+    inferCartFulfillment,
+    instantScheduledAt,
+} from "@/modules/booking/lib/instant-fulfillment.js";
+import { buildOrderTracking } from "@/modules/dispatch/tracking/tracking.service.js";
+import type { PublicOrderTracking } from "@/modules/dispatch/tracking/tracking.service.js";
+import { buildOrderTripRoute } from "@/modules/maps/order-route.service.js";
+import type { RouteResult } from "@/modules/maps/maps.types.js";
 import { scheduleBookingReminders } from "@/modules/assignment/jobs/assignment-reminder.service.js";
-import { assertServiceable, getActiveCityById } from "@/modules/geo/index.js";
+import { assertDeliveryLocation, getActiveCityById } from "@/modules/geo/index.js";
 import { parsePagination, type Paginated } from "@/shared/http/pagination.js";
 import type { INotificationService } from "@/modules/notifications/notification.service.js";
 import { bookingTrackUrl } from "@/modules/notifications/lib/render.js";
 import { settingService } from "@/modules/ops/index.js";
 import { activeOnlineProvider } from "@/modules/ops/settings/payment-methods.js";
 import type { IAssignmentRepository } from "@/modules/assignment/assignments/assignment.repository.js";
+import { OrderFieldAssignmentRepository } from "@/modules/assignment/field-assignments/order-field-assignment.repository.js";
+import {
+    resolveServiceContact,
+    type PublicServiceContact,
+} from "@/modules/booking/lib/resolve-service-contact.js";
+import { VendorRepository } from "@/modules/identity/vendors/vendor.repository.js";
+import { UserRepository } from "@/modules/identity/users/user.repository.js";
 import type { CheckoutPayload, IPaymentIntentService } from "@/modules/payments/intents/payment-intent.service.js";
 import { orderFinancialService } from "@/modules/payments/order-financials/order-financial.service.js";
 import { promotionService } from "@/modules/promotions/index.js";
@@ -109,6 +125,8 @@ export type PublicAdminOrderSummary = PublicOrderSummary & {
     source: string;
     assigneeName: string | null;
     createdAt: string;
+    fulfillmentType: "scheduled" | "instant";
+    dispatchStatus: string;
 };
 
 export type PublicAssignee = {
@@ -120,6 +138,8 @@ export type PublicAssignee = {
     vendorResponse?: "pending" | "accepted" | "declined";
 };
 
+export type { PublicServiceContact };
+
 export type PublicOrder = {
     id: string;
     userId: string;
@@ -128,6 +148,8 @@ export type PublicOrder = {
     paymentMethod: string;
     cityId: string;
     pincode: string;
+    fulfillmentType: "scheduled" | "instant";
+    dispatchStatus: string;
     scheduledAt: string;
     subtotalPaise: number;
     discountPaise: number;
@@ -150,6 +172,7 @@ export type PublicOrder = {
     adminNotes?: string | null;
     isCustomPackage?: boolean;
     assignee?: PublicAssignee | null;
+    serviceContact?: PublicServiceContact | null;
     deliveryCodePending?: boolean;
     canReview: boolean;
     reviewSubmitted: boolean;
@@ -176,6 +199,8 @@ export interface IOrderService {
     createFromCart(userId: string, input: CreateOrderInput): Promise<CreateOrderResult>;
     createAdminOrder(adminId: string, input: AdminCreateOrderInput): Promise<CreateOrderResult>;
     getForUser(userId: string, orderId: string): Promise<PublicOrder>;
+    getTrackingForUser(userId: string, orderId: string): Promise<PublicOrderTracking>;
+    getRouteForUser(userId: string, orderId: string): Promise<RouteResult>;
     submitReview(
         userId: string,
         orderId: string,
@@ -226,6 +251,8 @@ function toAdminListFilter(query: AdminOrderListQuery): AdminOrderListFilter {
         sort: query.sort,
         userId: query.userId,
         vendorId: query.vendorId,
+        fulfillmentType: query.fulfillmentType,
+        dispatchStatus: query.dispatchStatus,
     };
 }
 
@@ -256,6 +283,9 @@ function reviewMeta(
 export class OrderService implements IOrderService {
     private readonly carts = new CartRepository();
     private readonly addons = new AddonRepository();
+    private readonly fieldAssignments = new OrderFieldAssignmentRepository();
+    private readonly vendors = new VendorRepository();
+    private readonly users = new UserRepository();
 
     constructor(
         private readonly orders: IOrderRepository,
@@ -332,6 +362,8 @@ export class OrderService implements IOrderService {
                 source: row.source,
                 assigneeName: assignees.get(row.id)?.name ?? null,
                 createdAt: row.createdAt.toISOString(),
+                fulfillmentType: row.fulfillmentType,
+                dispatchStatus: row.dispatchStatus,
                 canReview: false,
                 reviewSubmitted: false,
             })),
@@ -390,21 +422,19 @@ export class OrderService implements IOrderService {
 
         const bookingPolicy = await settingService.getBookingPolicy();
         assertAcceptingBookings(bookingPolicy);
-        assertBookableSlot(loaded.scheduledAt, bookingPolicy);
+
+        const fulfillmentType = await inferCartFulfillment(loaded, loaded.items, loaded.cityId);
+        if (fulfillmentType === "instant") {
+            await assertInstantMarketplaceAllowed();
+        } else {
+            assertBookableSlot(loaded.scheduledAt, bookingPolicy);
+        }
 
         const deliveryPin = normalizePincode(input.delivery.pincode);
-        const resolved = await assertServiceable(deliveryPin);
-        if (resolved.city.id !== input.delivery.cityId) {
-            throw ApiError.badRequest("delivery PIN does not match bag city");
+        if (input.delivery.cityId !== loaded.cityId) {
+            throw ApiError.badRequest("delivery city does not match bag city");
         }
-        if (resolved.city.id !== loaded.cityId) {
-            throw ApiError.badRequest("delivery PIN does not match bag city");
-        }
-
-        const cartPin = loaded.pincode ? normalizePincode(loaded.pincode) : null;
-        if (cartPin && cartPin !== deliveryPin) {
-            throw ApiError.badRequest("PIN must match bag");
-        }
+        await assertDeliveryLocation({ cityId: input.delivery.cityId, pincode: deliveryPin });
 
         const city = await getActiveCityById(loaded.cityId);
         const cityName = city.name;
@@ -420,6 +450,9 @@ export class OrderService implements IOrderService {
 
         for (const item of loaded.items) {
             const product = await getProductForCity(item.productId, loaded.cityId);
+            if (fulfillmentType === "instant" && !product.instantEnabled) {
+                throw ApiError.badRequest("one or more items are not available for instant booking");
+            }
             if (isOnline && !product.paymentOnline) {
                 throw ApiError.badRequest("one or more items do not support online payment");
             }
@@ -427,6 +460,20 @@ export class OrderService implements IOrderService {
                 throw ApiError.badRequest("one or more items do not support cash on delivery");
             }
         }
+
+        const scheduledAt =
+            fulfillmentType === "instant"
+                ? await instantScheduledAt()
+                : loaded.scheduledAt!;
+
+        let deliveryLatitude = loaded.deliveryLatitude ?? input.delivery.latitude ?? null;
+        let deliveryLongitude = loaded.deliveryLongitude ?? input.delivery.longitude ?? null;
+        const deliveryGeoSource =
+            deliveryLatitude !== null && deliveryLongitude !== null
+                ? ("geocode_manual" as const)
+                : null;
+        const deliveryGeoAt =
+            deliveryLatitude !== null && deliveryLongitude !== null ? new Date() : null;
 
         const promotionLines = await this.buildPromotionLines(loaded.cityId, items);
         let discountPaise = 0;
@@ -467,7 +514,13 @@ export class OrderService implements IOrderService {
             paymentMethod: isOnline ? "ONLINE" : "COD",
             cityId: loaded.cityId,
             pincode: deliveryPin,
-            scheduledAt: loaded.scheduledAt!,
+            fulfillmentType,
+            dispatchStatus: fulfillmentType === "instant" ? "idle" : "idle",
+            deliveryLatitude,
+            deliveryLongitude,
+            deliveryGeoSource,
+            deliveryGeoAt,
+            scheduledAt,
             subtotalPaise,
             discountPaise,
             couponId,
@@ -529,10 +582,7 @@ export class OrderService implements IOrderService {
         assertBookableSlot(scheduledAt, bookingPolicy);
 
         const deliveryPin = normalizePincode(input.delivery.pincode);
-        const resolved = await assertServiceable(deliveryPin);
-        if (resolved.city.id !== input.delivery.cityId) {
-            throw ApiError.badRequest("delivery PIN does not match city");
-        }
+        await assertDeliveryLocation({ cityId: input.delivery.cityId, pincode: deliveryPin });
 
         const city = await getActiveCityById(input.delivery.cityId);
         const paymentMethod = input.paymentMethod === "prepaid" ? "PREPAID" : "COD";
@@ -598,6 +648,22 @@ export class OrderService implements IOrderService {
         return { order: publicOrder };
     }
 
+    async getTrackingForUser(userId: string, orderId: string): Promise<PublicOrderTracking> {
+        const order = await this.orders.findByIdForUser(orderId, userId);
+        if (!order) {
+            throw ApiError.notFound("order not found");
+        }
+        return buildOrderTracking(order);
+    }
+
+    async getRouteForUser(userId: string, orderId: string): Promise<RouteResult> {
+        const order = await this.orders.findByIdForUser(orderId, userId);
+        if (!order) {
+            throw ApiError.notFound("order not found");
+        }
+        return buildOrderTripRoute(order);
+    }
+
     async getForUser(userId: string, orderId: string): Promise<PublicOrder> {
         const order = await this.orders.findByIdForUser(orderId, userId);
         if (!order) {
@@ -607,10 +673,23 @@ export class OrderService implements IOrderService {
         if (!loaded) {
             throw ApiError.notFound("order not found");
         }
+        const onActiveTrip = ACTIVE_TRIP_STATUSES.has(loaded.status);
+        const showServiceContact =
+            this.assignments &&
+            loaded.status !== "CANCELLED" &&
+            (onActiveTrip || loaded.status === "COMPLETED");
         const assignee =
-            ACTIVE_TRIP_STATUSES.has(loaded.status) && this.assignments
+            onActiveTrip && this.assignments
                 ? await this.assignments.findAssigneeByOrderId(orderId)
                 : null;
+        const serviceContact = showServiceContact
+            ? await resolveServiceContact(orderId, loaded.status, {
+                  assignments: this.assignments!,
+                  fieldAssignments: this.fieldAssignments,
+                  vendors: this.vendors,
+                  users: this.users,
+              })
+            : null;
         const publicOrder = await this.enrichAddonImages(this.toPublic(loaded));
         const deliveryCodePending =
             loaded.status === "ON_SITE" ? await hasDeliveryCodePending(orderId) : false;
@@ -621,6 +700,7 @@ export class OrderService implements IOrderService {
         return {
             ...publicOrder,
             assignee: assignee ?? null,
+            serviceContact: serviceContact ?? null,
             deliveryCodePending,
             canReview: loaded.isCustomPackage ? false : meta.canReview,
             reviewSubmitted: meta.reviewSubmitted,
@@ -875,6 +955,8 @@ export class OrderService implements IOrderService {
             paymentMethod: order.paymentMethod,
             cityId: order.cityId,
             pincode: order.pincode,
+            fulfillmentType: order.fulfillmentType,
+            dispatchStatus: order.dispatchStatus,
             scheduledAt: order.scheduledAt.toISOString(),
             subtotalPaise: order.subtotalPaise,
             discountPaise: order.discountPaise ?? 0,
@@ -918,7 +1000,14 @@ export class OrderService implements IOrderService {
     }
 
     async sendBookingConfirmedEmail(userId: string, order: PublicOrder): Promise<void> {
-        await scheduleBookingReminders(order.id, new Date(order.scheduledAt));
+        if (order.fulfillmentType !== "instant") {
+            await scheduleBookingReminders(order.id, new Date(order.scheduledAt));
+        } else {
+            const { enqueueDispatchStart } = await import(
+                "@/modules/dispatch/jobs/dispatch.job.js"
+            );
+            await enqueueDispatchStart(order.id);
+        }
 
         try {
             const enriched = await this.enrichAddonImages(order);

@@ -1,5 +1,7 @@
 import { NAV_THEME } from '@/lib/theme';
 import { AuthGate } from '@/module/auth/components/AuthGate';
+import { EnRouteLocationController } from '@/module/bookings/components/EnRouteLocationController';
+import { VendorDispatchPresenceController } from '@/module/duty/components/VendorDispatchPresenceController';
 import { getAppAccessRedirect } from '@/module/auth/lib/auth-routing';
 import { useAppSessionState } from '@/module/chat/hooks/use-app-session-state';
 import { usePermissionsSetupPrompt } from '@/module/permissions/hooks/use-permissions-setup-prompt';
@@ -198,6 +200,8 @@ export default function AppLayout() {
         getAppAccessRedirect(accessToken, user, hasSeenWelcome)
       }>
       <AppSessionStateHost />
+      <EnRouteLocationController />
+      <VendorDispatchPresenceController />
       <AppTabs />
     </AuthGate>
   );

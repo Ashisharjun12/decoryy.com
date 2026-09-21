@@ -2,6 +2,7 @@ import { useSearchParams } from "react-router-dom"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AiPolicyPanel } from "@/module/settings/components/AiPolicyPanel"
 import { BookingPolicyPanel } from "@/module/settings/components/BookingPolicyPanel"
+import { InstantBookingSettingsPanel } from "@/module/settings/components/InstantBookingSettingsPanel"
 import { NotificationChannelsPanel } from "@/module/settings/components/NotificationChannelsPanel"
 import { NotificationTemplatesPanel } from "@/module/settings/components/NotificationTemplatesPanel"
 import { AuditLogPage } from "@/module/settings/pages/AuditLogPage"
@@ -26,7 +27,7 @@ export function SettingsPage() {
       <div>
         <h1 className="font-heading text-2xl font-medium tracking-tight">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Admin account, notifications, booking policy, AI controls, and audit trail.
+          Admin account, notifications, booking and instant dispatch, AI controls, and audit trail.
         </p>
       </div>
 
@@ -48,8 +49,9 @@ export function SettingsPage() {
           <NotificationTemplatesPanel />
         </TabsContent>
 
-        <TabsContent value="booking" className="pt-4">
+        <TabsContent value="booking" className="flex flex-col gap-6 pt-4">
           <BookingPolicyPanel />
+          <InstantBookingSettingsPanel />
         </TabsContent>
 
         <TabsContent value="ai" className="pt-4">

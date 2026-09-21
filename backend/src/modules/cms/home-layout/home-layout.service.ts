@@ -1,5 +1,5 @@
 import { ApiError } from "@/shared/errors/apiError.js";
-import { assertServiceable, getActiveCityById } from "@/modules/geo/index.js";
+import { getActiveCityById, lookupPincode } from "@/modules/geo/index.js";
 import type { ICategoryService, CategoryAdmin } from "@/modules/catalog/categories/category.service.js";
 import type { ICategoryRepository } from "@/modules/catalog/categories/category.repository.js";
 import type { ISectionService } from "@/modules/catalog/sections/section.service.js";
@@ -263,8 +263,10 @@ export class CmsHomeLayoutService {
                 const city = await getActiveCityById(query.cityId);
                 resolvedCityId = city.id;
             } else if (query.pincode) {
-                const resolved = await assertServiceable(query.pincode);
-                resolvedCityId = resolved.city.id;
+                const lookup = await lookupPincode(query.pincode);
+                if (lookup.deliverable && lookup.city) {
+                    resolvedCityId = lookup.city.id;
+                }
             }
         } catch {
             return [];

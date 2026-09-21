@@ -1,4 +1,6 @@
 import { API_URL } from '@/lib/env';
+import { loadPartnerMode } from '@/lib/partner-mode';
+import { loadAccessToken } from '@/lib/secure-storage';
 import axios from 'axios';
 
 let accessTokenGetter: (() => string | null) | null = null;
@@ -43,12 +45,19 @@ export function unwrap<T>(response: { data?: { data?: T } }): T {
   return response.data?.data as T;
 }
 
-api.interceptors.request.use((config) => {
-  const token = accessTokenGetter?.() ?? null;
+api.interceptors.request.use(async (config) => {
+  let token = accessTokenGetter?.() ?? null;
+  if (!token) {
+    token = (await loadAccessToken()) ?? null;
+  }
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  const mode = partnerModeGetter?.();
+
+  let mode = partnerModeGetter?.() ?? null;
+  if (!mode) {
+    mode = await loadPartnerMode();
+  }
   if (mode && config.url?.startsWith('/vendor')) {
     config.headers['X-Decory-Partner-Mode'] = mode;
   }

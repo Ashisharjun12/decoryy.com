@@ -3,6 +3,8 @@ import { LayoutGridIcon, TableIcon } from "lucide-react"
 import { listAdmin as listCategories } from "@/api/categories.api"
 import { listAdmin as listCities } from "@/api/cities.api"
 import { listAdmin as listProducts } from "@/api/products.api"
+import { listGlobalProductOccupancy } from "@/api/sections.api"
+import { AdminInfoTip } from "@/components/admin-info-tip"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -52,7 +54,16 @@ function clipName(name, max = 36) {
   return `${text.slice(0, max)}…`
 }
 
-function ProductGrid({ items, selectedIds, disabledIds, onToggle, loading }) {
+function productPickerStatus(product, excludeSet, occupancyByProduct, currentSectionId, enforceGlobalExclusive) {
+  if (excludeSet.has(product.id)) return "In section"
+  const occ = occupancyByProduct.get(product.id)
+  if (enforceGlobalExclusive && occ && occ.sectionId !== currentSectionId) {
+    return `In ${occ.sectionName}`
+  }
+  return product.isActive ? "Published" : "Draft"
+}
+
+function ProductGrid({ items, selectedIds, disabledIds, onToggle, loading, getStatusLabel }) {
   if (loading && !items.length) {
     return (
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -106,9 +117,9 @@ function ProductGrid({ items, selectedIds, disabledIds, onToggle, loading }) {
                 aria-label={`Select ${product.name}`}
               />
             </span>
-            {disabled ? (
-              <span className="absolute top-2 right-2 z-10 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                Added
+            {disabled && getStatusLabel ? (
+              <span className="absolute top-2 right-2 z-10 max-w-[45%] truncate rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                {getStatusLabel(product)}
               </span>
             ) : null}
             <span className="block aspect-square w-full bg-muted">
@@ -135,7 +146,7 @@ function ProductGrid({ items, selectedIds, disabledIds, onToggle, loading }) {
   )
 }
 
-function ProductTable({ items, selectedIds, disabledIds, onToggle, loading }) {
+function ProductTable({ items, selectedIds, disabledIds, onToggle, loading, getStatusLabel }) {
   if (loading && !items.length) {
     return (
       <div className="space-y-2">
@@ -205,7 +216,7 @@ function ProductTable({ items, selectedIds, disabledIds, onToggle, loading }) {
                 {product.categoryName || "—"}
               </TableCell>
               <TableCell className="text-xs text-muted-foreground">
-                {disabled ? "In section" : product.isActive ? "Published" : "Draft"}
+                {getStatusLabel ? getStatusLabel(product) : disabled ? "In section" : product.isActive ? "Published" : "Draft"}
               </TableCell>
             </TableRow>
           )
@@ -215,9 +226,14 @@ function ProductTable({ items, selectedIds, disabledIds, onToggle, loading }) {
   )
 }
 
+const SECTION_PICKER_INFO =
+  "One product per global section. Products already in another section cannot be added here."
+
 export function SectionProductPickerDialog({
   open,
   onOpenChange,
+  currentSectionId,
+  enforceGlobalExclusive = false,
   excludeIds = [],
   maxAdd = 24,
   onConfirm,
@@ -233,8 +249,35 @@ export function SectionProductPickerDialog({
   const [filterQuery, setFilterQuery] = useState(() => createFilterQuery())
   const [leaves, setLeaves] = useState([])
   const [cities, setCities] = useState([])
+  const [occupancyItems, setOccupancyItems] = useState([])
 
   const excludeSet = useMemo(() => new Set(excludeIds), [excludeIds])
+  const occupancyByProduct = useMemo(
+    () => new Map(occupancyItems.map((row) => [row.productId, row])),
+    [occupancyItems],
+  )
+  const disabledIds = useMemo(() => {
+    const set = new Set(excludeIds)
+    if (enforceGlobalExclusive) {
+      for (const row of occupancyItems) {
+        if (row.sectionId !== currentSectionId) {
+          set.add(row.productId)
+        }
+      }
+    }
+    return set
+  }, [excludeIds, enforceGlobalExclusive, occupancyItems, currentSectionId])
+  const getStatusLabel = useCallback(
+    (product) =>
+      productPickerStatus(
+        product,
+        excludeSet,
+        occupancyByProduct,
+        currentSectionId,
+        enforceGlobalExclusive,
+      ),
+    [excludeSet, occupancyByProduct, currentSectionId, enforceGlobalExclusive],
+  )
   const selectedIds = useMemo(() => new Set(draft.map((row) => row.id)), [draft])
   const filterFields = useMemo(
     () => buildProductFilterFields({ leaves, cities }),
@@ -282,7 +325,14 @@ export function SectionProductPickerDialog({
     listCities({ page: 1, limit: 100, isActive: "true" })
       .then((data) => setCities(data.items ?? []))
       .catch(() => setCities([]))
-  }, [open, loadLeaves])
+    if (enforceGlobalExclusive) {
+      listGlobalProductOccupancy()
+        .then((data) => setOccupancyItems(data.items ?? []))
+        .catch(() => setOccupancyItems([]))
+    } else {
+      setOccupancyItems([])
+    }
+  }, [open, loadLeaves, enforceGlobalExclusive])
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedProductSearch(productSearch.trim()), 300)
@@ -309,7 +359,7 @@ export function SectionProductPickerDialog({
   }, [open, page, listParams])
 
   function toggleItem(product) {
-    if (excludeSet.has(product.id)) return
+    if (disabledIds.has(product.id)) return
     const checked = selectedIds.has(product.id)
     if (checked) {
       setDraft((prev) => prev.filter((row) => row.id !== product.id))
@@ -337,11 +387,11 @@ export function SectionProductPickerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[85vh] flex-col gap-4 overflow-hidden sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>Add products to section</DialogTitle>
-          <DialogDescription>
-            Search and filter the catalog — same tools as the products list. Products already in
-            this section are marked as added.
-          </DialogDescription>
+          <DialogTitle className="flex items-center gap-0.5">
+            Add products
+            {enforceGlobalExclusive ? <AdminInfoTip content={SECTION_PICKER_INFO} /> : null}
+          </DialogTitle>
+          <DialogDescription>Search catalog</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-2">
@@ -386,7 +436,8 @@ export function SectionProductPickerDialog({
                   <ProductGrid
                     items={items}
                     selectedIds={selectedIds}
-                    disabledIds={excludeSet}
+                    disabledIds={disabledIds}
+                    getStatusLabel={getStatusLabel}
                     onToggle={toggleItem}
                     loading={loading}
                   />
@@ -395,7 +446,8 @@ export function SectionProductPickerDialog({
                 <ProductTable
                   items={items}
                   selectedIds={selectedIds}
-                  disabledIds={excludeSet}
+                  disabledIds={disabledIds}
+                  getStatusLabel={getStatusLabel}
                   onToggle={toggleItem}
                   loading={loading}
                 />

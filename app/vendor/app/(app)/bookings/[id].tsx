@@ -13,6 +13,11 @@ import { DeclineBookingSheet } from '@/module/bookings/components/DeclineBooking
 import { DeliveryCompleteSheet } from '@/module/bookings/components/DeliveryCompleteSheet';
 import { JobCompletedSuccessSheet } from '@/module/bookings/components/JobCompletedSuccessSheet';
 import { JobPackageSheet } from '@/module/bookings/components/JobPackageSheet';
+import { JobTrackingMap } from '@/module/bookings/components/JobTrackingMap';
+import { OpenInMapsChip } from '@/module/bookings/components/OpenInMapsChip';
+import { WorkerTripBookingLayout } from '@/module/bookings/components/WorkerTripBookingLayout';
+import { useJobLocationPing } from '@/module/bookings/hooks/use-job-location-ping';
+import { useJobTrackingPoll } from '@/module/bookings/hooks/use-job-tracking-poll';
 import {
   SwipeToAcceptButton,
   SwipeToConfirmButton,
@@ -40,6 +45,8 @@ import { useNotificationJobPreview } from '@/module/notifications/hooks/use-noti
 import { useAuthStore } from '@/store/auth.store';
 import { AssignedWorkerChip } from '@/module/team/components/AssignedWorkerChip';
 import { JobAssignSection } from '@/module/team/components/JobAssignSection';
+import { EN_ROUTE_FGS_NOTIFICATION } from '@/lib/en-route-notification-copy';
+import { useEnRouteTripStore } from '@/store/en-route-trip.store';
 import { selectIsFieldShell, usePartnerModeStore } from '@/store/partner-mode.store';
 import { Href, router, useLocalSearchParams } from 'expo-router';
 import {
@@ -50,11 +57,12 @@ import {
   Phone,
   User,
 } from 'lucide-react-native';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Alert,
   Image,
   Linking,
+  Platform,
   ScrollView,
   Share,
   View,
@@ -246,10 +254,9 @@ export default function BookingDetailScreen() {
   }, [orderId]);
 
   const shouldPollCollection =
-    Boolean(booking) &&
-    booking.paymentMethod === 'COD' &&
-    booking.collectionStatus === 'pending' &&
-    booking.status === 'ON_SITE';
+    booking?.paymentMethod === 'COD' &&
+    booking?.collectionStatus === 'pending' &&
+    booking?.status === 'ON_SITE';
 
   const onOnlinePaymentCollected = useCallback(() => {
     if (autoSendCodeRef.current || sendCodeMutation.isPending) return;
@@ -275,6 +282,71 @@ export default function BookingDetailScreen() {
     },
   });
   const { isOnDuty, setOnDuty, isUpdating: dutyUpdating } = useVendorDuty();
+  /** Live map + GPS pings only while en route; hide after worker marks on site. */
+  const trackTrip = booking?.status === 'EN_ROUTE';
+  const enRouteOnly = booking?.status === 'EN_ROUTE';
+  const backgroundSharing = useEnRouteTripStore((s) => s.backgroundSharing);
+  const permissionDeniedAt = useEnRouteTripStore((s) => s.permissionDeniedAt);
+  const clearPermissionDenied = useEnRouteTripStore((s) => s.clearPermissionDenied);
+  const endEnRouteTrip = useEnRouteTripStore((s) => s.endTrip);
+  const pingTrip = Boolean(trackTrip && isFieldShell && !backgroundSharing);
+  const { lastFix: pingFix, suggestOnSite } = useJobLocationPing(orderId, pingTrip);
+  const fieldTracking = useJobTrackingPoll(
+    orderId,
+    Boolean(isFieldShell && trackTrip && backgroundSharing),
+  );
+  const vendorFix = useMemo(() => {
+    if (
+      backgroundSharing &&
+      fieldTracking?.vendor?.latitude != null &&
+      fieldTracking?.vendor?.longitude != null
+    ) {
+      return {
+        latitude: fieldTracking.vendor.latitude,
+        longitude: fieldTracking.vendor.longitude,
+      };
+    }
+    return pingFix;
+  }, [backgroundSharing, fieldTracking?.vendor?.latitude, fieldTracking?.vendor?.longitude, pingFix]);
+  const ownerTracking = useJobTrackingPoll(orderId, Boolean(isOwnerShell && trackTrip));
+  const permissionAlertShownRef = useRef<number | null>(null);
+  const sharingOnAlertOrderRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!booking || booking.status === 'EN_ROUTE') return;
+    if (useEnRouteTripStore.getState().activeOrderId === orderId) {
+      void endEnRouteTrip();
+    }
+  }, [booking?.status, orderId, endEnRouteTrip, booking]);
+
+  useEffect(() => {
+    if (!enRouteOnly || !permissionDeniedAt) return;
+    if (permissionAlertShownRef.current === permissionDeniedAt) return;
+    permissionAlertShownRef.current = permissionDeniedAt;
+    const androidBatteryHint =
+      Platform.OS === 'android'
+        ? ' Also set Location to Allow all the time and turn off battery restrictions for this app (see dontkillmyapp.com if needed).'
+        : '';
+    Alert.alert(
+      'Background location off',
+      `Live tracking only works while this screen is open until you allow background location in settings.${androidBatteryHint}`,
+      [
+        { text: 'Open settings', onPress: () => void Linking.openSettings() },
+        { text: 'OK', onPress: () => clearPermissionDenied() },
+      ],
+    );
+  }, [enRouteOnly, permissionDeniedAt, clearPermissionDenied]);
+
+  useEffect(() => {
+    if (!enRouteOnly || !backgroundSharing || Platform.OS !== 'android') return;
+    if (sharingOnAlertOrderRef.current === orderId) return;
+    sharingOnAlertOrderRef.current = orderId;
+    Alert.alert(
+      'Live sharing on',
+      `Keep "${EN_ROUTE_FGS_NOTIFICATION.title}" visible in the notification bar. Do not force-stop the app until you mark arrived.`,
+      [{ text: 'OK' }],
+    );
+  }, [enRouteOnly, backgroundSharing, orderId]);
   const [packageOpen, setPackageOpen] = useState(false);
   const [completeOpen, setCompleteOpen] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
@@ -411,6 +483,25 @@ export default function BookingDetailScreen() {
     void Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`);
   }
 
+  function openTripInExternalMaps() {
+    const worker = ownerTracking?.vendor;
+    const destPoint = tripDestination;
+    if (
+      worker?.latitude != null &&
+      worker?.longitude != null &&
+      destPoint?.latitude != null &&
+      destPoint?.longitude != null
+    ) {
+      const origin = `${worker.latitude},${worker.longitude}`;
+      const dest = `${destPoint.latitude},${destPoint.longitude}`;
+      void Linking.openURL(
+        `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}&travelmode=driving`,
+      );
+      return;
+    }
+    openMaps();
+  }
+
   async function runTripAction(
     label: string,
     action: () => Promise<unknown>,
@@ -421,6 +512,156 @@ export default function BookingDetailScreen() {
     } catch (err) {
       Alert.alert(`Could not ${label}`, getApiError(err));
     }
+  }
+
+  const useTripMapLayout = isFieldShell && booking.status === 'EN_ROUTE';
+
+  const fieldTripActions = (
+    <SwipeToConfirmButton
+      variant="accept"
+      label="Swipe — I've reached location"
+      loadingLabel="Updating…"
+      loading={onSiteMutation.isPending}
+      disabled={tripBusy}
+      onConfirm={() =>
+        void runTripAction('mark arrived', () => onSiteMutation.mutateAsync())
+      }
+    />
+  );
+
+  const fieldOnSiteActions = (
+    <View className="gap-2">
+      {needsCollection && !collectionSettled ? (
+        <View className="gap-3">
+          <Text className="text-muted-foreground text-center text-sm">
+            Collect {formatInr(booking.subtotalPaise)} before sending the delivery code
+          </Text>
+          <SwipeToConfirmButton
+            variant="accept"
+            label="Swipe — Customer pays online"
+            loadingLabel="Creating link…"
+            loading={collectOnlineMutation.isPending}
+            disabled={tripBusy || cashCollectOpen}
+            onConfirm={() => void onSwipePayOnline()}
+          />
+          <Button
+            className="h-12 rounded-full"
+            variant="outline"
+            disabled={tripBusy || collectOnlineMutation.isPending}
+            onPress={onCashCollectPress}>
+            <Text>Cash collected</Text>
+          </Button>
+        </View>
+      ) : null}
+      {!booking.deliveryCodeSent && collectionSettled ? (
+        <Button
+          className="h-12 rounded-full"
+          disabled={tripBusy}
+          onPress={() => void runTripAction('send code', () => sendCodeMutation.mutateAsync())}>
+          <Text>{sendCodeMutation.isPending ? 'Sending…' : 'Send delivery code'}</Text>
+        </Button>
+      ) : null}
+      {booking.deliveryCodeSent ? (
+        <Button className="h-12 rounded-full" onPress={() => setCompleteOpen(true)}>
+          <Text>Complete with code</Text>
+        </Button>
+      ) : null}
+      {booking.deliveryCodeSent ? (
+        <Button
+          className="h-12 rounded-full"
+          variant="outline"
+          disabled={tripBusy}
+          onPress={() => void runTripAction('resend code', () => sendCodeMutation.mutateAsync())}>
+          <Text>{sendCodeMutation.isPending ? 'Sending…' : 'Resend code'}</Text>
+        </Button>
+      ) : null}
+    </View>
+  );
+
+  const tripDestination =
+    booking.delivery.latitude != null && booking.delivery.longitude != null
+      ? { latitude: booking.delivery.latitude, longitude: booking.delivery.longitude }
+      : null;
+
+  const sharedSheets = (
+    <>
+      <JobPackageSheet
+        open={packageOpen}
+        onClose={() => setPackageOpen(false)}
+        items={booking.items}
+        subtotalPaise={booking.subtotalPaise}
+      />
+      <DeliveryCompleteSheet
+        open={completeOpen}
+        onClose={() => setCompleteOpen(false)}
+        orderId={orderId}
+        onCompleted={() => {
+          triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+          setCompletedSnapshot({
+            paymentMethod: booking.paymentMethod,
+            collectionMethod: booking.collectionMethod,
+            vendorSharePaise: booking.vendorSharePaise,
+          });
+          setJobCompletedOpen(true);
+        }}
+      />
+      {completedSnapshot ? (
+        <JobCompletedSuccessSheet
+          open={jobCompletedOpen}
+          onClose={() => setJobCompletedOpen(false)}
+          paymentMethod={completedSnapshot.paymentMethod}
+          collectionMethod={completedSnapshot.collectionMethod}
+          vendorSharePaise={completedSnapshot.vendorSharePaise}
+        />
+      ) : null}
+      <DeclineBookingSheet
+        open={declineOpen}
+        onClose={onDeclineClose}
+        bookingLabel={booking.packageName}
+        onDecline={() => void onConfirmDecline()}
+        loading={declineMutation.isPending}
+        error={declineError}
+      />
+      <CollectCashSheet
+        open={cashCollectOpen}
+        onClose={onCashCollectClose}
+        amountPaise={booking.subtotalPaise}
+        onCollect={() => void onConfirmCashCollect()}
+        loading={collectCashMutation.isPending}
+        error={cashCollectError}
+      />
+    </>
+  );
+
+  if (useTripMapLayout) {
+    return (
+      <SafeAreaView className="flex-1 bg-background" edges={[]}>
+        <WorkerTripBookingLayout
+          orderId={orderId}
+          orderRef={booking.orderRef}
+          packageName={booking.packageName}
+          status={booking.status}
+          customerName={booking.customer.name}
+          customerPhone={booking.customer.phone}
+          addressLine={booking.addressLine}
+          cityPinLine={`${booking.delivery.cityName} · ${booking.delivery.pincode}`}
+          slotLabel={booking.slotLabel}
+          paymentLabel={paymentLabel}
+          items={booking.items}
+          subtotalPaise={booking.subtotalPaise}
+          onViewPackage={() => setPackageOpen(true)}
+          packageOpen={packageOpen}
+          onPackageClose={() => setPackageOpen(false)}
+          canChat={booking.canChat}
+          destination={tripDestination}
+          vendorFix={vendorFix}
+          followVendor={booking.status === 'EN_ROUTE'}
+          onOpenMaps={openMaps}
+          actions={fieldTripActions}
+        />
+        {sharedSheets}
+      </SafeAreaView>
+    );
   }
 
   return (
@@ -504,6 +745,32 @@ export default function BookingDetailScreen() {
                 </Text>
               </View>
             </View>
+            {trackTrip && isOwnerShell ? (
+              <View className="gap-2">
+                {ownerTracking?.vendor?.distanceMeters != null &&
+                !ownerTracking.vendor.stale ? (
+                  <Text className="text-muted-foreground text-sm">
+                    Worker about {Math.max(0, Math.round(ownerTracking.vendor.distanceMeters / 100) / 10)} km
+                    from customer
+                  </Text>
+                ) : null}
+                <OpenInMapsChip
+                  onPress={openTripInExternalMaps}
+                  label="Open in Maps"
+                  className="self-start"
+                />
+              </View>
+            ) : null}
+            {trackTrip && isFieldShell ? (
+              <JobTrackingMap
+                orderId={orderId}
+                layout="compact"
+                refetchRouteOnMove
+                onOpenExternalMaps={openMaps}
+                destination={tripDestination}
+                vendor={vendorFix}
+              />
+            ) : null}
             <View className="flex-row items-start gap-3 border-t border-border/70 pt-4">
               <IconWell icon={CreditCard} />
               <View className="min-w-0 flex-1 gap-3">
@@ -612,12 +879,7 @@ export default function BookingDetailScreen() {
         ) : null}
       </ScrollView>
 
-      <JobPackageSheet
-        open={packageOpen}
-        onClose={() => setPackageOpen(false)}
-        items={booking.items}
-        subtotalPaise={booking.subtotalPaise}
-      />
+      {sharedSheets}
 
       {isOwnerShell && booking.needsAction ? (
         <BottomActionBar bottom={actionBottom}>
@@ -654,123 +916,19 @@ export default function BookingDetailScreen() {
                 </Button>
               </View>
             ) : null}
-            {booking.status === 'EN_ROUTE' ? (
-              <View className="gap-3">
-                <SwipeToConfirmButton
-                  variant="accept"
-                  label="Swipe — I've reached location"
-                  loadingLabel="Updating…"
-                  loading={onSiteMutation.isPending}
-                  disabled={tripBusy}
-                  onConfirm={() =>
-                    void runTripAction('mark arrived', () => onSiteMutation.mutateAsync())
-                  }
-                />
-                <Button className="h-11 rounded-full" variant="outline" onPress={openMaps}>
-                  <Text>Open in Maps</Text>
-                </Button>
-              </View>
-            ) : null}
             {booking.status === 'ON_SITE' ? (
               <>
-                {needsCollection && !collectionSettled ? (
-                  <View className="gap-3">
-                    <Text className="text-muted-foreground text-center text-sm">
-                      Collect {formatInr(booking.subtotalPaise)} before sending the delivery code
-                    </Text>
-                    <SwipeToConfirmButton
-                      variant="accept"
-                      label="Swipe — Customer pays online"
-                      loadingLabel="Creating link…"
-                      loading={collectOnlineMutation.isPending}
-                      disabled={tripBusy || cashCollectOpen}
-                      onConfirm={() => void onSwipePayOnline()}
-                    />
-                    <Button
-                      className="h-12 rounded-full"
-                      variant="outline"
-                      disabled={tripBusy || collectOnlineMutation.isPending}
-                      onPress={onCashCollectPress}>
-                      <Text>Cash collected</Text>
-                    </Button>
-                  </View>
+                {suggestOnSite ? (
+                  <Text className="text-center text-sm text-emerald-700">
+                    You appear to be at the venue — complete the steps below.
+                  </Text>
                 ) : null}
-                {!booking.deliveryCodeSent && collectionSettled ? (
-                  <Button
-                    className="h-12 rounded-full"
-                    disabled={tripBusy}
-                    onPress={() =>
-                      void runTripAction('send code', () => sendCodeMutation.mutateAsync())
-                    }>
-                    <Text>{sendCodeMutation.isPending ? 'Sending…' : 'Send delivery code'}</Text>
-                  </Button>
-                ) : null}
-                {booking.deliveryCodeSent ? (
-                  <Button
-                    className="h-12 rounded-full"
-                    onPress={() => setCompleteOpen(true)}>
-                    <Text>Complete with code</Text>
-                  </Button>
-                ) : null}
-                {booking.deliveryCodeSent ? (
-                  <Button
-                    className="h-12 rounded-full"
-                    variant="outline"
-                    disabled={tripBusy}
-                    onPress={() =>
-                      void runTripAction('resend code', () => sendCodeMutation.mutateAsync())
-                    }>
-                    <Text>{sendCodeMutation.isPending ? 'Sending…' : 'Resend code'}</Text>
-                  </Button>
-                ) : null}
+                {fieldOnSiteActions}
               </>
             ) : null}
           </View>
         </BottomActionBar>
       )}
-
-      <DeliveryCompleteSheet
-        open={completeOpen}
-        onClose={() => setCompleteOpen(false)}
-        orderId={orderId}
-        onCompleted={() => {
-          triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
-          setCompletedSnapshot({
-            paymentMethod: booking.paymentMethod,
-            collectionMethod: booking.collectionMethod,
-            vendorSharePaise: booking.vendorSharePaise,
-          });
-          setJobCompletedOpen(true);
-        }}
-      />
-
-      {completedSnapshot ? (
-        <JobCompletedSuccessSheet
-          open={jobCompletedOpen}
-          onClose={() => setJobCompletedOpen(false)}
-          paymentMethod={completedSnapshot.paymentMethod}
-          collectionMethod={completedSnapshot.collectionMethod}
-          vendorSharePaise={completedSnapshot.vendorSharePaise}
-        />
-      ) : null}
-
-      <DeclineBookingSheet
-        open={declineOpen}
-        onClose={onDeclineClose}
-        bookingLabel={booking.packageName}
-        onDecline={() => void onConfirmDecline()}
-        loading={declineMutation.isPending}
-        error={declineError}
-      />
-
-      <CollectCashSheet
-        open={cashCollectOpen}
-        onClose={onCashCollectClose}
-        amountPaise={booking.subtotalPaise}
-        onCollect={() => void onConfirmCashCollect()}
-        loading={collectCashMutation.isPending}
-        error={cashCollectError}
-      />
     </SafeAreaView>
   );
 }

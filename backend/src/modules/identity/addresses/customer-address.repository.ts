@@ -9,7 +9,16 @@ import {
 export type CustomerAddressPatch = Partial<
     Pick<
         CustomerAddress,
-        "label" | "addressLine" | "landmark" | "pincode" | "cityId" | "cityName" | "isDefault"
+        | "label"
+        | "addressLine"
+        | "landmark"
+        | "pincode"
+        | "cityId"
+        | "cityName"
+        | "isDefault"
+        | "latitude"
+        | "longitude"
+        | "geoSource"
     >
 >;
 

@@ -9,14 +9,24 @@ export const customerAddressIdParamsDto = z.object({
     id: z.string().uuid(),
 });
 
+const geoSourceSchema = z.enum([
+    "geocode_google",
+    "geocode_manual",
+    "pincode_centroid",
+    "device",
+]);
+
 export const createCustomerAddressDto = z.object({
     label: z.string().trim().min(1).max(80),
     address: z.string().trim().min(6).max(500),
     landmark: z.string().trim().max(200).optional(),
     pincode: pincodeSchema,
     cityName: z.string().trim().min(1).max(120).optional(),
-    cityId: z.string().uuid().optional(),
+    cityId: z.string().uuid(),
     setDefault: z.boolean().optional(),
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+    geoSource: geoSourceSchema.optional(),
 });
 
 export const patchCustomerAddressDto = z.object({
@@ -27,6 +37,9 @@ export const patchCustomerAddressDto = z.object({
     cityName: z.string().trim().min(1).max(120).optional(),
     cityId: z.string().uuid().nullable().optional(),
     setDefault: z.boolean().optional(),
+    latitude: z.number().min(-90).max(90).optional(),
+    longitude: z.number().min(-180).max(180).optional(),
+    geoSource: geoSourceSchema.optional(),
 });
 
 export type CreateCustomerAddressInput = z.infer<typeof createCustomerAddressDto>;

@@ -20,6 +20,18 @@ export const vendorRegisterDto = z.object({
         .trim()
         .regex(/^[1-9]\d{5}$/, "invalid pincode"),
     shopImageUploadId: z.string().uuid().optional(),
+    baseLatitude: z.coerce.number().min(-90).max(90).optional(),
+    baseLongitude: z.coerce.number().min(-180).max(180).optional(),
+    baseGeoSource: z
+        .enum([
+            "geocode_google",
+            "geocode_ola",
+            "place_pin",
+            "geocode_manual",
+            "pincode_centroid",
+            "device",
+        ])
+        .optional(),
     androidAppHash: z
         .string()
         .trim()

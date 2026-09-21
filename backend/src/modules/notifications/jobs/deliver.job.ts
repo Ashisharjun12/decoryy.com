@@ -6,7 +6,25 @@ import { SmsFactory } from "@/infrastructure/sms/sms.factory.js";
 import { isChannelEnabled } from "@/modules/ops/index.js";
 import { pushDeviceService } from "../container.js";
 import { notificationRepository } from "../container.js";
+import type { PushMessage } from "@/infrastructure/push/push.port.js";
 import { logger } from "@/utils/logger.js";
+
+/** Must match app/vendor/lib/notifications.ts ANDROID_CHANNEL_* */
+const ANDROID_CHANNEL_DEFAULT = "vendor-default";
+const ANDROID_CHANNEL_JOBS = "vendor-jobs";
+
+const URGENT_VENDOR_PUSH_EVENTS = new Set(["VENDOR_NEW_JOB", "VENDOR_JOB_ASSIGNED"]);
+
+function androidPushOptions(event: string | undefined, eventData: Record<string, string>): Pick<
+    PushMessage,
+    "androidChannelId" | "priority"
+> {
+    const resolved = event ?? eventData.event;
+    if (resolved && URGENT_VENDOR_PUSH_EVENTS.has(resolved)) {
+        return { androidChannelId: ANDROID_CHANNEL_JOBS, priority: "high" };
+    }
+    return { androidChannelId: ANDROID_CHANNEL_DEFAULT, priority: "default" };
+}
 
 export type DeliverJobData = {
     notificationId: string;
@@ -94,6 +112,7 @@ export async function processPushDeliverJob(job: Job<DeliverJobData>): Promise<v
 
     const provider = PushFactory.getProvider() as ExpoPushProvider;
     const pushData = job.data.eventData ?? {};
+    const androidOptions = androidPushOptions(job.data.event, pushData);
     let sent = 0;
 
     for (const token of tokens) {
@@ -103,6 +122,7 @@ export async function processPushDeliverJob(job: Job<DeliverJobData>): Promise<v
                 title,
                 body,
                 data: pushData,
+                ...androidOptions,
             });
             if (result.ok) {
                 sent += 1;

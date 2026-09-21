@@ -4,12 +4,14 @@ import {
   CarouselContent,
   CarouselItem,
 } from "@/components/ui/carousel";
+import { cn } from "@/lib/utils";
 import {
   HomeProductCardRail,
   HomeProductCardRailSkeleton,
 } from "@/module/home/components/HomeProductCard";
 import { HomeScrollControls } from "@/module/home/components/HomeScrollControls";
 import { HomeSectionHeading } from "@/module/home/components/HomeSectionHeading";
+import { PRODUCT_RAIL_ITEM_CLASS } from "@/module/home/lib/product-rail-layout";
 
 export function HomeProductRail({
   section,
@@ -62,7 +64,7 @@ export function HomeProductRail({
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
           {Array.from({ length: 4 }).map((_, index) => (
             <HomeProductCardRailSkeleton key={index} />
           ))}
@@ -77,7 +79,7 @@ export function HomeProductRail({
             {section.items.map((product) => (
               <CarouselItem
                 key={product.id}
-                className="basis-[46%] pl-2.5 sm:basis-[31%] md:basis-[24%] lg:basis-1/4"
+                className={cn(PRODUCT_RAIL_ITEM_CLASS, "pl-2.5")}
               >
                 <HomeProductCardRail
                   product={product}

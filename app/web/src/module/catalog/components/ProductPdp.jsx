@@ -1,17 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { addDays, format, isSameDay, startOfToday } from "date-fns";
 import {
+  CalendarCheck2Icon,
   CalendarDaysIcon,
   CheckIcon,
-  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  ChevronUpIcon,
+  TimerIcon,
   CircleHelpIcon,
   ClockIcon,
   FlameIcon,
-  MapPinIcon,
+  ZapIcon,
   PackageIcon,
   SparklesIcon,
   TruckIcon,
@@ -30,21 +30,55 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+} from "@/components/ui/carousel";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DecoryImageFallback } from "@/components/decory-image-fallback";
+import { MapsPinIcon } from "@/components/maps-pin-icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { listProducts } from "@/api/products.api";
 import { ProductCustomizeOrderDialog } from "@/module/catalog/components/ProductCustomizeOrderDialog";
+import { ProductPdpOffers } from "@/module/catalog/components/ProductPdpOffers";
+import { FulfillmentModeSwitch } from "@/module/catalog/components/FulfillmentModeTabs";
+import { ProductPdpSectionTrigger } from "@/module/catalog/components/ProductPdpSectionTrigger";
 import { ProductReviewsPreview } from "@/module/catalog/components/reviews/ProductReviewsPreview";
 import { proceedToCheckout } from "@/module/booking/lib/proceed-to-checkout";
 import { useAuthStore } from "@/store/auth.store";
-import { HomeProductCardRail } from "@/module/home/components/HomeProductCard";
+import {
+  HomeProductCardRail,
+  HomeProductCardRailSkeleton,
+} from "@/module/home/components/HomeProductCard";
+import { HomeScrollControls } from "@/module/home/components/HomeScrollControls";
 import { HomeSectionHeading } from "@/module/home/components/HomeSectionHeading";
 import { normalizeProduct } from "@/module/home/lib/home-catalog";
+import { PRODUCT_RAIL_ITEM_CLASS } from "@/module/home/lib/product-rail-layout";
+
+const SIMILAR_PAGE_SIZE = 20;
+
+const LG_MEDIA_QUERY = "(min-width: 1024px)";
+
+function subscribeLgMedia(listener) {
+  const mq = window.matchMedia(LG_MEDIA_QUERY);
+  mq.addEventListener("change", listener);
+  return () => mq.removeEventListener("change", listener);
+}
+
+function getLgMediaSnapshot() {
+  return window.matchMedia(LG_MEDIA_QUERY).matches;
+}
+
+function useIsLgUp() {
+  return useSyncExternalStore(subscribeLgMedia, getLgMediaSnapshot, () => true);
+}
+
+const PDP_REVIEWS_PREVIEW_CLASS =
+  "flex flex-col gap-3 rounded-2xl border border-border/80 bg-card p-4 md:p-5";
 
 const TIME_SLOTS = [
   { id: "9-12", label: "9 AM – 12 PM" },
@@ -56,6 +90,18 @@ const TIME_SLOTS = [
 
 const SCROLL_X =
   "flex min-w-0 w-full gap-2 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+
+function slotHour(slotId) {
+  if (slotId === "9-12") return 9;
+  if (slotId === "12-3") return 12;
+  if (slotId === "3-6") return 15;
+  if (slotId === "6-9") return 18;
+  return 21;
+}
+
+function slotLabelFor(slotId) {
+  return TIME_SLOTS.find((item) => item.id === slotId)?.label ?? "";
+}
 
 function imageSrc(item) {
   return item?.url || item?.publicUrl || item?.optimizedUrl || item?.thumbnailUrl || "";
@@ -113,6 +159,57 @@ function comingSoon() {
   toast.add({ title: "Coming soon", type: "info" });
 }
 
+const INSTANT_ETA_FALLBACK_MINUTES = 15;
+
+function InstantDetailRow({ icon, iconClassName, children, textClassName }) {
+  return (
+    <div className="flex w-full items-start gap-3">
+      <span
+        className={cn(
+          "flex size-10 shrink-0 items-center justify-center rounded-full",
+          iconClassName,
+        )}
+      >
+        {icon}
+      </span>
+      <p
+        className={cn(
+          "min-w-0 flex-1 pt-2 text-sm leading-relaxed",
+          textClassName,
+        )}
+      >
+        {children}
+      </p>
+    </div>
+  );
+}
+
+function InstantBookingDetails({ note, etaMinutes }) {
+  const description = (note ?? "").trim();
+  const eta = etaMinutes ?? INSTANT_ETA_FALLBACK_MINUTES;
+
+  return (
+    <div className="flex w-full flex-col gap-3">
+      {description ? (
+        <InstantDetailRow
+          icon={<SparklesIcon className="size-4" />}
+          iconClassName="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400"
+          textClassName="font-normal text-foreground/85"
+        >
+          {description}
+        </InstantDetailRow>
+      ) : null}
+      <InstantDetailRow
+        icon={<ClockIcon className="size-4" />}
+        iconClassName="bg-blue-600/15 text-blue-600 dark:text-blue-400"
+        textClassName="font-normal text-foreground/75"
+      >
+        Typical arrival window: about {eta} minutes after confirmation.
+      </InstantDetailRow>
+    </div>
+  );
+}
+
 function WhatsAppIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -151,33 +248,6 @@ function BulletList({ items }) {
         <li key={`${index}-${point}`}>{point}</li>
       ))}
     </ul>
-  );
-}
-
-function SectionTrigger({ icon, iconClassName, title, subtitle }) {
-  return (
-    <AccordionTrigger className="items-center gap-3 hover:no-underline **:data-[slot=accordion-trigger-icon]:hidden">
-      <span className="flex min-w-0 flex-1 items-center gap-3">
-        <span
-          className={cn(
-            "flex size-10 shrink-0 items-center justify-center rounded-full",
-            iconClassName,
-          )}
-        >
-          {icon}
-        </span>
-        <span className="flex min-w-0 flex-col text-left">
-          <span>{title}</span>
-          {subtitle ? (
-            <span className="text-sm font-normal text-muted-foreground">{subtitle}</span>
-          ) : null}
-        </span>
-      </span>
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-full border bg-background text-foreground group-aria-expanded/accordion-trigger:border-transparent group-aria-expanded/accordion-trigger:bg-primary group-aria-expanded/accordion-trigger:text-primary-foreground">
-        <ChevronDownIcon className="size-4 group-aria-expanded/accordion-trigger:hidden" />
-        <ChevronUpIcon className="hidden size-4 group-aria-expanded/accordion-trigger:inline" />
-      </span>
-    </AccordionTrigger>
   );
 }
 
@@ -248,6 +318,54 @@ function ProductPrice({ pricePaise, compareAtPaise, ratingAvg, reviewCount }) {
   );
 }
 
+function ProductOnSiteSetupBadge({ label = "On-site setup in 1-1.5 hrs" }) {
+  return (
+    <span
+      className="inline-flex w-fit max-w-full items-center gap-2 rounded-full bg-primary px-3.5 py-2 text-sm font-semibold text-black"
+    >
+      <TimerIcon className="size-4 shrink-0 text-black" aria-hidden />
+      {label}
+    </span>
+  );
+}
+
+function ProductLocationCard({ cityLabel, onChangeLocation }) {
+  return (
+    <div
+      className="flex min-w-0 items-center gap-3 rounded-2xl border border-emerald-600/20 bg-emerald-50/90 px-3 py-3 sm:px-4 dark:border-emerald-500/25 dark:bg-emerald-950/35"
+    >
+      <span
+        className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-emerald-600/10 bg-white shadow-sm dark:bg-background"
+        aria-hidden
+      >
+        <MapsPinIcon size={24} className="size-6" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="truncate text-base font-bold text-foreground">{cityLabel}</span>
+          <span
+            className="inline-flex shrink-0 items-center gap-1 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-white uppercase"
+          >
+            <CheckIcon className="size-3" strokeWidth={3} aria-hidden />
+            Available
+          </span>
+        </div>
+        <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400 sm:text-sm">
+          We set up within 30 km across the city
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onChangeLocation}
+        className="inline-flex shrink-0 items-center gap-0.5 text-sm font-semibold text-emerald-700 transition-colors hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
+      >
+        Change
+        <ChevronRightIcon className="size-4" aria-hidden />
+      </button>
+    </div>
+  );
+}
+
 function ProductBreadcrumb({ title, categoryId }) {
   const categories = useCatalogStore((s) => s.categories);
   const category = useMemo(
@@ -294,15 +412,17 @@ function ProductGallery({ images, title }) {
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
-      <div className="relative min-w-0 overflow-hidden rounded-4xl bg-muted">
+      <div
+        className="relative min-w-0 overflow-hidden rounded-2xl border border-border/80 bg-muted shadow-sm"
+      >
         {src ? (
           <img
             src={src}
             alt={title}
-            className="aspect-square w-full max-w-full object-cover"
+            className="aspect-[5/4] w-full max-w-full object-cover"
           />
         ) : (
-          <DecoryImageFallback className="aspect-square min-h-64" />
+          <DecoryImageFallback className="aspect-[5/4] min-h-48" />
         )}
         {images.length > 1 ? (
           <>
@@ -330,7 +450,7 @@ function ProductGallery({ images, title }) {
         ) : null}
       </div>
       {images.length > 1 ? (
-        <div className={SCROLL_X}>
+        <div className={cn(SCROLL_X, "hidden sm:flex")}>
           {images.map((item, index) => {
             const thumb = thumbSrc(item);
             return (
@@ -365,23 +485,74 @@ function ProductSchedule({ onChange }) {
   const [selectedDate, setSelectedDate] = useState(today);
   const [slot, setSlot] = useState("9-12");
   const [moreOpen, setMoreOpen] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
   const inStrip = dates.some((date) => isSameDay(date, selectedDate));
 
-  useEffect(() => {
-    if (!onChange) return;
-    const hour =
-      slot === "9-12" ? 9 : slot === "12-3" ? 12 : slot === "3-6" ? 15 : slot === "6-9" ? 18 : 21;
+  function commitSchedule() {
     const scheduled = new Date(selectedDate);
-    scheduled.setHours(hour, 0, 0, 0);
-    onChange(scheduled.toISOString());
-  }, [selectedDate, slot, onChange]);
+    scheduled.setHours(slotHour(slot), 0, 0, 0);
+    onChange?.(scheduled.toISOString());
+    setConfirmed(true);
+  }
+
+  function reopenSchedule() {
+    setConfirmed(false);
+    onChange?.(null);
+  }
+
+  const slotLabel = slotLabelFor(slot);
+  const dateSummary = format(selectedDate, "EEEE, d MMMM yyyy");
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Choose date and time</CardTitle>
-        <CardDescription>When should we arrive to set up?</CardDescription>
+      <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-600/15 text-emerald-600 dark:text-emerald-400">
+            <CalendarCheck2Icon className="size-4" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <CardTitle>Choose Date &amp; Time</CardTitle>
+            <CardDescription>When should we arrive to set up?</CardDescription>
+          </div>
+        </div>
+        {confirmed ? (
+          <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+            <span className="flex size-5 items-center justify-center rounded-full bg-emerald-600/15">
+              <CheckIcon className="size-3" strokeWidth={3} />
+            </span>
+            Set
+          </span>
+        ) : null}
       </CardHeader>
+      {confirmed ? (
+        <CardContent>
+          <div className="flex min-w-0 items-center gap-3 rounded-2xl bg-emerald-600/10 px-3 py-3 sm:px-4">
+            <span
+              className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white"
+              aria-hidden
+            >
+              <CheckIcon className="size-4" strokeWidth={3} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300 sm:text-base">
+                {slotLabel} · {dateSummary}
+              </p>
+              <p className="text-xs text-emerald-700/90 dark:text-emerald-400/90 sm:text-sm">
+                We&apos;ll arrive &amp; complete the full setup within this slot.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="shrink-0 font-semibold text-foreground hover:bg-transparent hover:text-foreground"
+              onClick={reopenSchedule}
+            >
+              Change
+            </Button>
+          </div>
+        </CardContent>
+      ) : (
       <CardContent className="flex min-w-0 flex-col gap-4">
         <div className="min-w-0">
           <p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
@@ -498,7 +669,11 @@ function ProductSchedule({ onChange }) {
             </span>
           </p>
         </div>
+        <Button type="button" className="w-full" size="lg" onClick={commitSchedule}>
+          Done
+        </Button>
       </CardContent>
+      )}
     </Card>
   );
 }
@@ -507,65 +682,166 @@ function ProductRelatedRail({ product }) {
   const city = useLocationStore((s) => s.city);
   const pincode = useLocationStore((s) => s.pincode);
   const [items, setItems] = useState([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [carouselApi, setCarouselApi] = useState(null);
+  const [canPrev, setCanPrev] = useState(false);
+  const [canNext, setCanNext] = useState(false);
+
+  const serviceCityId = isBackendCityId(city?.id) ? city.id : undefined;
+  const pincodeCode = pincode?.code || undefined;
+  const hasLocation = Boolean(serviceCityId || pincodeCode);
+
+  const onCarouselSelect = useCallback((api) => {
+    if (!api) return;
+    setCanPrev(api.canScrollPrev());
+    setCanNext(api.canScrollNext());
+  }, []);
 
   useEffect(() => {
-    if (!product?.categoryId) {
+    if (!carouselApi) return undefined;
+    onCarouselSelect(carouselApi);
+    carouselApi.on("reInit", onCarouselSelect);
+    carouselApi.on("select", onCarouselSelect);
+    return () => {
+      carouselApi.off("select", onCarouselSelect);
+    };
+  }, [carouselApi, onCarouselSelect, items.length]);
+
+  async function fetchPage(pageNum, append) {
+    if (!product?.categoryId || !product?.id) return;
+    const data = await listProducts({
+      categoryIds: [product.categoryId],
+      cityId: pincodeCode ? undefined : serviceCityId,
+      pincode: pincodeCode,
+      page: pageNum,
+      limit: SIMILAR_PAGE_SIZE,
+    });
+    const raw = data?.items ?? [];
+    const rows = raw
+      .filter((row) => row.id !== product.id)
+      .map(normalizeProduct)
+      .filter(Boolean);
+    const nextTotal = Number(data?.total ?? 0);
+    setHasMore(pageNum * SIMILAR_PAGE_SIZE < nextTotal);
+    setItems((prev) => {
+      if (!append) return rows;
+      const seen = new Set(prev.map((item) => item.id));
+      const merged = [...prev];
+      for (const row of rows) {
+        if (!seen.has(row.id)) merged.push(row);
+      }
+      return merged;
+    });
+  }
+
+  useEffect(() => {
+    if (!product?.id || !product?.categoryId || !hasLocation) {
       setItems([]);
+      setHasMore(false);
+      setPage(1);
       setLoading(false);
       return undefined;
     }
+
     let cancelled = false;
     setLoading(true);
-    void listProducts({
-      categoryId: product.categoryId,
-      cityId: pincode?.code ? undefined : city?.id,
-      pincode: pincode?.code || undefined,
-      page: 1,
-      limit: 12,
-    })
-      .then((data) => {
-        if (cancelled) return;
-        const rows = (data?.items ?? [])
-          .filter((row) => row.id !== product.id)
-          .map(normalizeProduct)
-          .filter(Boolean)
-          .slice(0, 8);
-        setItems(rows);
-      })
+    setPage(1);
+
+    void fetchPage(1, false)
       .catch(() => {
-        if (!cancelled) setItems([]);
+        if (!cancelled) {
+          setItems([]);
+          setHasMore(false);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+
     return () => {
       cancelled = true;
     };
-  }, [product?.categoryId, product?.id, city?.id, pincode?.code]);
+  }, [product?.categoryId, product?.id, city?.id, pincode?.code, hasLocation]);
+
+  async function onViewMore() {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    const nextPage = page + 1;
+    try {
+      await fetchPage(nextPage, true);
+      setPage(nextPage);
+      requestAnimationFrame(() => carouselApi?.reInit());
+    } catch {
+      // keep current items
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   if (!loading && items.length === 0) return null;
 
   return (
-    <section className="mt-12 border-t border-border/60 pt-10 md:mt-16 md:pt-12">
-      <HomeSectionHeading
-        title="Similar packages"
-        subtitle="Explore more décor in this category"
-        compact
-        className="mb-4"
-      />
+    <section
+      className="mt-12 border-t border-border/60 pt-10 md:mt-16 md:pt-12"
+      aria-label="Similar packages"
+    >
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+        <HomeSectionHeading
+          title="Similar packages"
+          subtitle="Explore more décor in this category"
+          compact
+        />
+        {!loading ? (
+          <HomeScrollControls
+            canPrev={canPrev}
+            canNext={canNext}
+            onPrev={() => carouselApi?.scrollPrev()}
+            onNext={() => carouselApi?.scrollNext()}
+          />
+        ) : null}
+      </div>
+
       {loading ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="h-48 animate-pulse rounded-2xl bg-muted" />
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <HomeProductCardRailSkeleton key={index} />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {items.map((item) => (
-            <HomeProductCardRail key={item.id} product={item} />
-          ))}
-        </div>
+        <>
+          <Carousel
+            setApi={setCarouselApi}
+            opts={{ align: "start", dragFree: true }}
+            className="w-full"
+          >
+            <CarouselContent className="-ml-2.5">
+              {items.map((item) => (
+                <CarouselItem
+                  key={item.id}
+                  className={cn(PRODUCT_RAIL_ITEM_CLASS, "pl-2.5")}
+                >
+                  <HomeProductCardRail product={item} />
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+          </Carousel>
+          {hasMore ? (
+            <div className="mt-6 flex justify-center">
+              <Button
+                type="button"
+                size="lg"
+                className="min-w-[10.5rem] rounded-full bg-primary text-black hover:bg-primary/85"
+                disabled={loadingMore}
+                onClick={() => void onViewMore()}
+              >
+                {loadingMore ? "Loading…" : "View more"}
+              </Button>
+            </div>
+          ) : null}
+        </>
       )}
     </section>
   );
@@ -579,6 +855,12 @@ export function ProductPdp({ product, onChangeLocation }) {
   const includePoints = filledPoints(product?.includes);
   const cityLabel = (product?.city?.name ?? "").trim() || "Select city";
   const [scheduledAt, setScheduledAt] = useState(null);
+  const canInstant = Boolean(product?.instant?.enabled);
+  const canScheduled = product?.scheduledEnabled !== false;
+  const [fulfillment, setFulfillment] = useState(
+    canInstant && !canScheduled ? "instant" : "scheduled",
+  );
+  const isInstantBooking = fulfillment === "instant" && canInstant;
   const [booking, setBooking] = useState(false);
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const navigate = useNavigate();
@@ -592,6 +874,16 @@ export function ProductPdp({ product, onChangeLocation }) {
 
   const productAddons = product?.addons ?? [];
   const hasAddons = productAddons.length > 0;
+  const isLgUp = useIsLgUp();
+
+  const reviewsPreview = (
+    <ProductReviewsPreview
+      productId={product?.id}
+      product={product}
+      previewLimit={3}
+      className={PDP_REVIEWS_PREVIEW_CLASS}
+    />
+  );
 
   async function completeBooking(addonIds) {
     if (!product?.id) return;
@@ -604,7 +896,8 @@ export function ProductPdp({ product, onChangeLocation }) {
           quantity: 1,
           pincode: pincode?.code || undefined,
           cityId: pincode?.code ? undefined : city?.id,
-          scheduledAt: scheduledAt || undefined,
+          scheduledAt: isInstantBooking ? null : scheduledAt || undefined,
+          fulfillmentType: isInstantBooking ? "instant" : "scheduled",
         },
         { openDrawer: false },
       );
@@ -632,6 +925,10 @@ export function ProductPdp({ product, onChangeLocation }) {
       toast.add({ title: "Select your city first", type: "info" });
       return;
     }
+    if (!isInstantBooking && !scheduledAt) {
+      toast.add({ title: "Choose date and time, then tap Done", type: "info" });
+      return;
+    }
     if (hasAddons) {
       setCustomizeOpen(true);
       return;
@@ -642,8 +939,9 @@ export function ProductPdp({ product, onChangeLocation }) {
   return (
     <div className="flex min-w-0 flex-col gap-0">
       <div className="grid min-w-0 gap-8 overflow-x-hidden lg:grid-cols-2 lg:items-start lg:gap-10">
-        <div className="min-w-0 lg:sticky lg:top-20 lg:z-[1] lg:self-start">
+        <div className="flex min-w-0 flex-col gap-6 lg:sticky lg:top-20 lg:z-[1] lg:self-start">
           <ProductGallery images={images} title={title} />
+          {isLgUp ? reviewsPreview : null}
         </div>
 
         <div className="flex min-w-0 flex-col gap-4 pb-2">
@@ -670,26 +968,33 @@ export function ProductPdp({ product, onChangeLocation }) {
           reviewCount={product?.reviewCount}
         />
 
-        <div className="flex min-w-0 items-center justify-between gap-3 rounded-4xl bg-emerald-600/10 px-4 py-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <MapPinIcon className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-            <span className="truncate font-medium">{cityLabel}</span>
-            <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-400">
-              Available
-            </Badge>
-          </div>
-          <Button type="button" variant="ghost" size="sm" onClick={onChangeLocation}>
-            Change
-          </Button>
+        <div className="flex flex-col gap-3">
+          <ProductOnSiteSetupBadge />
+          <ProductLocationCard cityLabel={cityLabel} onChangeLocation={onChangeLocation} />
         </div>
 
-        <ProductSchedule onChange={setScheduledAt} />
+        {canInstant && canScheduled ? (
+          <FulfillmentModeSwitch
+            value={fulfillment}
+            onChange={setFulfillment}
+            instantLabel={product.instant?.badgeLabel}
+          />
+        ) : null}
 
-        <div className="flex min-w-0 flex-wrap gap-2">
+        {isInstantBooking ? (
+          <InstantBookingDetails
+            note={product.instant?.pdpNote}
+            etaMinutes={product.instant?.etaMinutes}
+          />
+        ) : canScheduled ? (
+          <ProductSchedule onChange={setScheduledAt} />
+        ) : null}
+
+        <div className="flex min-w-0 gap-3">
           <Button
             type="button"
             size="lg"
-            className="min-w-0 flex-1 bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white sm:min-w-40 [&_svg]:size-5"
+            className="h-12 min-w-0 flex-1 gap-2 rounded-2xl bg-[#00A859] text-base font-semibold text-white shadow-sm hover:bg-[#009650] hover:text-white sm:min-w-40 [&_svg]:size-5"
             onClick={comingSoon}
           >
             <WhatsAppIcon />
@@ -698,11 +1003,18 @@ export function ProductPdp({ product, onChangeLocation }) {
           <Button
             type="button"
             size="lg"
-            className="min-w-0 flex-1 sm:min-w-40 [&_svg]:size-5"
+            variant={isInstantBooking ? "ghost" : "default"}
+            className={cn(
+              "h-12 min-w-0 flex-1 rounded-2xl text-base font-bold sm:min-w-40",
+              isInstantBooking
+                ? "gap-2 border-0 bg-orange-500 text-white shadow-md shadow-orange-500/30 hover:bg-orange-600 hover:text-white"
+                : "bg-primary text-black shadow-sm hover:bg-primary/90",
+            )}
             disabled={booking}
             onClick={onBookNow}
           >
-            {booking ? "Adding…" : "Book Now"}
+            {isInstantBooking ? <ZapIcon className="size-5 fill-current" aria-hidden /> : null}
+            {booking ? "Adding…" : isInstantBooking ? "Book instant" : "Book Now"}
           </Button>
         </div>
 
@@ -715,9 +1027,11 @@ export function ProductPdp({ product, onChangeLocation }) {
           onProceed={(addonIds) => void completeBooking(addonIds)}
         />
 
+        <ProductPdpOffers productId={product?.id} categoryId={product?.categoryId} />
+
         <Accordion multiple defaultValue={["includes"]} className="rounded-4xl border bg-card">
           <AccordionItem value="includes" className="data-open:bg-transparent">
-            <SectionTrigger
+            <ProductPdpSectionTrigger
               icon={<PackageIcon className="size-4" />}
               iconClassName="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400"
               title="What’s included"
@@ -732,7 +1046,7 @@ export function ProductPdp({ product, onChangeLocation }) {
             </AccordionContent>
           </AccordionItem>
           <AccordionItem value="faqs" className="data-open:bg-transparent">
-            <SectionTrigger
+            <ProductPdpSectionTrigger
               icon={<CircleHelpIcon className="size-4" />}
               iconClassName="bg-amber-500/15 text-amber-600 dark:text-amber-400"
               title="FAQs"
@@ -764,7 +1078,7 @@ export function ProductPdp({ product, onChangeLocation }) {
             </AccordionContent>
           </AccordionItem>
           <AccordionItem value="delivery" className="data-open:bg-transparent">
-            <SectionTrigger
+            <ProductPdpSectionTrigger
               icon={<TruckIcon className="size-4" />}
               iconClassName="bg-blue-600/15 text-blue-600 dark:text-blue-400"
               title="Delivery and setup"
@@ -775,7 +1089,7 @@ export function ProductPdp({ product, onChangeLocation }) {
             </AccordionContent>
           </AccordionItem>
           <AccordionItem value="care" className="data-open:bg-transparent">
-            <SectionTrigger
+            <ProductPdpSectionTrigger
               icon={<SparklesIcon className="size-4" />}
               iconClassName="bg-primary/15 text-primary"
               title="Care instructions"
@@ -787,7 +1101,8 @@ export function ProductPdp({ product, onChangeLocation }) {
           </AccordionItem>
         </Accordion>
 
-        <ProductReviewsPreview productId={product?.id} product={product} />
+        {!isLgUp ? reviewsPreview : null}
+
         </div>
       </div>
 
@@ -806,7 +1121,7 @@ export function ProductPdpSkeleton() {
       <span className="sr-only">Loading product</span>
       <div className="min-w-0 lg:sticky lg:top-20">
         <div className="flex min-w-0 flex-col gap-3">
-          <Skeleton className="aspect-square w-full rounded-4xl" />
+          <Skeleton className="aspect-[5/4] w-full rounded-2xl" />
           <div className="flex gap-2">
             <Skeleton className="size-16 shrink-0 rounded-2xl" />
             <Skeleton className="size-16 shrink-0 rounded-2xl" />

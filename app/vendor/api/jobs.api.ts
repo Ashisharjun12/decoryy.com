@@ -18,6 +18,32 @@ export function getVendorJob(orderId: string) {
   return api.get(`/vendor/jobs/${orderId}`).then(unwrap<VendorJobDetail>);
 }
 
+export function getVendorJobRoute(orderId: string) {
+  return api
+    .get(`/vendor/jobs/${orderId}/route`)
+    .then(unwrap<{ encodedPolyline: string; distanceMeters: number; durationSeconds: number }>);
+}
+
+export type VendorJobTracking = {
+  orderId: string;
+  status: string;
+  destination: { latitude: number; longitude: number } | null;
+  vendor: {
+    latitude: number | null;
+    longitude: number | null;
+    heading?: number;
+    updatedAt: string | null;
+    stale: boolean;
+    distanceMeters?: number;
+  } | null;
+  liveTrackingEnabled: boolean;
+  webMapEnabled: boolean;
+};
+
+export function getVendorJobTracking(orderId: string) {
+  return api.get(`/vendor/jobs/${orderId}/tracking`).then(unwrap<VendorJobTracking>);
+}
+
 export function acceptVendorJob(orderId: string) {
   return api.post(`/vendor/jobs/${orderId}/accept`).then(unwrap<VendorJobDetail>);
 }
@@ -40,4 +66,25 @@ export function sendVendorDeliveryCode(orderId: string) {
 
 export function completeVendorJob(orderId: string, code: string) {
   return api.post(`/vendor/jobs/${orderId}/complete`, { code }).then(unwrap<VendorJobDetail>);
+}
+
+export function postVendorJobLocation(
+  orderId: string,
+  body: { latitude: number; longitude: number; heading?: number; speed?: number },
+) {
+  return api
+    .post(`/vendor/jobs/${orderId}/location`, body)
+    .then(unwrap<{ ok: boolean; suggestOnSite?: boolean }>);
+}
+
+export function postVendorPresence(body: {
+  latitude: number;
+  longitude: number;
+  onDuty?: boolean;
+}) {
+  return api.post('/vendor/presence', body).then(unwrap<{ onDuty: boolean }>);
+}
+
+export function postVendorPresenceHeartbeat() {
+  return api.post('/vendor/presence/heartbeat').then(unwrap<{ ok: boolean }>);
 }

@@ -16,6 +16,11 @@ import { BookingScheduleCard } from "@/module/bookings/components/BookingSchedul
 import { BookingPaymentCard } from "@/module/bookings/components/BookingPaymentCard"
 import { RefundRequestCard } from "@/module/bookings/components/RefundRequestCard"
 import { BookingStatusBadge } from "@/module/bookings/components/BookingStatusBadge"
+import { BookingInstantDispatchCard } from "@/module/bookings/components/BookingInstantDispatchCard"
+import {
+  dispatchStatusLabel,
+  fulfillmentTypeLabel,
+} from "@/module/bookings/lib/instant-dispatch-ui"
 
 function canAssign(status) {
   return status === "CONFIRMED" || status === "ASSIGNED"
@@ -99,6 +104,12 @@ export function BookingDetailPage() {
             {order.isCustomPackage ? (
               <Badge variant="secondary">Custom package</Badge>
             ) : null}
+            {order.fulfillmentType === "instant" ? (
+              <Badge variant="outline">{fulfillmentTypeLabel(order.fulfillmentType)}</Badge>
+            ) : null}
+            {order.fulfillmentType === "instant" && order.dispatchStatus ? (
+              <Badge variant="secondary">{dispatchStatusLabel(order.dispatchStatus)}</Badge>
+            ) : null}
           </div>
         </div>
         {showAssign ? (
@@ -140,6 +151,8 @@ export function BookingDetailPage() {
       </div>
 
       <BookingScheduleCard order={order} />
+
+      <BookingInstantDispatchCard order={order} />
 
       <BookingDeliveryStatusCard order={order} />
 

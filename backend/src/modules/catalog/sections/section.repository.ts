@@ -14,6 +14,12 @@ export type SectionPatch = Partial<
     Pick<CatalogSection, "name" | "slug" | "sortIndex" | "badgeColor" | "isActive">
 >;
 
+export type GlobalSectionProductOccupancy = {
+    productId: string;
+    sectionId: string;
+    sectionName: string;
+};
+
 export interface ISectionRepository {
     listAll(): Promise<CatalogSection[]>;
     listActive(): Promise<CatalogSection[]>;
@@ -25,6 +31,7 @@ export interface ISectionRepository {
     listProducts(sectionId: string, cityId: string | null): Promise<CatalogSectionProduct[]>;
     replaceProducts(sectionId: string, cityId: string | null, productIds: string[]): Promise<void>;
     deleteCityOverride(sectionId: string, cityId: string): Promise<boolean>;
+    findGlobalProductOccupancy(): Promise<GlobalSectionProductOccupancy[]>;
 }
 
 export class SectionRepository implements ISectionRepository {
@@ -124,6 +131,18 @@ export class SectionRepository implements ISectionRepository {
                 })),
             );
         });
+    }
+
+    async findGlobalProductOccupancy(): Promise<GlobalSectionProductOccupancy[]> {
+        return db
+            .select({
+                productId: catalogSectionProducts.productId,
+                sectionId: catalogSections.id,
+                sectionName: catalogSections.name,
+            })
+            .from(catalogSectionProducts)
+            .innerJoin(catalogSections, eq(catalogSectionProducts.sectionId, catalogSections.id))
+            .where(isNull(catalogSectionProducts.cityId));
     }
 
     async deleteCityOverride(sectionId: string, cityId: string): Promise<boolean> {

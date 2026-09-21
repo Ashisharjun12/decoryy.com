@@ -11,3 +11,11 @@ export function createOrder(body) {
 export function getOrder(id) {
   return api.get(`/orders/${id}`).then(unwrap);
 }
+
+export function getOrderTracking(id) {
+  return api.get(`/orders/${id}/tracking`).then(unwrap);
+}
+
+export function getOrderRoute(id) {
+  return api.get(`/orders/${id}/route`).then(unwrap);
+}

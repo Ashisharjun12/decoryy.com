@@ -1,5 +1,5 @@
 import { ApiError } from "@/shared/errors/apiError.js";
-import { assertServiceable } from "@/modules/geo/index.js";
+import { assertDeliveryLocation } from "@/modules/geo/index.js";
 import type {
     CreateCustomerAddressInput,
     PatchCustomerAddressInput,
@@ -35,6 +35,9 @@ export class CustomerAddressService {
             cityId: resolved.cityId,
             cityName: input.cityName?.trim() || resolved.cityName,
             isDefault: shouldDefault,
+            latitude: input.latitude,
+            longitude: input.longitude,
+            geoSource: input.geoSource ?? "geocode_manual",
         });
 
         return toPublicCustomerAddress(row);
@@ -58,6 +61,15 @@ export class CustomerAddressService {
             await this.addresses.clearDefaultForUser(userId);
         }
 
+        const geoPatch =
+            input.latitude !== undefined && input.longitude !== undefined
+                ? {
+                      latitude: input.latitude,
+                      longitude: input.longitude,
+                      geoSource: input.geoSource ?? "geocode_manual",
+                  }
+                : {};
+
         const row = await this.addresses.update(id, userId, {
             label: input.label,
             addressLine: input.address,
@@ -66,6 +78,7 @@ export class CustomerAddressService {
             cityId: resolved.cityId,
             cityName: input.cityName ?? (input.pincode ? resolved.cityName : undefined),
             isDefault: input.setDefault,
+            ...geoPatch,
         });
 
         if (!row) {
@@ -109,10 +122,10 @@ export class CustomerAddressService {
         pincode: string,
         cityId?: string,
     ): Promise<{ cityId: string; cityName: string }> {
-        const resolved = await assertServiceable(pincode);
-        if (cityId && resolved.city.id !== cityId) {
-            throw ApiError.badRequest("pincode does not match the selected city");
+        if (!cityId) {
+            throw ApiError.badRequest("cityId is required");
         }
+        const resolved = await assertDeliveryLocation({ cityId, pincode });
         return { cityId: resolved.city.id, cityName: resolved.city.name };
     }
 }

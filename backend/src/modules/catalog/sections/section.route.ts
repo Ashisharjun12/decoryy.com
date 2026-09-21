@@ -20,6 +20,7 @@ export function createSectionPublicRouter(sectionController: SectionController) 
 export function createSectionAdminRouter(sectionController: SectionController) {
     const router = Router();
     router.get("/", sectionController.listAdmin);
+    router.get("/global-product-occupancy", sectionController.listGlobalProductOccupancy);
     router.post("/", validate(createSectionDto), sectionController.create);
     router.get(
         "/:id/products",

@@ -15,6 +15,8 @@ import { processOptimizeJob } from "@/modules/upload/media/optimize.job.js";
 import { processLedgerPostOnCompleteJob } from "@/modules/payments/jobs/ledger-post-on-complete.job.js";
 import { processPaymentWebhookRetryJob } from "@/modules/payments/jobs/payment-webhook-retry.job.js";
 import { processAssignmentReminderJob } from "@/modules/assignment/jobs/assignment.job.js";
+import { processDispatchJob } from "@/modules/dispatch/jobs/dispatch.job.js";
+import { processPresenceSweepJob } from "@/modules/dispatch/jobs/presence-sweep.job.js";
 import { processSettlementSweepJob } from "@/modules/payments/jobs/settlement.job.js";
 import { logger } from "@/utils/logger.js";
 
@@ -72,6 +74,10 @@ export async function startNotificationWorkers(): Promise<void> {
             connection,
             concurrency: 2,
         }),
+        new Worker(QUEUE_NAMES.dispatch, processDispatchJob, { connection, concurrency: 2 }),
+        new Worker(QUEUE_NAMES.presenceSweep, async () => {
+            await processPresenceSweepJob();
+        }, { connection, concurrency: 1 }),
     ];
 
     for (const worker of workers) {
@@ -84,10 +90,16 @@ export async function startNotificationWorkers(): Promise<void> {
     void processSettlementSweepJob().catch((err) => {
         logger.error({ err }, "initial settlement sweep failed");
     });
+    void processPresenceSweepJob().catch((err) => {
+        logger.error({ err }, "initial presence sweep failed");
+    });
     sweepTimer = setInterval(() => {
         void scheduleSweep();
         void processSettlementSweepJob().catch((err) => {
             logger.error({ err }, "settlement sweep failed");
+        });
+        void processPresenceSweepJob().catch((err) => {
+            logger.error({ err }, "presence sweep failed");
         });
     }, 60_000);
 
@@ -103,6 +115,8 @@ export async function startNotificationWorkers(): Promise<void> {
                 QUEUE_NAMES.paymentsWebhookRetry,
                 QUEUE_NAMES.ledgerPostOnComplete,
                 QUEUE_NAMES.assignmentReminder,
+                QUEUE_NAMES.dispatch,
+                QUEUE_NAMES.presenceSweep,
             ],
         },
         "Decory notification workers started",

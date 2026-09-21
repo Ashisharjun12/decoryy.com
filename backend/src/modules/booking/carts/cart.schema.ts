@@ -1,4 +1,5 @@
-import { integer, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { doublePrecision, integer, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { fulfillmentTypeEnum } from "@/modules/booking/domain/geo-enums.js";
 import { users } from "@/modules/identity/users/user.schema.js";
 import { cities } from "@/modules/geo/cities/city.schema.js";
 import { products } from "@/modules/catalog/products/product.schema.js";
@@ -13,6 +14,9 @@ export const carts = pgTable(
         guestKey: text("guest_key").unique(),
         cityId: uuid("city_id").references(() => cities.id, { onDelete: "set null" }),
         pincode: text("pincode"),
+        fulfillmentType: fulfillmentTypeEnum("fulfillment_type"),
+        deliveryLatitude: doublePrecision("delivery_latitude"),
+        deliveryLongitude: doublePrecision("delivery_longitude"),
         scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
         appliedCouponId: uuid("applied_coupon_id").references(() => coupons.id, { onDelete: "set null" }),
         appliedCouponCode: text("applied_coupon_code"),

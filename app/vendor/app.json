@@ -12,6 +12,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Decoryy uses your location when you are en route to a booking.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Decoryy shares your location in the background while you are en route so customers can track the trip.",
+        "UIBackgroundModes": ["location"],
         "NSUserNotificationsUsageDescription": "Decoryy sends alerts when new bookings are assigned to you.",
         "NSCameraUsageDescription": "Decoryy uses the camera to send photos in booking chat.",
         "NSPhotoLibraryUsageDescription": "Decoryy uses your photo library to send images in booking chat."
@@ -21,11 +23,18 @@
       "package": "com.deccoryy.partner",
       "googleServicesFile": "./google-services.json",
       "permissions": [
+        "INTERNET",
         "POST_NOTIFICATIONS",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -65,7 +74,10 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Decoryy uses your location when you are en route to a booking."
+          "locationWhenInUsePermission": "Decoryy uses your location when you are en route to a booking.",
+          "locationAlwaysAndWhenInUsePermission": "Decoryy shares your location in the background while you are en route so customers can track the trip.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ],
       [
@@ -76,8 +88,8 @@
         }
       ],
       "expo-secure-store",
-      "expo-maps",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "@maplibre/maplibre-react-native"
     ],
     "experiments": {
       "typedRoutes": true,

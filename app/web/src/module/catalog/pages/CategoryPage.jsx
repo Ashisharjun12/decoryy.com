@@ -124,7 +124,7 @@ export function CategoryPage() {
       ) : loading ? (
         <div className="space-y-6" aria-busy="true">
           <Skeleton className="h-6 w-48 rounded-md" />
-          <div className="grid grid-cols-2 gap-3 md:gap-5 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:gap-3 lg:grid-cols-5">
             {Array.from({ length: 8 }, (_, i) => (
               <HomeProductCardRailSkeleton key={i} />
             ))}

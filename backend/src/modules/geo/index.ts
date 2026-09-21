@@ -11,7 +11,11 @@ import { pincodes } from "@/modules/geo/pincodes/pincode.schema.js";
 import { PincodeService } from "@/modules/geo/pincodes/pincode.service.js";
 import { ApiError } from "@/shared/errors/apiError.js";
 import { publicCity, type PublicCity } from "@/modules/geo/cities/city.public.js";
-import type { ResolvedPincode } from "@/modules/geo/pincodes/pincode.service.js";
+import type {
+    DeliveryLocationInput,
+    PincodeLookupResult,
+    ResolvedPincode,
+} from "@/modules/geo/pincodes/pincode.service.js";
 
 const cityRepository = new CityRepository();
 const pincodeRepository = new PincodeRepository();
@@ -28,6 +32,14 @@ geoRouter.use(createPincodePublicRouter(pincodeController));
 
 export const geoCityAdminRouter = createCityAdminRouter(cityController);
 export const geoPincodeAdminRouter = createPincodeAdminRouter(pincodeController);
+
+export function lookupPincode(pincode: string, cityId?: string): Promise<PincodeLookupResult> {
+    return pincodeService.lookup(pincode, cityId);
+}
+
+export function assertDeliveryLocation(input: DeliveryLocationInput): Promise<ResolvedPincode> {
+    return pincodeService.assertDeliveryLocation(input);
+}
 
 export function assertServiceable(pincode: string): Promise<ResolvedPincode> {
     return pincodeService.assertServiceable(pincode);

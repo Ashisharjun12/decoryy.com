@@ -11,6 +11,8 @@ export type AppQueues = {
     paymentsWebhookRetry: Queue;
     ledgerPostOnComplete: Queue;
     imageOptimize: Queue;
+    dispatch: Queue;
+    presenceSweep: Queue;
 };
 
 let queues: AppQueues | null = null;
@@ -29,6 +31,8 @@ export function getQueues(): AppQueues {
         paymentsWebhookRetry: new Queue(QUEUE_NAMES.paymentsWebhookRetry, { connection }),
         ledgerPostOnComplete: new Queue(QUEUE_NAMES.ledgerPostOnComplete, { connection }),
         imageOptimize: new Queue(QUEUE_NAMES.imageOptimize, { connection }),
+        dispatch: new Queue(QUEUE_NAMES.dispatch, { connection }),
+        presenceSweep: new Queue(QUEUE_NAMES.presenceSweep, { connection }),
     };
     return queues;
 }

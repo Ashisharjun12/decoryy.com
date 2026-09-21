@@ -1,6 +1,8 @@
 import { patchDuty } from '@/api/vendor.api';
+import { postVendorPresence } from '@/api/jobs.api';
 import { getApiError } from '@/api/client';
 import { getLocationPermissionStatus } from '@/lib/location';
+import * as Location from 'expo-location';
 import { useAuthStore } from '@/store/auth.store';
 import { useMutation } from '@tanstack/react-query';
 import { router, type Href } from 'expo-router';
@@ -69,6 +71,20 @@ export function useVendorDuty() {
     try {
       const data = await mutation.mutateAsync(next);
       useAuthStore.setState({ user: data.user });
+      if (next) {
+        try {
+          const fix = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          await postVendorPresence({
+            latitude: fix.coords.latitude,
+            longitude: fix.coords.longitude,
+            onDuty: true,
+          });
+        } catch {
+          // duty already updated; dispatch may fall back to shop base until next presence ping
+        }
+      }
     } catch (err) {
       Alert.alert('Could not update status', getApiError(err));
     }

@@ -18,6 +18,7 @@ export const NOTIFICATION_EVENTS = [
     "CHAT_MESSAGE",
     "PAYOUT_PAID",
     "PAYOUT_FAILED",
+    "DISPATCH_EXHAUSTED",
 ] as const;
 export type NotificationEvent = (typeof NOTIFICATION_EVENTS)[number];
 
@@ -265,6 +266,17 @@ export const EVENT_POLICIES: Record<NotificationEvent, EventPolicy> = {
             {
                 templateKey: "payout_paid",
                 channel: "in_app",
+                type: "transactional",
+                priority: "standard",
+                required: false,
+            },
+        ],
+    },
+    DISPATCH_EXHAUSTED: {
+        channels: [
+            {
+                templateKey: "dispatch_exhausted",
+                channel: "email",
                 type: "transactional",
                 priority: "standard",
                 required: false,

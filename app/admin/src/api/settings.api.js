@@ -51,3 +51,31 @@ export function getAiPolicy() {
 export function patchAiPolicy(payload) {
   return api.patch("/admin/settings/ai", payload).then(unwrap)
 }
+
+export function getInstantMarketplacePolicy() {
+  return api.get("/admin/settings/instant-marketplace").then(unwrap)
+}
+
+export function patchInstantMarketplacePolicy(payload) {
+  return api.patch("/admin/settings/instant-marketplace", payload).then(unwrap)
+}
+
+export function getInstantDispatchPolicy() {
+  return api.get("/admin/settings/instant-dispatch").then(unwrap)
+}
+
+export function patchInstantDispatchPolicy(payload) {
+  return api.patch("/admin/settings/instant-dispatch", payload).then(unwrap)
+}
+
+export function resolveInstantDispatchSystemUser() {
+  return api.post("/admin/settings/instant-dispatch/system-user").then(unwrap)
+}
+
+export function getInstantMapsPolicy() {
+  return api.get("/admin/settings/instant-maps").then(unwrap)
+}
+
+export function patchInstantMapsPolicy(payload) {
+  return api.patch("/admin/settings/instant-maps", payload).then(unwrap)
+}

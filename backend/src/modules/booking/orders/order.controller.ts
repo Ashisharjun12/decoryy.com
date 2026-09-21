@@ -34,6 +34,24 @@ export class OrderController {
         res.status(200).json(new ApiResponse(200, data, "ok"));
     });
 
+    getTracking = asyncHandler(async (req, res) => {
+        if (!req.actor?.id) {
+            throw ApiError.unauthorized("login required");
+        }
+        const id = paramId(req);
+        const data = await this.orders.getTrackingForUser(req.actor.id, id);
+        res.status(200).json(new ApiResponse(200, data, "ok"));
+    });
+
+    getRoute = asyncHandler(async (req, res) => {
+        if (!req.actor?.id) {
+            throw ApiError.unauthorized("login required");
+        }
+        const id = paramId(req);
+        const data = await this.orders.getRouteForUser(req.actor.id, id);
+        res.status(200).json(new ApiResponse(200, data, "ok"));
+    });
+
     submitReview = asyncHandler(async (req, res) => {
         if (!req.actor?.id) {
             throw ApiError.unauthorized("login required");

@@ -9,6 +9,10 @@ import { staggerItem } from "@/lib/motion-variants";
 import { discountPercent } from "@/lib/product-price";
 import { sectionBadgeAppearance } from "@/lib/section-badge-color";
 import { cn } from "@/lib/utils";
+import {
+  ProductCardInstantBadge,
+  ProductCardInstantEta,
+} from "@/module/catalog/components/ProductCardInstant";
 
 function formatRating(value) {
   if (value == null || Number.isNaN(Number(value))) return null;
@@ -16,14 +20,26 @@ function formatRating(value) {
   return n % 1 === 0 ? String(n) : n.toFixed(1);
 }
 
-function ProductCardRatingReviews({ ratingLabel, reviewCount, size = "default" }) {
+function ProductCardRatingReviews({
+  ratingLabel,
+  reviewCount,
+  size = "default",
+  className,
+  noTopMargin = false,
+}) {
   if (ratingLabel == null && reviewCount == null) return null;
   const count =
     reviewCount != null ? Number(reviewCount).toLocaleString() : null;
   const reviewSize = size === "rail" ? "text-[11px]" : "text-xs";
 
   return (
-    <div className="mt-1.5 flex min-h-5 items-center gap-1.5">
+    <div
+      className={cn(
+        "flex min-h-5 items-center gap-1.5",
+        !noTopMargin && "mt-1.5",
+        className,
+      )}
+    >
       {ratingLabel != null ? (
         <span
           className={cn(
@@ -38,6 +54,35 @@ function ProductCardRatingReviews({ ratingLabel, reviewCount, size = "default" }
         <span className={cn("truncate text-muted-foreground", reviewSize)}>
           {count} reviews
         </span>
+      ) : null}
+    </div>
+  );
+}
+
+function ProductCardReviewsAndEta({
+  ratingLabel,
+  reviewCount,
+  instant,
+  size = "rail",
+}) {
+  const showEta = Boolean(instant?.enabled && instant.etaMinutes != null);
+  const hasReviews = ratingLabel != null || reviewCount != null;
+  if (!hasReviews && !showEta) return null;
+
+  return (
+    <div className="mt-1.5 flex min-h-5 items-center justify-between gap-2">
+      <div className="min-w-0 flex-1">
+        {hasReviews ? (
+          <ProductCardRatingReviews
+            size={size}
+            ratingLabel={ratingLabel}
+            reviewCount={reviewCount}
+            noTopMargin
+          />
+        ) : null}
+      </div>
+      {showEta ? (
+        <ProductCardInstantEta instant={instant} size={size} className="shrink-0 translate-y-0" />
       ) : null}
     </div>
   );
@@ -58,43 +103,45 @@ function ProductCardPriceBlock({ pricePaise, compareAtPaise, size = "default" })
     size === "rail" ? "text-[11px] px-1.5 py-0.5" : "text-xs px-2 py-0.5";
 
   return (
-    <div className="mt-auto flex items-center justify-between gap-2 pt-2">
-      <div className="min-w-0">
-        {hasCompare ? (
-          <span className="sr-only">
-            Sale price {formatPaise(pricePaise)}, was {formatPaise(compareAtPaise)}
-          </span>
-        ) : null}
-        <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-          <span
-            className={cn("tabular-nums text-foreground", priceClass)}
-            aria-hidden={hasCompare ? true : undefined}
-          >
-            {formatPaise(pricePaise)}
-          </span>
+    <div className="mt-auto pt-2">
+      <div className="flex items-end justify-between gap-2">
+        <div className="min-w-0">
           {hasCompare ? (
-            <span
-              className={cn(
-                "font-medium text-muted-foreground line-through tabular-nums",
-                mrpClass,
-              )}
-              aria-hidden
-            >
-              {formatPaise(compareAtPaise)}
+            <span className="sr-only">
+              Sale price {formatPaise(pricePaise)}, was {formatPaise(compareAtPaise)}
             </span>
           ) : null}
+          <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+            <span
+              className={cn("tabular-nums text-foreground", priceClass)}
+              aria-hidden={hasCompare ? true : undefined}
+            >
+              {formatPaise(pricePaise)}
+            </span>
+            {hasCompare ? (
+              <span
+                className={cn(
+                  "font-medium text-muted-foreground line-through tabular-nums",
+                  mrpClass,
+                )}
+                aria-hidden
+              >
+                {formatPaise(compareAtPaise)}
+              </span>
+            ) : null}
+          </div>
         </div>
+        {percentOff > 0 ? (
+          <span
+            className={cn(
+              "shrink-0 rounded-md bg-emerald-50 font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
+              offClass,
+            )}
+          >
+            {percentOff}% OFF
+          </span>
+        ) : null}
       </div>
-      {percentOff > 0 ? (
-        <span
-          className={cn(
-            "shrink-0 rounded-md bg-emerald-50 font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
-            offClass,
-          )}
-        >
-          {percentOff}% OFF
-        </span>
-      ) : null}
     </div>
   );
 }
@@ -126,9 +173,11 @@ function CompactProductCardContent({ product }) {
           {product.name}
         </h3>
 
-        <ProductCardRatingReviews
+        <ProductCardReviewsAndEta
+          size="default"
           ratingLabel={ratingLabel}
           reviewCount={product.reviewCount}
+          instant={product.instant}
         />
 
         <ProductCardPriceBlock
@@ -245,6 +294,7 @@ function RailProductCardContent({ product, badgeLabel, badgeColor }) {
     >
       <div className="relative aspect-[5/4] w-full shrink-0 overflow-hidden rounded-t-2xl bg-muted">
         <SectionProductBadge label={badgeLabel} color={badgeColor} />
+        <ProductCardInstantBadge instant={product.instant} />
         {src && !broken ? (
           <img
             src={src}
@@ -261,10 +311,11 @@ function RailProductCardContent({ product, badgeLabel, badgeColor }) {
           {product.name}
         </h3>
 
-        <ProductCardRatingReviews
+        <ProductCardReviewsAndEta
           size="rail"
           ratingLabel={ratingLabel}
           reviewCount={product.reviewCount}
+          instant={product.instant}
         />
 
         <ProductCardPriceBlock

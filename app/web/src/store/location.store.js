@@ -19,7 +19,7 @@ export function formatLocationLabel(city, pincode, source) {
   if (!city?.name) {
     return "Select city";
   }
-  if (source === "gps" && pincode?.code) {
+  if (pincode?.code) {
     return `${city.name} · ${pincode.code}`;
   }
   return city.name;

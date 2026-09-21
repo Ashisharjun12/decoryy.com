@@ -34,6 +34,16 @@ import { VendorMemberRepository } from "@/modules/identity/vendor-members/vendor
 import { getQueues } from "@/infrastructure/queue/bull.connection.js";
 import { orderFinancialService } from "@/modules/payments/order-financials/order-financial.service.js";
 import { ledgerService } from "@/modules/payments/ledger/ledger.service.js";
+import {
+    assignedFieldWorkerUserId,
+    isDistinctFieldWorkerAssigned,
+} from "@/modules/booking/lib/booking-field-chat.js";
+import { buildOrderTripRoute } from "@/modules/maps/order-route.service.js";
+import type { RouteResult } from "@/modules/maps/maps.types.js";
+import {
+    buildOrderTracking,
+    type PublicOrderTracking,
+} from "@/modules/dispatch/tracking/tracking.service.js";
 
 export type VendorJobSummary = {
     id: string;
@@ -60,6 +70,8 @@ export type VendorJobDetail = VendorJobSummary & {
         landmark: string | null;
         cityName: string;
         pincode: string;
+        latitude: number | null;
+        longitude: number | null;
     };
     items: Array<{
         id: string;
@@ -88,8 +100,15 @@ export interface IVendorJobService {
         search?: string,
     ): Promise<{ items: VendorJobSummary[]; total: number }>;
     getJob(partner: PartnerContext, orderId: string): Promise<VendorJobDetail>;
+    getJobRoute(partner: PartnerContext, orderId: string): Promise<RouteResult>;
+    getJobTracking(partner: PartnerContext, orderId: string): Promise<PublicOrderTracking>;
     acceptJob(partner: PartnerContext, orderId: string): Promise<VendorJobDetail>;
     declineJob(partner: PartnerContext, orderId: string): Promise<void>;
+    postJobLocation(
+        partner: PartnerContext,
+        orderId: string,
+        input: { latitude: number; longitude: number; heading?: number; speed?: number },
+    ): Promise<{ suggestOnSite: boolean }>;
     markEnRoute(partner: PartnerContext, orderId: string): Promise<VendorJobDetail>;
     markOnSite(partner: PartnerContext, orderId: string): Promise<VendorJobDetail>;
     sendDeliveryCode(partner: PartnerContext, orderId: string): Promise<VendorJobDetail>;
@@ -181,7 +200,38 @@ export class VendorJobService implements IVendorJobService {
         return order;
     }
 
+    private async resolveCanChat(
+        partner: PartnerContext,
+        vendorId: string,
+        orderId: string,
+        row: VendorJobRow,
+    ): Promise<boolean> {
+        if (
+            row.vendorResponse !== "accepted" ||
+            row.status === "COMPLETED" ||
+            row.status === "CANCELLED"
+        ) {
+            return false;
+        }
+        if (partner.mode === "field") {
+            if (!partner.memberId) return false;
+            return this.fieldAssignments.isMemberAssigned(partner.memberId, orderId);
+        }
+        const vendor = await this.vendors.findById(vendorId);
+        if (!vendor) return false;
+        const workerUserId = await assignedFieldWorkerUserId(
+            this.fieldAssignments,
+            vendorId,
+            orderId,
+        );
+        if (isDistinctFieldWorkerAssigned(vendor.userId, workerUserId)) {
+            return false;
+        }
+        return true;
+    }
+
     private async buildJobDetail(
+        partner: PartnerContext,
         vendorId: string,
         orderId: string,
         row: VendorJobRow,
@@ -205,12 +255,11 @@ export class VendorJobService implements IVendorJobService {
                 landmark: row.landmark,
                 cityName: row.cityName,
                 pincode: row.pincode,
+                latitude: order?.deliveryLatitude ?? null,
+                longitude: order?.deliveryLongitude ?? null,
             },
             items,
-            canChat:
-                row.vendorResponse === "accepted" &&
-                row.status !== "COMPLETED" &&
-                row.status !== "CANCELLED",
+            canChat: await this.resolveCanChat(partner, vendorId, orderId, row),
             deliveryCodeSent,
             collectionStatus,
             collectionMethod,
@@ -339,7 +388,45 @@ export class VendorJobService implements IVendorJobService {
                 throw ApiError.notFound("job not found");
             }
         }
-        return this.buildJobDetail(vendorId, orderId, row);
+        return this.buildJobDetail(partner, vendorId, orderId, row);
+    }
+
+    async getJobRoute(partner: PartnerContext, orderId: string): Promise<RouteResult> {
+        const vendorId = partner.vendorId;
+        const row = await this.jobs.findJobForVendor(vendorId, orderId);
+        if (!row) {
+            throw ApiError.notFound("job not found");
+        }
+        if (partner.mode === "field") {
+            const assigned = await this.fieldAssignments.isMemberAssigned(partner.memberId, orderId);
+            if (!assigned) {
+                throw ApiError.notFound("job not found");
+            }
+        }
+        const order = await this.orders.findById(orderId);
+        if (!order) {
+            throw ApiError.notFound("order not found");
+        }
+        return buildOrderTripRoute(order);
+    }
+
+    async getJobTracking(partner: PartnerContext, orderId: string): Promise<PublicOrderTracking> {
+        const vendorId = partner.vendorId;
+        const row = await this.jobs.findJobForVendor(vendorId, orderId);
+        if (!row) {
+            throw ApiError.notFound("job not found");
+        }
+        if (partner.mode === "field") {
+            const assigned = await this.fieldAssignments.isMemberAssigned(partner.memberId, orderId);
+            if (!assigned) {
+                throw ApiError.notFound("job not found");
+            }
+        }
+        const order = await this.orders.findById(orderId);
+        if (!order) {
+            throw ApiError.notFound("order not found");
+        }
+        return buildOrderTracking(order);
     }
 
     async acceptJob(partner: PartnerContext, orderId: string): Promise<VendorJobDetail> {
@@ -412,6 +499,13 @@ export class VendorJobService implements IVendorJobService {
             logger.error({ err, orderId }, "ensure booking conversation failed");
         }
 
+        try {
+            const { getDispatchService } = await import("@/modules/dispatch/index.js");
+            await getDispatchService().onVendorAccepted(orderId);
+        } catch (err) {
+            logger.error({ err, orderId }, "dispatch accept hook failed");
+        }
+
         return this.getJob(partner, orderId);
     }
 
@@ -431,6 +525,53 @@ export class VendorJobService implements IVendorJobService {
         if (!updated) {
             throw ApiError.conflict("could not decline job");
         }
+
+        try {
+            const { getDispatchService } = await import("@/modules/dispatch/index.js");
+            await getDispatchService().onVendorDeclined(orderId, vendorId);
+        } catch (err) {
+            logger.error({ err, orderId }, "dispatch decline hook failed");
+        }
+    }
+
+    async postJobLocation(
+        partner: PartnerContext,
+        orderId: string,
+        input: { latitude: number; longitude: number; heading?: number; speed?: number },
+    ): Promise<{ suggestOnSite: boolean }> {
+        await this.assertFieldModeJob(partner, orderId);
+        const vendorId = partner.vendorId;
+        const order = await this.assertActiveVendorJob(vendorId, orderId);
+        const { assertCanPostLocation } = await import(
+            "@/modules/dispatch/tracking/tracking.service.js"
+        );
+        const { setBookingLocation } = await import("@/modules/dispatch/geo/vendor-geo.store.js");
+        const { haversineDistanceMeters } = await import("@/modules/dispatch/lib/haversine.js");
+        assertCanPostLocation(order);
+        await setBookingLocation(orderId, {
+            latitude: input.latitude,
+            longitude: input.longitude,
+            heading: input.heading,
+            speed: input.speed,
+            at: new Date().toISOString(),
+        });
+
+        const ON_SITE_HINT_RADIUS_M = 120;
+        let suggestOnSite = false;
+        if (
+            order.status === "EN_ROUTE" &&
+            order.deliveryLatitude != null &&
+            order.deliveryLongitude != null
+        ) {
+            const distanceM = haversineDistanceMeters(
+                input.latitude,
+                input.longitude,
+                order.deliveryLatitude,
+                order.deliveryLongitude,
+            );
+            suggestOnSite = distanceM <= ON_SITE_HINT_RADIUS_M;
+        }
+        return { suggestOnSite };
     }
 
     async markEnRoute(partner: PartnerContext, orderId: string): Promise<VendorJobDetail> {

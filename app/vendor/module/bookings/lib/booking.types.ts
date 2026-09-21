@@ -53,6 +53,8 @@ export type VendorJobDetail = VendorJobSummary & {
     landmark: string | null;
     cityName: string;
     pincode: string;
+    latitude: number | null;
+    longitude: number | null;
   };
   items: VendorJobItem[];
   canChat: boolean;

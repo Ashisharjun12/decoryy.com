@@ -3,9 +3,9 @@ import {
   CheckIcon,
   ChevronDownIcon,
   LocateFixedIcon,
-  MapPinIcon,
   SearchIcon,
 } from "lucide-react";
+import { MapsPinIcon } from "@/components/maps-pin-icon";
 import { getApiError } from "@/api/api";
 import { getLenis } from "@/lib/lenis-instance";
 import { cn } from "@/lib/utils";
@@ -23,15 +23,16 @@ import { toast } from "@/components/ui/toast";
 import { detectLocationFromDevice } from "@/module/geo/detect-location";
 import {
   formatLocationLabel,
+  isBackendCityId,
   useLocationStore,
 } from "@/store/location.store";
+import { useCartStore } from "@/store/cart.store";
 
 function CityChip({
   city,
   pincode,
   source,
   className,
-  pinClassName,
   labelClassName,
   chevronClassName,
   ...props
@@ -45,9 +46,7 @@ function CityChip({
       )}
       {...props}
     >
-      <MapPinIcon
-        className={cn("size-3.5 shrink-0 text-muted-foreground", pinClassName)}
-      />
+      <MapsPinIcon size={14} className="size-3.5" />
       <span className={cn("min-w-0 truncate font-bold", labelClassName)}>
         {formatLocationLabel(city, pincode, source)}
       </span>
@@ -66,8 +65,17 @@ export function LocationPicker({ variant = "default" }) {
   const pickerOpen = useLocationStore((s) => s.pickerOpen);
   const setPickerOpen = useLocationStore((s) => s.setPickerOpen);
   const setLocation = useLocationStore((s) => s.setLocation);
+  const setCartLocation = useCartStore((s) => s.setLocation);
   const [query, setQuery] = useState("");
   const [pending, setPending] = useState(false);
+
+  function syncCartLocation(nextCity, nextPincode) {
+    if (!nextCity?.id || !isBackendCityId(nextCity.id)) return;
+    const body = nextPincode?.code
+      ? { cityId: nextCity.id, pincode: String(nextPincode.code).replace(/\D/g, "").slice(0, 6) }
+      : { cityId: nextCity.id };
+    void setCartLocation(body).catch(() => {});
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -100,6 +108,7 @@ export function LocationPicker({ variant = "default" }) {
     try {
       const location = await detectLocationFromDevice();
       setLocation(location);
+      syncCartLocation(location.city, location.pincode);
       toast.add({
         title: `Set to ${formatLocationLabel(location.city, location.pincode, location.source)}`,
         type: "success",
@@ -116,6 +125,7 @@ export function LocationPicker({ variant = "default" }) {
 
   function selectCity(next) {
     setLocation({ city: next, pincode: null, source: "manual" });
+    syncCartLocation(next, null);
     setQuery("");
   }
 
@@ -130,13 +140,6 @@ export function LocationPicker({ variant = "default" }) {
           variant === "onBrand" || variant === "onHero"
             ? "h-auto max-w-[10.5rem] border-0 bg-transparent px-0 py-0 shadow-none hover:border-0 hover:bg-transparent hover:shadow-none"
             : undefined
-        }
-        pinClassName={
-          variant === "onBrand"
-            ? "text-primary-foreground/80"
-            : variant === "onHero"
-              ? "text-primary"
-              : undefined
         }
         labelClassName={
           variant === "onBrand"
@@ -239,12 +242,7 @@ export function LocationPicker({ variant = "default" }) {
                           selected && "bg-primary/15",
                         )}
                       >
-                        <MapPinIcon
-                          className={cn(
-                            "size-4 text-muted-foreground",
-                            selected && "text-primary",
-                          )}
-                        />
+                        <MapsPinIcon size={16} className="size-4" />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block font-medium text-foreground">

@@ -236,8 +236,8 @@ export function CatalogProductGrid({
       {status === "loading" ? (
         <div className="space-y-6" aria-busy="true" aria-live="polite">
           <span className="sr-only">Loading products</span>
-          <div className="grid grid-cols-2 gap-3 md:gap-5 lg:grid-cols-4">
-            {Array.from({ length: 8 }, (_, i) => (
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:gap-3 lg:grid-cols-5">
+            {Array.from({ length: 10 }, (_, i) => (
               <HomeProductCardRailSkeleton key={i} />
             ))}
           </div>
@@ -261,7 +261,7 @@ export function CatalogProductGrid({
 
       {status === "ready" && items.length > 0 ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-3 md:gap-5 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:gap-3 lg:grid-cols-5">
             {items.map((product) => (
               <HomeProductCardRail key={product.id} product={product} />
             ))}

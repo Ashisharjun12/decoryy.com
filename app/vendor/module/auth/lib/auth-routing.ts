@@ -97,8 +97,14 @@ export function getGateAccessRedirect(
 export function getOnboardingAccessRedirect(
   accessToken: string | null,
   user: AuthUser | null,
+  isReapplyMode = false,
 ): Href | null {
   if (!isAuthenticated(accessToken, user)) {
+    return null;
+  }
+
+  // Rejected vendors updating shop details stay on onboarding register screens.
+  if (isReapplyMode) {
     return null;
   }
 

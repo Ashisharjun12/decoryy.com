@@ -44,4 +44,39 @@ export class SettingController {
         const data = await this.settings.patchBookingPolicy(req.body, req.actor!.id);
         res.status(200).json(new ApiResponse(200, data, "booking policy updated"));
     });
+
+    getInstantDispatch = asyncHandler(async (_req, res) => {
+        const data = await this.settings.getInstantDispatchPolicy();
+        res.status(200).json(new ApiResponse(200, data, "ok"));
+    });
+
+    patchInstantDispatch = asyncHandler(async (req, res) => {
+        const data = await this.settings.patchInstantDispatchPolicy(req.body, req.actor!.id);
+        res.status(200).json(new ApiResponse(200, data, "instant dispatch policy updated"));
+    });
+
+    resolveInstantDispatchSystemUser = asyncHandler(async (_req, res) => {
+        const data = await this.settings.resolveInstantDispatchSystemUser();
+        res.status(200).json(new ApiResponse(200, data, "ok"));
+    });
+
+    getInstantMaps = asyncHandler(async (_req, res) => {
+        const data = await this.settings.getInstantMapsPolicy();
+        res.status(200).json(new ApiResponse(200, data, "ok"));
+    });
+
+    patchInstantMaps = asyncHandler(async (req, res) => {
+        const data = await this.settings.patchInstantMapsPolicy(req.body, req.actor!.id);
+        res.status(200).json(new ApiResponse(200, data, "instant maps policy updated"));
+    });
+
+    getInstantMarketplace = asyncHandler(async (_req, res) => {
+        const data = await this.settings.getInstantMarketplacePolicy();
+        res.status(200).json(new ApiResponse(200, data, "ok"));
+    });
+
+    patchInstantMarketplace = asyncHandler(async (req, res) => {
+        const data = await this.settings.patchInstantMarketplacePolicy(req.body, req.actor!.id);
+        res.status(200).json(new ApiResponse(200, data, "instant marketplace policy updated"));
+    });
 }

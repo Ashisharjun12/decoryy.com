@@ -37,6 +37,8 @@ export type AdminOrderListFilter = {
     sort?: "scheduled_at" | "created_at";
     userId?: string;
     vendorId?: string;
+    fulfillmentType?: Order["fulfillmentType"];
+    dispatchStatus?: Order["dispatchStatus"];
 };
 
 export type OrderInsertPayload = Omit<
@@ -177,6 +179,12 @@ export class OrderRepository implements IOrderRepository {
                 ),
             );
         }
+        if (filter.fulfillmentType) {
+            conditions.push(eq(orders.fulfillmentType, filter.fulfillmentType));
+        }
+        if (filter.dispatchStatus) {
+            conditions.push(eq(orders.dispatchStatus, filter.dispatchStatus));
+        }
         const where = conditions.length ? and(...conditions) : undefined;
         return this.listRows(where, pagination, filter.sort ?? "scheduled_at");
     }
@@ -285,6 +293,13 @@ export class OrderRepository implements IOrderRepository {
                 isCustomPackage: payload.isCustomPackage ?? false,
                 cityId: payload.cityId,
                 pincode: payload.pincode,
+                fulfillmentType: payload.fulfillmentType ?? "scheduled",
+                dispatchStatus: payload.dispatchStatus ?? "idle",
+                dispatchExhaustedAt: payload.dispatchExhaustedAt ?? null,
+                deliveryLatitude: payload.deliveryLatitude ?? null,
+                deliveryLongitude: payload.deliveryLongitude ?? null,
+                deliveryGeoSource: payload.deliveryGeoSource ?? null,
+                deliveryGeoAt: payload.deliveryGeoAt ?? null,
                 scheduledAt: payload.scheduledAt,
                 subtotalPaise: payload.subtotalPaise,
                 discountPaise: payload.discountPaise ?? 0,

@@ -4,6 +4,10 @@ export function listSections() {
   return api.get("/admin/sections").then(unwrap);
 }
 
+export function listGlobalProductOccupancy() {
+  return api.get("/admin/sections/global-product-occupancy").then(unwrap);
+}
+
 export function createSection(body) {
   return api.post("/admin/sections", body).then(unwrap);
 }

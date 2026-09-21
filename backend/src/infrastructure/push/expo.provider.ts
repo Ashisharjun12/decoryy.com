@@ -29,6 +29,10 @@ export class ExpoPushProvider implements PushPort {
                 body: message.body,
                 data: message.data,
                 sound: "default",
+                priority: message.priority ?? "default",
+                ...(message.androidChannelId
+                    ? { channelId: message.androidChannelId }
+                    : {}),
             },
         ]);
 

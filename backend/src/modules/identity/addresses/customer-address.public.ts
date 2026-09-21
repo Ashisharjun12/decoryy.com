@@ -9,6 +9,9 @@ export type PublicCustomerAddress = {
     cityId: string | null;
     cityName: string;
     isDefault: boolean;
+    latitude: number | null;
+    longitude: number | null;
+    geoSource: string | null;
 };
 
 export function toPublicCustomerAddress(row: CustomerAddress): PublicCustomerAddress {
@@ -21,5 +24,8 @@ export function toPublicCustomerAddress(row: CustomerAddress): PublicCustomerAdd
         cityId: row.cityId,
         cityName: row.cityName,
         isDefault: row.isDefault,
+        latitude: row.latitude ?? null,
+        longitude: row.longitude ?? null,
+        geoSource: row.geoSource ?? null,
     };
 }

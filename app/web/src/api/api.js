@@ -7,8 +7,25 @@ export const api = axios.create({
   withCredentials: true,
 });
 
+function formatValidationErrors(errors) {
+  if (!Array.isArray(errors) || errors.length === 0) return "";
+  return errors
+    .map((issue) => {
+      const path = Array.isArray(issue?.path) ? issue.path.join(".") : "";
+      const msg = issue?.message ?? "";
+      return path ? `${path}: ${msg}` : msg;
+    })
+    .filter(Boolean)
+    .join(" · ");
+}
+
 export function getApiError(err) {
-  return err?.response?.data?.message || err?.message || "Something went wrong";
+  const data = err?.response?.data;
+  if (data?.message === "validation failed") {
+    const detail = formatValidationErrors(data.errors);
+    if (detail) return detail;
+  }
+  return data?.message || err?.message || "Something went wrong";
 }
 
 export function unwrap(response) {

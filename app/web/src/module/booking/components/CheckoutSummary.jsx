@@ -27,8 +27,8 @@ export function CheckoutSummary({ cart, paymentMethod }) {
   const appliedCoupon = cart?.appliedCoupon;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-3">
+    <div className="flex flex-col">
+      <div className="mb-6 flex items-center justify-between gap-3">
         <h2 className="font-heading text-lg font-semibold tracking-tight">Order summary</h2>
         <Button
           type="button"
@@ -40,7 +40,7 @@ export function CheckoutSummary({ cart, paymentMethod }) {
         </Button>
       </div>
 
-      <ul className="flex flex-col gap-5 border-b border-border/60 pb-5">
+      <ul className="flex flex-col gap-5 border-b border-border/60 pb-4">
         {items.map((item) => (
           <li key={item.id} className="flex flex-col gap-3">
             <div className="flex gap-3">
@@ -86,10 +86,10 @@ export function CheckoutSummary({ cart, paymentMethod }) {
       <CheckoutCouponBox
         cart={cart}
         paymentMethod={paymentMethod}
-        className="border-0 bg-transparent p-0 shadow-none"
+        className="border-b border-border/60 py-4"
       />
 
-      <div className="flex flex-col gap-2.5 text-sm">
+      <div className="flex flex-col gap-2.5 pt-4 text-sm">
         <div className="flex items-center justify-between">
           <span className="font-medium text-foreground">Shipping</span>
           <span className="font-medium text-foreground">Free</span>

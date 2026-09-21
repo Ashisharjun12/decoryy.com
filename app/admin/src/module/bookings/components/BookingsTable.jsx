@@ -20,6 +20,11 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { BookingStatusBadge } from "@/module/bookings/components/BookingStatusBadge"
 import {
+  dispatchStatusLabel,
+  dispatchStatusVariant,
+  fulfillmentTypeLabel,
+} from "@/module/bookings/lib/instant-dispatch-ui"
+import {
   clipCityLabel,
   clipText,
   formatBookingSlot,
@@ -67,14 +72,15 @@ export function BookingsTable({ items, loading }) {
       <Table className="w-full table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[11%]">Reference</TableHead>
-            <TableHead className="w-[13%]">Setup slot</TableHead>
-            <TableHead className="w-[11%]">City</TableHead>
-            <TableHead className="w-[14%]">Customer</TableHead>
-            <TableHead className="w-[9%]">Payment</TableHead>
-            <TableHead className="w-[12%]">Status</TableHead>
-            <TableHead className="w-[9%]">Total</TableHead>
-            <TableHead className="w-[10%]">Assignee</TableHead>
+            <TableHead className="w-[10%]">Reference</TableHead>
+            <TableHead className="w-[11%]">Setup slot</TableHead>
+            <TableHead className="w-[9%]">Type</TableHead>
+            <TableHead className="w-[10%]">City</TableHead>
+            <TableHead className="w-[12%]">Customer</TableHead>
+            <TableHead className="w-[8%]">Payment</TableHead>
+            <TableHead className="w-[10%]">Status</TableHead>
+            <TableHead className="w-[8%]">Total</TableHead>
+            <TableHead className="w-[9%]">Assignee</TableHead>
             <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
@@ -102,6 +108,25 @@ export function BookingsTable({ items, loading }) {
                 </TableCell>
                 <TableCell className="text-sm" title={slotFull !== slotLabel ? slotFull : undefined}>
                   {slotLabel}
+                </TableCell>
+                <TableCell className="text-sm">
+                  <div className="flex flex-col gap-0.5">
+                    {booking.fulfillmentType === "instant" ? (
+                      <Badge variant="outline" className="w-fit text-[10px] px-1.5 py-0">
+                        {fulfillmentTypeLabel(booking.fulfillmentType)}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">Scheduled</span>
+                    )}
+                    {booking.fulfillmentType === "instant" && booking.dispatchStatus !== "idle" ? (
+                      <Badge
+                        variant={dispatchStatusVariant(booking.dispatchStatus)}
+                        className="w-fit text-[10px] px-1.5 py-0"
+                      >
+                        {dispatchStatusLabel(booking.dispatchStatus)}
+                      </Badge>
+                    ) : null}
+                  </div>
                 </TableCell>
                 <TableCell className="text-sm" title={cityFull !== cityLabel ? cityFull : undefined}>
                   {cityLabel}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Controller } from "react-hook-form"
-import { resolvePincode } from "@/api/geo.api"
+import { isPincodeDeliverable, resolvePincode } from "@/api/geo.api"
 import { getApiError } from "@/api/api"
 import {
   Field,
@@ -12,6 +12,22 @@ import {
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Spinner } from "@/components/ui/spinner"
+
+function lookupErrorMessage(data) {
+  if (data?.deliverable) return ""
+  switch (data?.reason) {
+    case "pincode_city_mismatch":
+      return "This PIN is not in the package city."
+    case "pincode_not_serviceable":
+      return "This PIN is blocked for delivery."
+    case "city_inactive":
+      return "This city is not active."
+    case "unknown_pin":
+      return "Select the package city first, or add this PIN under Locations."
+    default:
+      return "This pincode is not serviceable"
+  }
+}
 
 export function CreateBookingDeliveryFields({ form, packageCityName, onCityResolved }) {
   const [resolving, setResolving] = useState(false)
@@ -37,13 +53,30 @@ export function CreateBookingDeliveryFields({ form, packageCityName, onCityResol
     setResolveError("")
     setMismatchError("")
 
-    resolvePincode(code)
+    const lookupOptions = packageCityId ? { cityId: packageCityId } : undefined
+
+    resolvePincode(code, lookupOptions)
       .then((data) => {
         if (cancelled) return
-        if (!data?.city?.id || !data?.pincode?.isServiceable) {
+
+        if (packageCityId) {
+          if (!isPincodeDeliverable(data)) {
+            setPincodeCityLabel("")
+            onCityResolved?.(null)
+            setResolveError(lookupErrorMessage(data))
+            return
+          }
+          const city = data.city
+          const pincodeLabel = `${city.name}, ${city.state}`
+          setPincodeCityLabel(pincodeLabel)
+          onCityResolved?.(city)
+          return
+        }
+
+        if (!isPincodeDeliverable(data)) {
           setPincodeCityLabel("")
           onCityResolved?.(null)
-          setResolveError("This pincode is not serviceable")
+          setResolveError(lookupErrorMessage(data))
           return
         }
 
@@ -51,18 +84,7 @@ export function CreateBookingDeliveryFields({ form, packageCityName, onCityResol
         const pincodeLabel = `${pincodeCity.name}, ${pincodeCity.state}`
         setPincodeCityLabel(pincodeLabel)
         onCityResolved?.(pincodeCity)
-
-        if (packageCityId && packageCityId !== pincodeCity.id) {
-          const packageLabel = packageCityName || "the selected package city"
-          setMismatchError(
-            `Pincode is in ${pincodeCity.name}, but setup city is ${packageLabel}.`,
-          )
-          return
-        }
-
-        if (!packageCityId) {
-          form.setValue("delivery.cityId", pincodeCity.id, { shouldValidate: true })
-        }
+        form.setValue("delivery.cityId", pincodeCity.id, { shouldValidate: true })
       })
       .catch((err) => {
         if (cancelled) return

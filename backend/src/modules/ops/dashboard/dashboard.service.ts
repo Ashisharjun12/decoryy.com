@@ -208,6 +208,8 @@ export class DashboardService {
             source: row.source,
             assigneeName: assignees.get(row.id)?.name ?? null,
             createdAt: row.createdAt.toISOString(),
+            fulfillmentType: row.fulfillmentType,
+            dispatchStatus: row.dispatchStatus,
             canReview: false,
             reviewSubmitted: false,
         }));

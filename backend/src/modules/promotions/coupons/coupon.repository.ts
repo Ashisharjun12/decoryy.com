@@ -44,6 +44,7 @@ export interface ICouponRepository {
         filter?: { q?: string },
     ): Promise<{ items: CouponWithMeta[]; total: number }>;
     countActive(): Promise<number>;
+    listCurrentlyActive(): Promise<CouponWithMeta[]>;
     insert(data: NewCoupon, tx?: DbTx): Promise<Coupon>;
     update(id: string, data: CouponPatch, tx?: DbTx): Promise<Coupon | undefined>;
 }
@@ -134,6 +135,42 @@ export class CouponRepository implements ICouponRepository {
                 ),
             );
         return Number(row?.value ?? 0);
+    }
+
+    async listCurrentlyActive(): Promise<CouponWithMeta[]> {
+        const now = new Date();
+        const timeWhere = and(
+            eq(coupons.isActive, true),
+            sql`${coupons.startsAt} <= ${now}`,
+            sql`${coupons.endsAt} >= ${now}`,
+        );
+
+        const usedCountSq = db
+            .select({
+                couponId: couponRedemptions.couponId,
+                usedCount: count().as("used_count"),
+            })
+            .from(couponRedemptions)
+            .groupBy(couponRedemptions.couponId)
+            .as("usage");
+
+        const rows = await db
+            .select({
+                coupon: coupons,
+                cityName: cities.name,
+                usedCount: sql<number>`coalesce(${usedCountSq.usedCount}, 0)`,
+            })
+            .from(coupons)
+            .leftJoin(cities, eq(coupons.cityId, cities.id))
+            .leftJoin(usedCountSq, eq(coupons.id, usedCountSq.couponId))
+            .where(timeWhere)
+            .orderBy(desc(coupons.createdAt));
+
+        return rows.map((row) => ({
+            ...row.coupon,
+            cityName: row.cityName,
+            usedCount: Number(row.usedCount),
+        }));
     }
 
     async insert(data: NewCoupon, tx?: DbTx): Promise<Coupon> {

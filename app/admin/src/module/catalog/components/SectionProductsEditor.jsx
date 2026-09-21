@@ -297,6 +297,8 @@ export function SectionProductsEditor({ sectionId, cityId, membership, onMembers
       <SectionProductPickerDialog
         open={pickerOpen}
         onOpenChange={setPickerOpen}
+        currentSectionId={sectionId}
+        enforceGlobalExclusive={!cityId}
         excludeIds={ids}
         maxAdd={slotsLeft}
         onConfirm={addMany}

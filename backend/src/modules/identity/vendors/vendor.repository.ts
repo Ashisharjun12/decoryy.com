@@ -9,6 +9,7 @@ import type {
     PublicVendorProfile,
 } from "@/modules/identity/vendors/vendor.public.js";
 import { users, type User } from "@/modules/identity/users/user.schema.js";
+import type { GeoPointSource } from "@/modules/booking/domain/geo-enums.js";
 import {
     vendors,
     type NewVendor,
@@ -25,6 +26,9 @@ export type CreateVendorWithUserInput = {
     shopAddress: string;
     pincode: string;
     shopImageUploadId?: string;
+    baseLatitude?: number | null;
+    baseLongitude?: number | null;
+    baseGeoSource?: GeoPointSource | null;
 };
 
 export type AssignCandidate = {
@@ -75,6 +79,9 @@ export interface IVendorRepository {
             pincode: string;
             altPhone?: string | null;
             shopImageUploadId?: string | null;
+            baseLatitude?: number | null;
+            baseLongitude?: number | null;
+            baseGeoSource?: GeoPointSource | null;
             onboardingStatus: VendorOnboardingStatus;
         },
     ): Promise<Vendor | undefined>;
@@ -154,6 +161,9 @@ export class VendorRepository implements IVendorRepository {
                 pincode: input.pincode,
                 altPhone: input.altPhone ?? null,
                 shopImageUploadId: input.shopImageUploadId ?? null,
+                baseLatitude: input.baseLatitude ?? null,
+                baseLongitude: input.baseLongitude ?? null,
+                baseGeoSource: input.baseGeoSource ?? null,
             });
             return user;
         });
@@ -397,6 +407,9 @@ export class VendorRepository implements IVendorRepository {
             pincode: string;
             altPhone?: string | null;
             shopImageUploadId?: string | null;
+            baseLatitude?: number | null;
+            baseLongitude?: number | null;
+            baseGeoSource?: GeoPointSource | null;
             onboardingStatus: VendorOnboardingStatus;
         },
     ): Promise<Vendor | undefined> {
@@ -408,6 +421,9 @@ export class VendorRepository implements IVendorRepository {
                 pincode: input.pincode,
                 altPhone: input.altPhone ?? null,
                 shopImageUploadId: input.shopImageUploadId ?? null,
+                baseLatitude: input.baseLatitude ?? null,
+                baseLongitude: input.baseLongitude ?? null,
+                baseGeoSource: input.baseGeoSource ?? null,
                 onboardingStatus: input.onboardingStatus,
                 isOnDuty: false,
                 dutyChangedAt: sql`now()`,

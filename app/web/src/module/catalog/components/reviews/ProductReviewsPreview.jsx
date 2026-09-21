@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { CameraIcon, CheckCircle2Icon, UsersIcon } from "lucide-react";
+import { CheckCircle2Icon, HeartHandshakeIcon, SmileIcon, UsersIcon } from "lucide-react";
 import { listProductReviews } from "@/api/reviews.api";
 import { productReviewsPath } from "@/lib/catalog-path";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,13 @@ import {
   resolveProductReviewCount,
 } from "@/module/catalog/components/reviews/review-count";
 
-export function ProductReviewsPreview({ productId, product }) {
+export function ProductReviewsPreview({
+  productId,
+  product,
+  previewLimit = 3,
+  className,
+  linkLabel = "View more reviews",
+}) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -22,7 +28,7 @@ export function ProductReviewsPreview({ productId, product }) {
     let cancelled = false;
     setLoading(true);
     setError("");
-    listProductReviews(productId, { page: 1, limit: 3 })
+    listProductReviews(productId, { page: 1, limit: previewLimit })
       .then((result) => {
         if (!cancelled) setData(result);
       })
@@ -38,7 +44,7 @@ export function ProductReviewsPreview({ productId, product }) {
     return () => {
       cancelled = true;
     };
-  }, [productId]);
+  }, [productId, previewLimit]);
 
   const items = data?.items ?? [];
   const reviewCount = resolveProductReviewCount({ data, product, items });
@@ -57,17 +63,23 @@ export function ProductReviewsPreview({ productId, product }) {
         }
       : null);
 
-  const hasPhotos = items.some((item) => item.photos?.length > 0);
   const hasVerified = items.some((item) => item.isVerified);
+  const satisfactionScore =
+    summary?.ratingAvg != null ? Number(summary.ratingAvg).toFixed(1) : null;
+
+  const showViewMore =
+    reviewCount > previewLimit || (reviewCount > 0 && items.length > 0 && reviewCount > items.length);
 
   return (
-    <section className="flex flex-col gap-4">
+    <section className={className ?? "flex flex-col gap-4"}>
       <div className="flex items-end justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
             Customer feedback
           </p>
-          <h2 className="font-heading text-xl font-medium tracking-tight">Ratings &amp; Reviews</h2>
+          <h2 className="font-heading text-lg font-semibold tracking-tight md:text-xl">
+            Ratings &amp; reviews
+          </h2>
         </div>
       </div>
 
@@ -92,12 +104,14 @@ export function ProductReviewsPreview({ productId, product }) {
                 Verified
               </span>
             ) : null}
-            {hasPhotos ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-700 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300">
-                <CameraIcon className="size-3.5" />
-                Real photos
-              </span>
-            ) : null}
+            <span className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-700 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300">
+              <HeartHandshakeIcon className="size-3.5" />
+              Ease of care
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+              <SmileIcon className="size-3.5" />
+              Satisfaction{satisfactionScore ? ` · ${satisfactionScore}` : ""}
+            </span>
             <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-300">
               <UsersIcon className="size-3.5" />
               Real buyers
@@ -110,9 +124,15 @@ export function ProductReviewsPreview({ productId, product }) {
             ))}
           </div>
 
-          {reviewCount > 3 ? (
-            <Button type="button" variant="outline" className="w-full sm:w-auto" render={<Link to={productReviewsPath(productId)} />}>
-              View all reviews
+          {showViewMore ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full rounded-full"
+              nativeButton={false}
+              render={<Link to={productReviewsPath(productId)} />}
+            >
+              {linkLabel}
             </Button>
           ) : null}
         </>

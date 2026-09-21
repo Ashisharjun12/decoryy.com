@@ -12,8 +12,9 @@ import {
 } from "@/module/account/components/AddressListSkeleton";
 import { toast } from "@/components/ui/toast";
 import { AccountPageTitle } from "@/module/account/components/AccountPageTitle";
-import { AddressFormDialog } from "@/module/account/components/AddressFormDialog";
+import { AddressFormDialog, emptyAddressForm } from "@/module/account/components/AddressFormDialog";
 import { useAddressMutations, useAddressesQuery } from "@/module/account/hooks/use-addresses-query";
+import { useLocationStore } from "@/store/location.store";
 
 function addressKey(order) {
   const address = order.delivery?.address ?? "";
@@ -52,6 +53,8 @@ function rowToForm(row) {
     cityName: row.cityName,
     cityId: row.cityId,
     isDefault: row.isDefault,
+    latitude: row.latitude ?? null,
+    longitude: row.longitude ?? null,
   };
 }
 
@@ -65,6 +68,7 @@ function formatLastUsed(ms) {
 }
 
 export function AddressesPage() {
+  const locationCity = useLocationStore((s) => s.city);
   const { data: saved = [], isLoading, isError, error } = useAddressesQuery();
   const { create, update, remove, setDefault } = useAddressMutations();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -173,6 +177,9 @@ export function AddressesPage() {
                   {row.isDefault ? (
                     <Badge variant="secondary" className="text-[10px]">Default</Badge>
                   ) : null}
+                  {row.latitude != null && row.longitude != null ? (
+                    <Badge variant="outline" className="text-[10px]">Pin saved</Badge>
+                  ) : null}
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {row.cityName ? `${row.cityName} · ${row.pincode}` : row.pincode}
@@ -256,8 +263,10 @@ export function AddressesPage() {
         onOpenChange={closeDialog}
         title={editingId ? "Edit address" : "Add address"}
         submitLabel={editingId ? "Update address" : "Save address"}
-        initial={editingRow ? rowToForm(editingRow) : undefined}
+        initial={editingRow ? rowToForm(editingRow) : emptyAddressForm}
         submitting={editingId ? update.isPending : create.isPending}
+        contextCityId={locationCity?.id ?? null}
+        contextCityName={locationCity?.name ?? ""}
         onSubmit={(body) => void onSubmitAddress(body)}
       />
     </div>

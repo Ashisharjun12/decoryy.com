@@ -7,9 +7,11 @@ import { toast } from "@/components/ui/toast";
 import { detectLocationFromDevice } from "@/module/geo/detect-location";
 import {
   formatLocationLabel,
+  isBackendCityId,
   LOCATION_PROMPT_DISMISSED_KEY,
   useLocationStore,
 } from "@/store/location.store";
+import { useCartStore } from "@/store/cart.store";
 
 export function LocationPrompt() {
   const needsPrompt = useLocationStore((s) => s.needsPrompt);
@@ -17,6 +19,7 @@ export function LocationPrompt() {
   const setLocation = useLocationStore((s) => s.setLocation);
   const setPickerOpen = useLocationStore((s) => s.setPickerOpen);
   const setNeedsPrompt = useLocationStore((s) => s.setNeedsPrompt);
+  const setCartLocation = useCartStore((s) => s.setLocation);
   const [pending, setPending] = useState(false);
 
   if (status !== "ready" || !needsPrompt) {
@@ -34,6 +37,12 @@ export function LocationPrompt() {
     try {
       const location = await detectLocationFromDevice();
       setLocation(location);
+      if (location.city?.id && isBackendCityId(location.city.id)) {
+        const pin = location.pincode?.code?.replace(/\D/g, "").slice(0, 6);
+        void setCartLocation(
+          pin ? { cityId: location.city.id, pincode: pin } : { cityId: location.city.id },
+        ).catch(() => {});
+      }
       sessionStorage.setItem(LOCATION_PROMPT_DISMISSED_KEY, "1");
       toast.add({
         title: `Set to ${formatLocationLabel(location.city, location.pincode, location.source)}`,

@@ -97,6 +97,8 @@ export function normalizeProduct(raw) {
     sectionSlug: raw.sectionSlug ?? null,
     imageUrl,
     images: raw.images ?? (imageUrl ? [{ url: imageUrl }] : []),
+    instant: raw.instant ?? null,
+    scheduledEnabled: raw.scheduledEnabled ?? true,
   };
 }
 

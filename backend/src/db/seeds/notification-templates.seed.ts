@@ -378,6 +378,18 @@ export const NOTIFICATION_TEMPLATE_SEEDS: NotificationTemplateSeed[] = [
         variables: ["senderName", "preview", "conversationId", "conversationType", "orderId", "orderRef"],
     },
     {
+        key: "dispatch_exhausted",
+        name: "Dispatch exhausted (admin)",
+        type: "transactional",
+        channel: "email",
+        locale: "en",
+        editable: true,
+        subject: "No vendor accepted — {{orderRef}}",
+        content:
+            "Instant dispatch exhausted for booking {{orderRef}} in {{city}}. Address: {{address}}. Open admin: {{adminUrl}}",
+        variables: ["orderRef", "city", "address", "adminUrl", "orderId"],
+    },
+    {
         key: "payout_paid",
         name: "Payout paid email",
         type: "transactional",

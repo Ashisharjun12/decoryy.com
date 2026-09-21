@@ -3,6 +3,7 @@ import type { CartController } from "@/modules/booking/carts/cart.controller.js"
 import {
     addCartItemDto,
     cartItemIdParamsDto,
+    cartDeliveryGeoDto,
     cartLocationDto,
     patchCartItemDto,
 } from "@/modules/booking/carts/cart.dto.js";
@@ -27,6 +28,7 @@ export function createCartRouter(cartController: CartController) {
         cartController.removeItem,
     );
     router.post("/location", validate(cartLocationDto), cartController.setLocation);
+    router.post("/delivery-geo", validate(cartDeliveryGeoDto), cartController.setDeliveryGeo);
     router.post("/merge", authRequired, cartController.merge);
     router.post("/coupon", validate(applyCartCouponDto), cartController.applyCoupon);
     router.delete("/coupon", cartController.removeCoupon);

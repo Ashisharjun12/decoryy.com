@@ -16,6 +16,8 @@ export const createOrderDto = z.object({
         address: z.string().trim().min(6).max(500),
         landmark: z.string().trim().max(200).optional(),
         cityId: z.string().uuid(),
+        latitude: z.number().min(-90).max(90).optional(),
+        longitude: z.number().min(-180).max(180).optional(),
     }),
     paymentMethod: z.enum(["cod", "online"]),
     idempotencyKey: z.string().trim().min(8).max(128),
@@ -39,6 +41,10 @@ export const adminOrderListQueryDto = z.object({
     paymentMethod: z.enum(["COD", "ONLINE", "PREPAID"]).optional(),
     sort: z.enum(["scheduled_at", "created_at"]).optional(),
     needsAssign: z.enum(["true", "false"]).optional(),
+    fulfillmentType: z.enum(["scheduled", "instant"]).optional(),
+    dispatchStatus: z
+        .enum(["idle", "searching", "offering", "accepted", "exhausted", "cancelled"])
+        .optional(),
     userId: z.string().uuid().optional(),
     vendorId: z.string().uuid().optional(),
 });

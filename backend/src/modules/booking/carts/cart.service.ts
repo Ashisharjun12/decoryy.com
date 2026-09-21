@@ -5,7 +5,11 @@ import { ApiError } from "@/shared/errors/apiError.js";
 import { getProductForCity, priceQuote } from "@/modules/catalog/index.js";
 import { AddonRepository } from "@/modules/catalog/addons/addon.repository.js";
 import { ProductRepository } from "@/modules/catalog/products/product.repository.js";
-import { assertServiceable, getActiveCityById } from "@/modules/geo/index.js";
+import {
+    assertDeliveryLocation,
+    getActiveCityById,
+    lookupPincode,
+} from "@/modules/geo/index.js";
 import type { ICartRepository } from "@/modules/booking/carts/cart.repository.js";
 import type { Cart } from "@/modules/booking/carts/cart.schema.js";
 import { promotionService } from "@/modules/promotions/index.js";
@@ -26,6 +30,7 @@ export type AddCartItemInput = {
     cityId?: string;
     pincode?: string;
     scheduledAt?: string | null;
+    fulfillmentType?: "scheduled" | "instant";
 };
 
 export type CartLocationInput = {
@@ -65,6 +70,9 @@ export type PublicCart = {
     id: string;
     cityId: string | null;
     pincode: string | null;
+    fulfillmentType: "scheduled" | "instant" | null;
+    deliveryLatitude: number | null;
+    deliveryLongitude: number | null;
     scheduledAt: string | null;
     itemCount: number;
     subtotalPaise: number;
@@ -90,6 +98,12 @@ export interface ICartService {
         res: Response,
         actor: CartActor,
         input: CartLocationInput,
+    ): Promise<PublicCart>;
+    setDeliveryGeo(
+        req: Request,
+        res: Response,
+        actor: CartActor,
+        input: { latitude: number; longitude: number },
     ): Promise<PublicCart>;
     merge(req: Request, res: Response, actor: { id: string }): Promise<PublicCart>;
     applyCoupon(req: Request, res: Response, actor: CartActor, code: string): Promise<PublicCart>;
@@ -150,6 +164,17 @@ export class CartService implements ICartService {
         const quantity = input.quantity ?? 1;
         const addonIds = input.addonIds ?? [];
         await priceQuote(input.productId, cityId, addonIds);
+        const product = await getProductForCity(input.productId, cityId);
+        let fulfillmentType = cart.fulfillmentType;
+        if (input.fulfillmentType) {
+            fulfillmentType = input.fulfillmentType;
+        } else if (product.instantEnabled && !product.scheduledEnabled) {
+            fulfillmentType = "instant";
+        } else if (product.scheduledEnabled && !product.instantEnabled) {
+            fulfillmentType = "scheduled";
+        } else if (input.scheduledAt) {
+            fulfillmentType = "scheduled";
+        }
 
         const item = await this.carts.upsertItem(cart.id, input.productId, quantity);
         await this.carts.replaceItemAddons(item.id, addonIds);
@@ -159,10 +184,27 @@ export class CartService implements ICartService {
         if (input.scheduledAt !== undefined) {
             patch.scheduledAt = input.scheduledAt ? new Date(input.scheduledAt) : null;
         }
+        if (fulfillmentType) {
+            patch.fulfillmentType = fulfillmentType;
+        }
         if (Object.keys(patch).length) {
             await this.carts.update(cart.id, patch);
         }
 
+        return this.toPublic(cart.id, actor?.id);
+    }
+
+    async setDeliveryGeo(
+        req: Request,
+        res: Response,
+        actor: CartActor,
+        input: { latitude: number; longitude: number },
+    ): Promise<PublicCart> {
+        const cart = await this.resolveCart(req, res, actor, { createIfMissing: false });
+        await this.carts.update(cart.id, {
+            deliveryLatitude: input.latitude,
+            deliveryLongitude: input.longitude,
+        });
         return this.toPublic(cart.id, actor?.id);
     }
 
@@ -396,13 +438,19 @@ export class CartService implements ICartService {
 
     private async resolveCityId(input: { cityId?: string; pincode?: string }): Promise<string> {
         const pincode = input.pincode?.trim();
-        if (pincode) {
-            const resolved = await assertServiceable(pincode);
-            return resolved.city.id;
-        }
         if (input.cityId) {
             const city = await getActiveCityById(input.cityId);
+            if (pincode) {
+                await assertDeliveryLocation({ cityId: city.id, pincode });
+            }
             return city.id;
+        }
+        if (pincode) {
+            const lookup = await lookupPincode(pincode);
+            if (!lookup.deliverable || !lookup.city) {
+                throw ApiError.badRequest("pincode not serviceable");
+            }
+            return lookup.city.id;
         }
         throw ApiError.badRequest("pincode or cityId is required");
     }
@@ -423,6 +471,9 @@ export class CartService implements ICartService {
         appliedCouponId: string | null;
         appliedCouponCode: string | null;
         pincode: string | null;
+        fulfillmentType: "scheduled" | "instant" | null;
+        deliveryLatitude: number | null;
+        deliveryLongitude: number | null;
         scheduledAt: string | null;
     }> {
         const loaded = await this.carts.loadWithItems(cartId);
@@ -503,6 +554,9 @@ export class CartService implements ICartService {
             appliedCouponId: loaded.appliedCouponId,
             appliedCouponCode: loaded.appliedCouponCode,
             pincode: loaded.pincode,
+            fulfillmentType: loaded.fulfillmentType ?? null,
+            deliveryLatitude: loaded.deliveryLatitude ?? null,
+            deliveryLongitude: loaded.deliveryLongitude ?? null,
             scheduledAt: loaded.scheduledAt ? loaded.scheduledAt.toISOString() : null,
         };
     }
@@ -551,6 +605,9 @@ export class CartService implements ICartService {
             id: cartId,
             cityId: built.cityId,
             pincode: built.pincode,
+            fulfillmentType: built.fulfillmentType,
+            deliveryLatitude: built.deliveryLatitude,
+            deliveryLongitude: built.deliveryLongitude,
             scheduledAt: built.scheduledAt,
             itemCount: built.itemCount,
             subtotalPaise: built.subtotalPaise,

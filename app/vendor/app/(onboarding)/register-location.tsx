@@ -2,7 +2,7 @@ import { getApiError } from '@/api/client';
 import { OnboardingButton } from '@/module/onboarding/components/OnboardingButton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { ShopLocationPicker } from '@/module/onboarding/components/ShopLocationPicker';
 import { Text } from '@/components/ui/text';
 import { AuthTopBar } from '@/module/onboarding/components/AuthTopBar';
 import { CitySelect } from '@/module/onboarding/components/CitySelect';
@@ -70,6 +70,8 @@ export default function RegisterLocationScreen() {
       shopAddress: '',
       pincode: '',
       shopImageUri: undefined,
+      baseLatitude: undefined,
+      baseLongitude: undefined,
     },
   });
 
@@ -122,6 +124,8 @@ export default function RegisterLocationScreen() {
       shopAddress: values.shopAddress.trim(),
       pincode: values.pincode,
       shopImageUri: values.shopImageUri,
+      baseLatitude: values.baseLatitude,
+      baseLongitude: values.baseLongitude,
     };
 
     setSubmitError('');
@@ -147,6 +151,8 @@ export default function RegisterLocationScreen() {
         shopAddress: payload.shopAddress,
         pincode: payload.pincode,
         shopImageUri: payload.shopImageUri,
+        baseLatitude: payload.baseLatitude,
+        baseLongitude: payload.baseLongitude,
       });
 
       const pendingWithUpload: RegisterPayload = {
@@ -248,26 +254,35 @@ export default function RegisterLocationScreen() {
               </>
             )}
 
-            <View className="gap-2">
-              <Label nativeID="shopAddress">Shop address</Label>
-              <Controller
-                control={control}
-                name="shopAddress"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <Textarea
-                    nativeID="shopAddress"
-                    placeholder="Building, street, landmark"
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    className="min-h-24 rounded-xl"
-                  />
-                )}
-              />
-              {errors.shopAddress ? (
-                <Text className="text-destructive text-sm">{errors.shopAddress.message}</Text>
-              ) : null}
-            </View>
+            <Controller
+              control={control}
+              name="shopAddress"
+              render={({ field: { onChange, value } }) => (
+                <ShopLocationPicker
+                  address={value}
+                  pincode={watch('pincode')}
+                  pin={
+                    watch('baseLatitude') != null && watch('baseLongitude') != null
+                      ? {
+                          latitude: watch('baseLatitude') as number,
+                          longitude: watch('baseLongitude') as number,
+                        }
+                      : null
+                  }
+                  onAddressChange={onChange}
+                  onPincodeChange={(next) => setValue('pincode', next, { shouldValidate: true })}
+                  onPinChange={({ latitude, longitude }) => {
+                    setValue('baseLatitude', latitude, { shouldValidate: true });
+                    setValue('baseLongitude', longitude, { shouldValidate: true });
+                  }}
+                  error={
+                    errors.shopAddress?.message ??
+                    errors.baseLatitude?.message ??
+                    errors.baseLongitude?.message
+                  }
+                />
+              )}
+            />
 
             <View className="gap-2">
               <Label nativeID="pincode">Pincode</Label>

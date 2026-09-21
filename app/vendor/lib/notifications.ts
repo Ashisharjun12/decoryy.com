@@ -4,7 +4,9 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { useChatStore } from '@/store/chat.store';
 
-const ANDROID_CHANNEL_ID = 'vendor-default';
+/** Must match backend deliver.job.ts Expo push channelId values. */
+export const ANDROID_CHANNEL_DEFAULT = 'vendor-default';
+export const ANDROID_CHANNEL_JOBS = 'vendor-jobs';
 
 export type NotificationPermissionStatus = 'granted' | 'denied' | 'undetermined';
 
@@ -21,14 +23,30 @@ export function getEasProjectId(): string | null {
   return projectId;
 }
 
-export async function ensureAndroidNotificationChannel() {
+export async function ensureAndroidNotificationChannels() {
   if (Platform.OS !== 'android') return;
 
-  await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
+  await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_DEFAULT, {
     name: 'Decoryy vendor',
     importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: [0, 250, 250, 250],
+    sound: 'default',
+    enableVibrate: true,
   });
+
+  await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_JOBS, {
+    name: 'New bookings',
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 400, 200, 400],
+    sound: 'default',
+    enableVibrate: true,
+    bypassDnd: false,
+  });
+}
+
+/** @deprecated Use ensureAndroidNotificationChannels */
+export async function ensureAndroidNotificationChannel() {
+  return ensureAndroidNotificationChannels();
 }
 
 export async function getNotificationPermissionStatus(): Promise<NotificationPermissionStatus> {
@@ -67,7 +85,7 @@ export async function getExpoPushToken(): Promise<string | null> {
     return null;
   }
 
-  await ensureAndroidNotificationChannel();
+  await ensureAndroidNotificationChannels();
 
   const granted = await getNotificationPermissionStatus();
   if (granted !== 'granted') {
@@ -99,6 +117,8 @@ function shouldSuppressChatNotification(data: Record<string, unknown> | undefine
 }
 
 export function configureForegroundNotifications() {
+  void ensureAndroidNotificationChannels();
+
   Notifications.setNotificationHandler({
     handleNotification: async (notification) => {
       const data = notification.request.content.data as Record<string, unknown>;

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const resolvePincodeQueryDto = z.object({
     pincode: z.string().min(1),
+    cityId: z.string().uuid().optional(),
 });
 
 export const createPincodeDto = z.object({

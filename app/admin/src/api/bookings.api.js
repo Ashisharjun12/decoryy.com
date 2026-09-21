@@ -9,6 +9,8 @@ export function listBookings({
   paymentMethod,
   sort,
   needsAssign,
+  fulfillmentType,
+  dispatchStatus,
   userId,
   vendorId,
 } = {}) {
@@ -23,6 +25,8 @@ export function listBookings({
         ...(paymentMethod ? { paymentMethod } : {}),
         ...(sort ? { sort } : {}),
         ...(needsAssign === "true" || needsAssign === "false" ? { needsAssign } : {}),
+        ...(fulfillmentType ? { fulfillmentType } : {}),
+        ...(dispatchStatus ? { dispatchStatus } : {}),
         ...(userId ? { userId } : {}),
         ...(vendorId ? { vendorId } : {}),
       },

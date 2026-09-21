@@ -85,6 +85,13 @@ export const productFormSchema = z
     isActive: z.boolean(),
     scheduledEnabled: z.boolean(),
     instantEnabled: z.boolean(),
+    instantShowBadge: z.boolean(),
+    instantBadgeLabel: z.string().trim().max(40),
+    instantPdpNote: z.string().trim().max(500),
+    instantEtaMinutes: z
+      .union([z.literal(""), z.coerce.number().int().min(15).max(480)])
+      .optional()
+      .transform((v) => (v === "" || v === undefined ? null : v)),
     paymentCod: z.boolean(),
     paymentOnline: z.boolean(),
   })

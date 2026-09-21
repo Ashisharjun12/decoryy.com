@@ -31,6 +31,22 @@ export class VendorJobController {
         res.status(200).json(new ApiResponse(200, data, "ok"));
     });
 
+    getRoute = asyncHandler(async (req, res) => {
+        const partner = req.partner;
+        if (!partner) throw ApiError.forbidden("partner context required");
+        const orderId = paramOrderId(req);
+        const data = await this.jobs.getJobRoute(partner, orderId);
+        res.status(200).json(new ApiResponse(200, data, "ok"));
+    });
+
+    getTracking = asyncHandler(async (req, res) => {
+        const partner = req.partner;
+        if (!partner) throw ApiError.forbidden("partner context required");
+        const orderId = paramOrderId(req);
+        const data = await this.jobs.getJobTracking(partner, orderId);
+        res.status(200).json(new ApiResponse(200, data, "ok"));
+    });
+
     accept = asyncHandler(async (req, res) => {
         const partner = req.partner;
         if (!partner) throw ApiError.forbidden("partner context required");
@@ -45,6 +61,14 @@ export class VendorJobController {
         const orderId = paramOrderId(req);
         await this.jobs.declineJob(partner, orderId);
         res.status(200).json(new ApiResponse(200, { ok: true }, "job declined"));
+    });
+
+    postLocation = asyncHandler(async (req, res) => {
+        const partner = req.partner;
+        if (!partner) throw ApiError.forbidden("partner context required");
+        const orderId = paramOrderId(req);
+        const result = await this.jobs.postJobLocation(partner, orderId, req.body);
+        res.status(200).json(new ApiResponse(200, { ok: true, ...result }, "location updated"));
     });
 
     markEnRoute = asyncHandler(async (req, res) => {

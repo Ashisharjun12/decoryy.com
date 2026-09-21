@@ -10,7 +10,24 @@ import {
 } from '@/api/jobs.api';
 import type { JobFilter, VendorJobDetail, VendorJobSummary } from '@/module/bookings/lib/booking.types';
 import { walletKeys } from '@/module/payouts/hooks/use-wallet';
+import { useAuthStore } from '@/store/auth.store';
+import { useEnRouteTripStore } from '@/store/en-route-trip.store';
+import { selectIsFieldShell, usePartnerModeStore } from '@/store/partner-mode.store';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+function endEnRouteTripIfActive(orderId: string) {
+  const active = useEnRouteTripStore.getState().activeOrderId;
+  if (active === orderId) {
+    void useEnRouteTripStore.getState().endTrip();
+  }
+}
+
+function beginEnRouteTripIfFieldWorker(orderId: string) {
+  const user = useAuthStore.getState().user;
+  const mode = usePartnerModeStore.getState().mode;
+  if (!selectIsFieldShell(mode, user)) return;
+  void useEnRouteTripStore.getState().beginTrip(orderId);
+}
 
 export const vendorJobsKeys = {
   all: ['vendor-jobs'] as const,
@@ -49,6 +66,7 @@ export function useDeclineVendorJob(orderId: string) {
   return useMutation({
     mutationFn: () => declineVendorJob(orderId),
     onSuccess: () => {
+      endEnRouteTripIfActive(orderId);
       void queryClient.invalidateQueries({ queryKey: vendorJobsKeys.all });
     },
   });
@@ -66,11 +84,27 @@ function useTripMutation(orderId: string, mutationFn: () => Promise<VendorJobDet
 }
 
 export function useMarkEnRoute(orderId: string) {
-  return useTripMutation(orderId, () => markVendorJobEnRoute(orderId));
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => markVendorJobEnRoute(orderId),
+    onSuccess: (data) => {
+      queryClient.setQueryData(vendorJobsKeys.detail(orderId), data);
+      void queryClient.invalidateQueries({ queryKey: vendorJobsKeys.all });
+      beginEnRouteTripIfFieldWorker(orderId);
+    },
+  });
 }
 
 export function useMarkOnSite(orderId: string) {
-  return useTripMutation(orderId, () => markVendorJobOnSite(orderId));
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => markVendorJobOnSite(orderId),
+    onSuccess: (data) => {
+      queryClient.setQueryData(vendorJobsKeys.detail(orderId), data);
+      void queryClient.invalidateQueries({ queryKey: vendorJobsKeys.all });
+      endEnRouteTripIfActive(orderId);
+    },
+  });
 }
 
 export function useSendDeliveryCode(orderId: string) {
@@ -85,6 +119,7 @@ export function useCompleteVendorJob(orderId: string) {
       queryClient.setQueryData(vendorJobsKeys.detail(orderId), data);
       void queryClient.invalidateQueries({ queryKey: vendorJobsKeys.all });
       void queryClient.invalidateQueries({ queryKey: walletKeys.all });
+      endEnRouteTripIfActive(orderId);
     },
   });
 }

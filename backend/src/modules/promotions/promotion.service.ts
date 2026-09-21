@@ -7,6 +7,9 @@ import type { ICouponRepository } from "@/modules/promotions/coupons/coupon.repo
 import type { ICouponTargetRepository } from "@/modules/promotions/targets/coupon-target.repository.js";
 import type { IRedemptionRepository } from "@/modules/promotions/redemptions/redemption.repository.js";
 import type { CouponTarget } from "@/modules/promotions/targets/coupon-target.schema.js";
+import { buildCouponEligibilitySummary } from "@/modules/promotions/lib/coupon-summary.js";
+import { resolveCouponTargetLabels } from "@/modules/promotions/targets/coupon-target.resolver.js";
+import { getActiveCityById } from "@/modules/geo/index.js";
 
 const NON_COUNTED_ORDER_STATUSES = ["CANCELLED", "DRAFT"] as const;
 
@@ -31,6 +34,14 @@ export type ValidatedCoupon = {
     targets: CouponTarget[];
     discountPaise: number;
     eligibleSubtotalPaise: number;
+};
+
+export type PublicAvailableCoupon = {
+    code: string;
+    name: string;
+    description: string | null;
+    eligibilitySummary: string;
+    appliesToProduct?: boolean;
 };
 
 export class PromotionService {
@@ -64,6 +75,82 @@ export class PromotionService {
         }
 
         return { coupon, targets, discountPaise, eligibleSubtotalPaise };
+    }
+
+    async listAvailableForProduct(input: {
+        productId: string;
+        categoryId: string;
+        cityId: string;
+    }): Promise<PublicAvailableCoupon[]> {
+        const items = await this.listAvailableForCity({
+            cityId: input.cityId,
+            productId: input.productId,
+            categoryId: input.categoryId,
+            productScopeOnly: true,
+        });
+        return items.filter((item) => item.appliesToProduct);
+    }
+
+    async listAvailableForCity(input: {
+        cityId: string;
+        productId?: string;
+        categoryId?: string;
+        productScopeOnly?: boolean;
+    }): Promise<PublicAvailableCoupon[]> {
+        const city = await getActiveCityById(input.cityId);
+        const rows = await this.coupons.listCurrentlyActive();
+        const results: PublicAvailableCoupon[] = [];
+
+        for (const row of rows) {
+            if (row.usedCount >= row.maxUses) continue;
+            if (row.cityId && row.cityId !== input.cityId) continue;
+
+            const targets = await this.targets.listByCouponId(row.id);
+            const applies =
+                input.productId && input.categoryId
+                    ? this.couponAppliesToProduct(
+                          row,
+                          targets,
+                          input.productId,
+                          input.categoryId,
+                      )
+                    : undefined;
+
+            if (input.productScopeOnly && !applies) continue;
+
+            const targetLabels = await resolveCouponTargetLabels(row.scope, targets);
+            results.push({
+                code: row.code,
+                name: row.name,
+                description: row.description,
+                eligibilitySummary: buildCouponEligibilitySummary(row, {
+                    cityName: row.cityName ?? city.name,
+                    targets: targetLabels,
+                }),
+                appliesToProduct: applies,
+            });
+        }
+
+        return results;
+    }
+
+    private couponAppliesToProduct(
+        coupon: Coupon,
+        targets: CouponTarget[],
+        productId: string,
+        categoryId: string,
+    ): boolean {
+        if (coupon.scope === "entire_cart") return true;
+        if (targets.length === 0) return false;
+
+        const targetIds = new Set(targets.map((t) => t.targetId));
+        if (coupon.scope === "products") {
+            return targetIds.has(productId);
+        }
+        if (coupon.scope === "categories") {
+            return targetIds.has(categoryId);
+        }
+        return false;
     }
 
     async validateAppliedCoupon(

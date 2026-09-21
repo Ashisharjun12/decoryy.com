@@ -33,6 +33,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { toast } from "@/components/ui/toast"
+import { AdminInfoTip } from "@/components/admin-info-tip"
+
+const AI_GENERATE_DIALOG_INFO =
+  "Drafts SEO copy for this product and category. Always review before applying."
 
 function errorMessage(err) {
   const message = getApiError(err)
@@ -128,12 +132,13 @@ export function ProductAiGenerateDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Generate with AI</DialogTitle>
+            <DialogTitle className="flex items-center gap-0.5">
+              Generate with AI
+              <AdminInfoTip content={AI_GENERATE_DIALOG_INFO} side="bottom" align="start" />
+            </DialogTitle>
             <DialogDescription>
-              Draft SEO-friendly product copy for{" "}
-              <span className="font-medium text-foreground">{name}</span>
-              {categoryName ? ` in ${categoryName}` : ""} — keyword-rich description, slug, and
-              search-style FAQs. Review before applying to the form.
+              For <span className="font-medium text-foreground">{name}</span>
+              {categoryName ? ` · ${categoryName}` : ""}
             </DialogDescription>
           </DialogHeader>
 

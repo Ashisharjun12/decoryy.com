@@ -58,8 +58,11 @@ import { MoreHorizontalIcon, PencilIcon, Trash2Icon } from "lucide-react"
 import { SectionFormDialog } from "@/module/catalog/components/SectionFormDialog"
 import { SectionProductsEditor } from "@/module/catalog/components/SectionProductsEditor"
 import { SectionFilters } from "@/module/catalog/filters/SectionFilters"
+import { AdminInfoTip } from "@/components/admin-info-tip"
 
 const GLOBAL = "global"
+const SECTIONS_PANEL_INFO =
+  "Each global section becomes one home rail. A product can only be in one global section."
 
 export function SectionsPanel() {
   const [items, setItems] = useState([])
@@ -269,6 +272,10 @@ export function SectionsPanel() {
 
   return (
     <div className="flex flex-col gap-4 pt-4">
+      <p className="flex items-center gap-0.5 text-sm font-medium text-foreground">
+        Home sections
+        <AdminInfoTip content={SECTIONS_PANEL_INFO} />
+      </p>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SectionFilters
           q={q}

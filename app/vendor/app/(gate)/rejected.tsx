@@ -14,7 +14,7 @@ export default function RejectedScreen() {
 
   function handleReapply() {
     startReapplyFromSession();
-    router.push('/(onboarding)/register' as Href);
+    router.replace('/(onboarding)/register' as Href);
   }
 
   async function handleSignOut() {

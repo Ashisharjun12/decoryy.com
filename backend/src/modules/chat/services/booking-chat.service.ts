@@ -93,21 +93,21 @@ export class BookingChatService implements IBookingChatService {
         const ownerUserId = vendor.userId;
         const fieldRows = await this.fieldAssignments.listForOrder(vendorId, orderId);
         const workerUserId = fieldRows[0]?.userId ?? null;
+        const vendorChatUserId =
+            workerUserId && workerUserId !== ownerUserId ? workerUserId : ownerUserId;
 
         const parts = await this.participants.listByConversation(conversation.id);
         for (const p of parts) {
-            if (p.role === "vendor" && p.userId !== ownerUserId) {
+            if (p.role === "vendor" && p.userId !== vendorChatUserId) {
                 await this.participants.removeParticipant(conversation.id, p.userId);
             }
         }
 
-        if (workerUserId && workerUserId !== ownerUserId) {
-            await this.participants.upsertParticipant({
-                conversationId: conversation.id,
-                userId: workerUserId,
-                role: "vendor",
-            });
-        }
+        await this.participants.upsertParticipant({
+            conversationId: conversation.id,
+            userId: vendorChatUserId,
+            role: "vendor",
+        });
     }
 
     async closeBookingConversation(

@@ -35,6 +35,8 @@ export type RegisterLocationPayload = {
   pincode: string;
   shopImageUri?: string;
   shopImageUploadId?: string;
+  baseLatitude?: number;
+  baseLongitude?: number;
 };
 
 export type RegisterPayload = RegisterBasicPayload & RegisterLocationPayload;
@@ -230,6 +232,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   getPendingPhone: () => get().pendingOtpPhone,
 
   signOut: async () => {
+    const { useEnRouteTripStore } = await import('@/store/en-route-trip.store');
+    await useEnRouteTripStore.getState().endTrip();
+
     const accessToken = get().accessToken;
     const vendor = get().user?.vendor;
     if (vendor?.onboardingStatus === 'ACTIVE' && vendor.isOnDuty) {

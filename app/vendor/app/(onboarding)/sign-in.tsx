@@ -48,8 +48,9 @@ export default function SignInScreen() {
   }
 
   function goRegister() {
-    setPendingLoginIntent(null);
-    router.push('/(onboarding)/register' as Href);
+    // Keep login intent until we leave sign-in; clearing it here re-triggers the
+    // focus guard below and sends users back to login-choice before register opens.
+    router.replace('/(onboarding)/register' as Href);
   }
 
   return (

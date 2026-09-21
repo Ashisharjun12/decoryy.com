@@ -8,6 +8,7 @@ import {
   removeCartItem,
   removeCartCoupon,
   setCartLocation,
+  setCartDeliveryGeo,
 } from "@/api/cart.api";
 import { getApiError } from "@/api/api";
 
@@ -92,6 +93,17 @@ export const useCartStore = create((set, get) => ({
   setLocation: async (body) => {
     try {
       const cart = await setCartLocation(body);
+      get().applyCart(cart);
+      return cart;
+    } catch (err) {
+      set({ error: getApiError(err) });
+      throw err;
+    }
+  },
+
+  setDeliveryGeo: async (body) => {
+    try {
+      const cart = await setCartDeliveryGeo(body);
       get().applyCart(cart);
       return cart;
     } catch (err) {

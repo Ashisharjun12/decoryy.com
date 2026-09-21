@@ -30,7 +30,8 @@ export function LocationsPage() {
             Operational locations
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Cities and pincodes on the service allowlist.
+            Active cities define where customers can book. PIN rows are optional—use them to
+            block specific PINs or keep a reference list, not to allow every delivery PIN.
           </p>
         </div>
         <Button type="button" variant="outline" onClick={() => setMapOpen(true)}>

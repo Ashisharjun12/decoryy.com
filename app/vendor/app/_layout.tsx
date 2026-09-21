@@ -1,4 +1,8 @@
 import '@/global.css';
+import '@/lib/job-en-route-background-location';
+import { installOlaMapBootstrap } from '@/lib/ola-map-bootstrap';
+
+installOlaMapBootstrap();
 
 import { NAV_THEME } from '@/lib/theme';
 import { useNotificationListeners } from '@/hooks/use-notification-listeners';

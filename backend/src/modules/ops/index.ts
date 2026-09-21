@@ -6,6 +6,7 @@ import { createDashboardAdminRouter } from "@/modules/ops/dashboard/dashboard.ro
 import { DashboardService } from "@/modules/ops/dashboard/dashboard.service.js";
 import { SettingController } from "@/modules/ops/settings/setting.controller.js";
 import { SettingRepository } from "@/modules/ops/settings/setting.repository.js";
+import { createInstantConfigPublicRouter } from "@/modules/ops/settings/instant-config.route.js";
 import { createPaymentsPublicRouter, createSettingsAdminRouter } from "@/modules/ops/settings/setting.route.js";
 import { platformSettings } from "@/modules/ops/settings/setting.schema.js";
 import { SettingService } from "@/modules/ops/settings/setting.service.js";
@@ -24,6 +25,7 @@ export const settingsAdminRouter = createSettingsAdminRouter(settingController);
 export const dashboardAdminRouter = createDashboardAdminRouter(dashboardController);
 export const auditAdminRouter = createAuditAdminRouter(auditAdminController);
 export const paymentsPublicRouter = createPaymentsPublicRouter(settingController);
+export const instantConfigPublicRouter = createInstantConfigPublicRouter(settingService);
 
 export function isChannelEnabled(channel: NotificationChannel): Promise<boolean> {
     return settingService.isChannelEnabled(channel);

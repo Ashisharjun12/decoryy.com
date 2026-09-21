@@ -34,6 +34,43 @@ export const patchPayoutPolicyDto = z
         message: "at least one payout policy field is required",
     });
 
+export const patchInstantDispatchDto = z
+    .object({
+        enabled: z.boolean().optional(),
+        offerTtlSec: z.number().int().min(15).max(300).optional(),
+        maxOffersPerOrder: z.number().int().min(1).max(20).optional(),
+        radiusKmWaves: z.array(z.number().positive().max(50)).min(1).max(5).optional(),
+        geoCount: z.number().int().min(5).max(100).optional(),
+        heartbeatSec: z.number().int().min(10).max(120).optional(),
+        staleSec: z.number().int().min(30).max(300).optional(),
+        locationMinIntervalSec: z.number().int().min(2).max(60).optional(),
+        locationMinMoveM: z.number().int().min(5).max(500).optional(),
+        instantSlaMinutes: z.number().int().min(30).max(480).optional(),
+        systemUserId: z.string().uuid().nullable().optional(),
+    })
+    .refine((value) => Object.keys(value).length > 0, {
+        message: "at least one instant dispatch field is required",
+    });
+
+export const patchInstantMapsDto = z
+    .object({
+        customerAppMapEnabled: z.boolean().optional(),
+        vendorAppMapEnabled: z.boolean().optional(),
+        webMapEnabled: z.boolean().optional(),
+        liveTrackingEnabled: z.boolean().optional(),
+    })
+    .refine((value) => Object.keys(value).length > 0, {
+        message: "at least one instant maps field is required",
+    });
+
+export const patchInstantMarketplaceDto = z
+    .object({
+        enabled: z.boolean().optional(),
+    })
+    .refine((value) => Object.keys(value).length > 0, {
+        message: "at least one instant marketplace field is required",
+    });
+
 export const patchBookingPolicyDto = z
     .object({
         acceptingBookings: z.boolean().optional(),

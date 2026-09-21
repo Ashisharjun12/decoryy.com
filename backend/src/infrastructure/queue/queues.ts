@@ -14,4 +14,6 @@ export const QUEUE_NAMES = {
     paymentsWebhookRetry: "payments.webhook-retry",
     ledgerPostOnComplete: "ledger.post-on-complete",
     imageOptimize: "image.optimize",
+    dispatch: "dispatch",
+    presenceSweep: "presence.sweep",
 } as const;

@@ -1,6 +1,6 @@
 import { ApiError } from "@/shared/errors/apiError.js";
 import { parsePagination } from "@/shared/http/pagination.js";
-import { assertServiceable, getActiveCityById } from "@/modules/geo/index.js";
+import { assertDeliveryLocation, getActiveCityById } from "@/modules/geo/index.js";
 import type { IMediaService } from "@/modules/upload/media/media.service.js";
 import { displayUrl } from "@/modules/upload/media/media.public.js";
 import { normalizePhone } from "@/modules/identity/auth/phone.js";
@@ -109,7 +109,7 @@ export class VendorService implements IVendorService {
     async validateRegisterInput(input: VendorRegisterInput) {
         const phone = normalizePhone(input.phone);
         await getActiveCityById(input.cityId);
-        await assertServiceable(input.pincode);
+        await assertDeliveryLocation({ cityId: input.cityId, pincode: input.pincode });
 
         if (input.shopImageUploadId) {
             await this.media.getCompleted(input.shopImageUploadId);
@@ -133,6 +133,9 @@ export class VendorService implements IVendorService {
             shopAddress: validated.shopAddress,
             pincode: validated.pincode,
             shopImageUploadId: validated.shopImageUploadId,
+            baseLatitude: validated.baseLatitude ?? null,
+            baseLongitude: validated.baseLongitude ?? null,
+            baseGeoSource: validated.baseGeoSource ?? null,
         });
     }
 
@@ -281,6 +284,13 @@ export class VendorService implements IVendorService {
             throw ApiError.notFound("vendor not found");
         }
 
+        if (!isOnDuty && vendor.cityId) {
+            const { geoRemoveVendorOnline } = await import(
+                "@/modules/dispatch/geo/vendor-geo.store.js"
+            );
+            await geoRemoveVendorOnline(vendor.cityId, vendor.id);
+        }
+
         const profile = await this.vendors.findPublicProfileByUserId(userId);
         if (!profile) {
             throw ApiError.notFound("vendor not found");
@@ -303,7 +313,7 @@ export class VendorService implements IVendorService {
         }
 
         await getActiveCityById(input.cityId);
-        await assertServiceable(input.pincode);
+        await assertDeliveryLocation({ cityId: input.cityId, pincode: input.pincode });
 
         if (input.shopImageUploadId) {
             await this.media.getCompleted(input.shopImageUploadId);
@@ -328,6 +338,9 @@ export class VendorService implements IVendorService {
             pincode: input.pincode,
             altPhone: altPhone ?? null,
             shopImageUploadId: input.shopImageUploadId ?? vendor.shopImageUploadId ?? null,
+            baseLatitude: input.baseLatitude ?? null,
+            baseLongitude: input.baseLongitude ?? null,
+            baseGeoSource: input.baseGeoSource ?? null,
             onboardingStatus: "PENDING",
         });
 

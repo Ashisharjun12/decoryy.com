@@ -18,6 +18,8 @@ import {
   bookingTimelineIndex,
   formatBookingSlot,
 } from "@/module/account/lib/booking-ui";
+import { InstantDispatchBanner } from "@/module/booking/components/InstantDispatchBanner";
+import { InstantTripTrackingMap } from "@/module/account/components/InstantTripTrackingMap";
 
 function BookingTimeline({ status }) {
   const activeIndex = bookingTimelineIndex(status);
@@ -166,10 +168,13 @@ export function BookingDetailPage() {
   }
 
   const payLabel = order.paymentMethod === "COD" ? "Cash on delivery" : "Pay online";
+  const vendorAccepted = order.assignee?.vendorResponse === "accepted";
   const canChatWithVendor =
-    order.assignee?.vendorResponse === "accepted" &&
+    vendorAccepted && order.status !== "CANCELLED" && order.status !== "COMPLETED";
+  const showContactCard =
     order.status !== "CANCELLED" &&
-    order.status !== "COMPLETED";
+    (order.status === "COMPLETED" ? Boolean(order.serviceContact) : vendorAccepted) &&
+    (order.serviceContact || order.assignee);
 
   return (
     <div className="w-full space-y-6">
@@ -190,6 +195,12 @@ export function BookingDetailPage() {
           <CardDescription>{bookingStatusLabel(order.status)}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <InstantDispatchBanner order={order} />
+          <InstantTripTrackingMap
+            orderId={order.id}
+            orderStatus={order.status}
+            fulfillmentType={order.fulfillmentType}
+          />
           {order.status === "EN_ROUTE" ? (
             <p className="rounded-2xl bg-sky-500/10 px-4 py-3 text-sm text-foreground">
               Your decorator is on the way to your location.
@@ -232,8 +243,13 @@ export function BookingDetailPage() {
         </CardContent>
       </Card>
 
-      {canChatWithVendor && order.assignee ? (
-        <VendorContactCard assignee={order.assignee} orderId={orderId} />
+      {showContactCard ? (
+        <VendorContactCard
+          serviceContact={order.serviceContact}
+          assignee={order.assignee}
+          orderId={orderId}
+          showChat={canChatWithVendor}
+        />
       ) : null}
 
       <BookingRefundSection order={order} />

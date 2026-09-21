@@ -1,10 +1,15 @@
-import { boolean, integer, pgEnum, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { boolean, doublePrecision, integer, pgEnum, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import { users } from "@/modules/identity/users/user.schema.js";
 import { cities } from "@/modules/geo/cities/city.schema.js";
 import { products } from "@/modules/catalog/products/product.schema.js";
 import { addons } from "@/modules/catalog/addons/addon.schema.js";
 import { coupons } from "@/modules/promotions/coupons/coupon.schema.js";
 import { ORDER_STATUSES } from "@/modules/booking/domain/order-status.js";
+import {
+    dispatchStatusEnum,
+    fulfillmentTypeEnum,
+    geoPointSourceEnum,
+} from "@/modules/booking/domain/geo-enums.js";
 
 export const orderStatusEnum = pgEnum("order_status", ORDER_STATUSES);
 export const paymentMethodEnum = pgEnum("payment_method", ["COD", "ONLINE", "PREPAID"]);
@@ -37,6 +42,13 @@ export const orders = pgTable(
             .notNull()
             .references(() => cities.id, { onDelete: "restrict" }),
         pincode: text("pincode").notNull(),
+        fulfillmentType: fulfillmentTypeEnum("fulfillment_type").notNull().default("scheduled"),
+        dispatchStatus: dispatchStatusEnum("dispatch_status").notNull().default("idle"),
+        dispatchExhaustedAt: timestamp("dispatch_exhausted_at", { withTimezone: true }),
+        deliveryLatitude: doublePrecision("delivery_latitude"),
+        deliveryLongitude: doublePrecision("delivery_longitude"),
+        deliveryGeoSource: geoPointSourceEnum("delivery_geo_source"),
+        deliveryGeoAt: timestamp("delivery_geo_at", { withTimezone: true }),
         scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull(),
         subtotalPaise: integer("subtotal_paise").notNull(),
         discountPaise: integer("discount_paise").notNull().default(0),

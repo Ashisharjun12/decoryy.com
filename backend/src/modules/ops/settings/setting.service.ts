@@ -27,6 +27,28 @@ import {
     PAYOUT_POLICY_KEY,
     type PayoutPolicy,
 } from "@/modules/ops/settings/payout-policy.js";
+import {
+    DEFAULT_INSTANT_DISPATCH_POLICY,
+    INSTANT_DISPATCH_KEY,
+    mergeInstantDispatchPolicy,
+    type InstantDispatchPolicy,
+} from "@/modules/ops/settings/instant-dispatch-policy.js";
+import {
+    DEFAULT_INSTANT_MAPS_POLICY,
+    INSTANT_MAPS_KEY,
+    mergeInstantMapsPolicy,
+    type InstantMapsPolicy,
+} from "@/modules/ops/settings/instant-maps-policy.js";
+import {
+    DEFAULT_INSTANT_MARKETPLACE_POLICY,
+    INSTANT_MARKETPLACE_KEY,
+    mergeInstantMarketplacePolicy,
+    type InstantMarketplacePolicy,
+} from "@/modules/ops/settings/instant-marketplace-policy.js";
+import {
+    ensureInstantDispatchSystemUser,
+    type InstantDispatchSystemUserResult,
+} from "@/modules/ops/settings/instant-dispatch-system-user.js";
 
 const CHANNEL_CACHE_TTL_MS = 5_000;
 
@@ -34,6 +56,9 @@ export type PatchNotificationChannelsInput = Partial<NotificationChannelFlags>;
 export type PatchPaymentMethodsInput = Partial<PaymentMethodFlags>;
 export type PatchPayoutPolicyInput = Partial<PayoutPolicy>;
 export type PatchBookingPolicyInput = Partial<BookingPolicy>;
+export type PatchInstantDispatchInput = Partial<InstantDispatchPolicy>;
+export type PatchInstantMapsInput = Partial<InstantMapsPolicy>;
+export type PatchInstantMarketplaceInput = Partial<InstantMarketplacePolicy>;
 
 export interface ISettingService {
     getNotificationChannels(): Promise<NotificationChannelFlags>;
@@ -48,6 +73,35 @@ export interface ISettingService {
     patchPayoutPolicy(input: PatchPayoutPolicyInput, actorId: string): Promise<PayoutPolicy>;
     getBookingPolicy(): Promise<BookingPolicy>;
     patchBookingPolicy(input: PatchBookingPolicyInput, actorId: string): Promise<BookingPolicy>;
+    getInstantDispatchPolicy(): Promise<InstantDispatchPolicy>;
+    patchInstantDispatchPolicy(
+        input: PatchInstantDispatchInput,
+        actorId: string,
+    ): Promise<InstantDispatchPolicy>;
+    resolveInstantDispatchSystemUser(): Promise<InstantDispatchSystemUserResult>;
+    getInstantMapsPolicy(): Promise<InstantMapsPolicy>;
+    patchInstantMapsPolicy(input: PatchInstantMapsInput, actorId: string): Promise<InstantMapsPolicy>;
+    getInstantMarketplacePolicy(): Promise<InstantMarketplacePolicy>;
+    patchInstantMarketplacePolicy(
+        input: PatchInstantMarketplaceInput,
+        actorId: string,
+    ): Promise<InstantMarketplacePolicy>;
+    getPublicInstantConfig(): Promise<{
+        dispatchEnabled: boolean;
+        marketplaceEnabled: boolean;
+        maps: {
+            customerApp: boolean;
+            vendorApp: boolean;
+            web: boolean;
+            liveTracking: boolean;
+            provider: string;
+        };
+        presence?: {
+            heartbeatSec: number;
+            locationMinIntervalSec: number;
+            locationMinMoveM: number;
+        };
+    }>;
 }
 
 export class SettingService implements ISettingService {
@@ -55,6 +109,9 @@ export class SettingService implements ISettingService {
     private payCache: { flags: PaymentMethodFlags; at: number } | null = null;
     private payoutCache: { policy: PayoutPolicy; at: number } | null = null;
     private bookingCache: { policy: BookingPolicy; at: number } | null = null;
+    private instantDispatchCache: { policy: InstantDispatchPolicy; at: number } | null = null;
+    private instantMapsCache: { policy: InstantMapsPolicy; at: number } | null = null;
+    private instantMarketplaceCache: { policy: InstantMarketplacePolicy; at: number } | null = null;
 
     constructor(private readonly settings: ISettingRepository) {}
 
@@ -193,6 +250,141 @@ export class SettingService implements ISettingService {
             after: policy,
         });
         return policy;
+    }
+
+    async getInstantDispatchPolicy(): Promise<InstantDispatchPolicy> {
+        if (this.instantDispatchCache && Date.now() - this.instantDispatchCache.at < CHANNEL_CACHE_TTL_MS) {
+            return this.instantDispatchCache.policy;
+        }
+        const row = await this.settings.findByKey(INSTANT_DISPATCH_KEY);
+        const policy = mergeInstantDispatchPolicy(row?.value ?? DEFAULT_INSTANT_DISPATCH_POLICY);
+        if (!row) {
+            await this.settings.upsert(INSTANT_DISPATCH_KEY, policy);
+        }
+        this.instantDispatchCache = { policy, at: Date.now() };
+        return policy;
+    }
+
+    async patchInstantDispatchPolicy(
+        input: PatchInstantDispatchInput,
+        actorId: string,
+    ): Promise<InstantDispatchPolicy> {
+        const current = await this.getInstantDispatchPolicy();
+        const policy = mergeInstantDispatchPolicy({ ...current, ...input });
+        await this.settings.upsert(INSTANT_DISPATCH_KEY, policy);
+        this.instantDispatchCache = { policy, at: Date.now() };
+        await auditService.log({
+            actorId,
+            action: "settings.instant_dispatch_updated",
+            entityType: "settings",
+            entityId: INSTANT_DISPATCH_KEY,
+            summary: "Instant dispatch policy updated",
+            before: current,
+            after: policy,
+        });
+        return policy;
+    }
+
+    async resolveInstantDispatchSystemUser(): Promise<InstantDispatchSystemUserResult> {
+        const policy = await this.getInstantDispatchPolicy();
+        return ensureInstantDispatchSystemUser(policy.systemUserId);
+    }
+
+    async getInstantMapsPolicy(): Promise<InstantMapsPolicy> {
+        if (this.instantMapsCache && Date.now() - this.instantMapsCache.at < CHANNEL_CACHE_TTL_MS) {
+            return this.instantMapsCache.policy;
+        }
+        const row = await this.settings.findByKey(INSTANT_MAPS_KEY);
+        const policy = mergeInstantMapsPolicy(row?.value ?? DEFAULT_INSTANT_MAPS_POLICY);
+        if (!row) {
+            await this.settings.upsert(INSTANT_MAPS_KEY, policy);
+        }
+        this.instantMapsCache = { policy, at: Date.now() };
+        return policy;
+    }
+
+    async patchInstantMapsPolicy(
+        input: PatchInstantMapsInput,
+        actorId: string,
+    ): Promise<InstantMapsPolicy> {
+        const current = await this.getInstantMapsPolicy();
+        const policy = mergeInstantMapsPolicy({ ...current, ...input });
+        await this.settings.upsert(INSTANT_MAPS_KEY, policy);
+        this.instantMapsCache = { policy, at: Date.now() };
+        await auditService.log({
+            actorId,
+            action: "settings.instant_maps_updated",
+            entityType: "settings",
+            entityId: INSTANT_MAPS_KEY,
+            summary: "Instant maps policy updated",
+            before: current,
+            after: policy,
+        });
+        return policy;
+    }
+
+    async getInstantMarketplacePolicy(): Promise<InstantMarketplacePolicy> {
+        if (
+            this.instantMarketplaceCache &&
+            Date.now() - this.instantMarketplaceCache.at < CHANNEL_CACHE_TTL_MS
+        ) {
+            return this.instantMarketplaceCache.policy;
+        }
+        const row = await this.settings.findByKey(INSTANT_MARKETPLACE_KEY);
+        const policy = mergeInstantMarketplacePolicy(row?.value ?? DEFAULT_INSTANT_MARKETPLACE_POLICY);
+        if (!row) {
+            await this.settings.upsert(INSTANT_MARKETPLACE_KEY, policy);
+        }
+        this.instantMarketplaceCache = { policy, at: Date.now() };
+        return policy;
+    }
+
+    async patchInstantMarketplacePolicy(
+        input: PatchInstantMarketplaceInput,
+        actorId: string,
+    ): Promise<InstantMarketplacePolicy> {
+        const current = await this.getInstantMarketplacePolicy();
+        const policy = mergeInstantMarketplacePolicy({ ...current, ...input });
+        await this.settings.upsert(INSTANT_MARKETPLACE_KEY, policy);
+        this.instantMarketplaceCache = { policy, at: Date.now() };
+        await auditService.log({
+            actorId,
+            action: "settings.instant_marketplace_updated",
+            entityType: "settings",
+            entityId: INSTANT_MARKETPLACE_KEY,
+            summary: "Instant marketplace policy updated",
+            before: current,
+            after: policy,
+        });
+        return policy;
+    }
+
+    async getPublicInstantConfig() {
+        const [dispatch, marketplace, maps] = await Promise.all([
+            this.getInstantDispatchPolicy(),
+            this.getInstantMarketplacePolicy(),
+            this.getInstantMapsPolicy(),
+        ]);
+        return {
+            dispatchEnabled: dispatch.enabled,
+            marketplaceEnabled: marketplace.enabled,
+            maps: {
+                customerApp: maps.customerAppMapEnabled,
+                vendorApp: maps.vendorAppMapEnabled,
+                web: maps.webMapEnabled,
+                liveTracking: maps.liveTrackingEnabled,
+                provider: maps.provider,
+            },
+            ...(dispatch.enabled
+                ? {
+                      presence: {
+                          heartbeatSec: dispatch.heartbeatSec,
+                          locationMinIntervalSec: dispatch.locationMinIntervalSec,
+                          locationMinMoveM: dispatch.locationMinMoveM,
+                      },
+                  }
+                : {}),
+        };
     }
 
     private async loadPaymentFlags(): Promise<PaymentMethodFlags> {

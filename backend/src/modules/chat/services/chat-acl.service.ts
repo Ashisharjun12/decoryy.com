@@ -7,6 +7,10 @@ import type { IParticipantRepository } from "@/modules/chat/participants/partici
 import type { IOrderFieldAssignmentRepository } from "@/modules/assignment/field-assignments/order-field-assignment.repository.js";
 import type { IVendorMemberRepository } from "@/modules/identity/vendor-members/vendor-member.repository.js";
 import type { UserRole } from "@/modules/identity/users/user.schema.js";
+import {
+    assignedFieldWorkerUserId,
+    isDistinctFieldWorkerAssigned,
+} from "@/modules/booking/lib/booking-field-chat.js";
 
 const READ_ONLY_ORDER_STATUSES = new Set(["CANCELLED", "COMPLETED"]);
 
@@ -38,6 +42,9 @@ export class ChatAclService implements IChatAclService {
 
         if (conversation.type === "booking" && conversation.contextId) {
             await this.assertBookingChatReadable(conversation.contextId, role);
+            if (role === "vendor" || role === "vendor_staff") {
+                await this.assertBookingChatAllowed(conversation.contextId, userId, role);
+            }
         }
 
         const participant = await this.participants.findByConversationAndUser(conversation.id, userId);
@@ -114,6 +121,14 @@ export class ChatAclService implements IChatAclService {
             const vendor = await this.vendors.findByUserId(userId);
             if (!vendor || vendor.id !== assignment.vendorId) {
                 throw ApiError.forbidden("not assigned to this order");
+            }
+            const workerUserId = await assignedFieldWorkerUserId(
+                this.fieldAssignments,
+                assignment.vendorId,
+                orderId,
+            );
+            if (isDistinctFieldWorkerAssigned(vendor.userId, workerUserId)) {
+                throw ApiError.forbidden("chat is with the assigned field worker for this job");
             }
             return;
         }

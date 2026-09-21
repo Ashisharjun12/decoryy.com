@@ -60,6 +60,9 @@ import {
 import { mediaService } from "@/modules/upload/index.js";
 import { bookingChatService } from "@/modules/chat/index.js";
 import { RealtimeFactory } from "@/infrastructure/realtime/realtime.factory.js";
+import { initDispatchModule } from "@/modules/dispatch/index.js";
+import { VendorPresenceController } from "@/modules/dispatch/presence/vendor-presence.controller.js";
+import { VendorPresenceService } from "@/modules/dispatch/presence/vendor-presence.service.js";
 
 const userRepository = new UserRepository();
 const vendorRepository = new VendorRepository();
@@ -111,6 +114,25 @@ const vendorJobService = new VendorJobService(
     RealtimeFactory.getProvider(),
 );
 const vendorJobController = new VendorJobController(vendorJobService);
+
+initDispatchModule({
+    orderRepo: orderRepository,
+    assignments: assignmentRepository,
+    vendorRepo: vendorRepository,
+    notifications: notificationService,
+    reloadOrder: async (orderId) => {
+        const order = await orderServiceForVendorJobs.getForAdmin(orderId);
+        return {
+            id: order.id,
+            reference: order.reference,
+            scheduledAt: order.scheduledAt,
+            delivery: { address: order.delivery.address },
+        };
+    },
+});
+
+const vendorPresenceService = new VendorPresenceService(vendorRepository);
+const vendorPresenceController = new VendorPresenceController(vendorPresenceService);
 const vendorTeamService = new VendorTeamService(
     new VendorMemberRepository(),
     vendorRepository,
@@ -138,6 +160,7 @@ export const vendorRouter = createVendorRouter(
     walletController,
     payoutMethodController,
     vendorTeamController,
+    vendorPresenceController,
 );
 export const vendorAdminRouter = createVendorAdminRouter(vendorAdminController);
 export const customerAdminRouter = createCustomerAdminRouter(customerAdminController);

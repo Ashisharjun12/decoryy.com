@@ -7,6 +7,7 @@ export const addCartItemDto = z.object({
     cityId: z.string().uuid().optional(),
     pincode: z.string().min(6).max(6).optional(),
     scheduledAt: z.string().datetime().optional().nullable(),
+    fulfillmentType: z.enum(["scheduled", "instant"]).optional(),
 });
 
 export const patchCartItemDto = z.object({
@@ -15,6 +16,11 @@ export const patchCartItemDto = z.object({
 
 export const cartItemIdParamsDto = z.object({
     id: z.string().uuid(),
+});
+
+export const cartDeliveryGeoDto = z.object({
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
 });
 
 export const cartLocationDto = z

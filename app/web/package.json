@@ -28,6 +28,7 @@
     "input-otp": "^1.5.0",
     "lenis": "^1.3.26",
     "lucide-react": "^1.33.0",
+    "olamaps-web-sdk": "^1.4.0",
     "react": "^19.2.8",
     "react-day-picker": "^10.0.1",
     "react-dom": "^19.2.8",

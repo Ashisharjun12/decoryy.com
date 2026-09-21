@@ -7,6 +7,26 @@ import type { IPincodeRepository } from "@/modules/geo/pincodes/pincode.reposito
 import { normalizePincode } from "@/modules/geo/pincodes/pincode.js";
 import type { Pincode } from "@/modules/geo/pincodes/pincode.schema.js";
 
+export type PincodeLookupPin = {
+    id: string;
+    code: string;
+    locality: string | null;
+    isServiceable: boolean;
+} | null;
+
+export type PincodeLookupReason =
+    | "unknown_pin"
+    | "city_inactive"
+    | "pincode_not_serviceable"
+    | "pincode_city_mismatch";
+
+export type PincodeLookupResult = {
+    pincode: PincodeLookupPin;
+    city: PublicCity | null;
+    deliverable: boolean;
+    reason?: PincodeLookupReason;
+};
+
 export type ResolvedPincode = {
     pincode: {
         id: string;
@@ -15,6 +35,12 @@ export type ResolvedPincode = {
         isServiceable: boolean;
     };
     city: PublicCity;
+    deliverable: boolean;
+};
+
+export type DeliveryLocationInput = {
+    cityId: string;
+    pincode: string;
 };
 
 export type CreatePincodeInput = {
@@ -39,7 +65,9 @@ export type PincodeAdminListQuery = {
 };
 
 export interface IPincodeService {
-    resolve(pincodeRaw: string): Promise<ResolvedPincode>;
+    lookup(pincodeRaw: string, cityId?: string): Promise<PincodeLookupResult>;
+    resolve(pincodeRaw: string, cityId?: string): Promise<ResolvedPincode>;
+    assertDeliveryLocation(input: DeliveryLocationInput): Promise<ResolvedPincode>;
     assertServiceable(pincodeRaw: string): Promise<ResolvedPincode>;
     getCityByPincode(pincodeRaw: string): Promise<PublicCity>;
     listAdmin(
@@ -49,30 +77,134 @@ export interface IPincodeService {
     patch(id: string, input: PatchPincodeInput): Promise<Pincode>;
 }
 
+function toLookupPin(row: {
+    pincode: Pincode;
+}): NonNullable<PincodeLookupPin> {
+    return {
+        id: row.pincode.id,
+        code: row.pincode.code,
+        locality: row.pincode.locality,
+        isServiceable: row.pincode.isServiceable,
+    };
+}
+
 export class PincodeService implements IPincodeService {
     constructor(
         private readonly pincodes: IPincodeRepository,
         private readonly cities: ICityRepository,
     ) {}
 
-    async resolve(pincodeRaw: string): Promise<ResolvedPincode> {
-        return this.assertServiceable(pincodeRaw);
+    async lookup(pincodeRaw: string, cityId?: string): Promise<PincodeLookupResult> {
+        const code = normalizePincode(pincodeRaw);
+        const row = await this.pincodes.findByCodeWithCity(code);
+
+        if (cityId) {
+            const cityRecord = await this.cities.findById(cityId);
+            if (!cityRecord || !cityRecord.isActive) {
+                return {
+                    pincode: row ? toLookupPin(row) : null,
+                    city: cityRecord ? publicCity(cityRecord) : null,
+                    deliverable: false,
+                    reason: "city_inactive",
+                };
+            }
+            const city = publicCity(cityRecord);
+            if (!row) {
+                return { pincode: null, city, deliverable: true };
+            }
+            if (row.pincode.cityId !== cityId) {
+                return {
+                    pincode: toLookupPin(row),
+                    city,
+                    deliverable: false,
+                    reason: "pincode_city_mismatch",
+                };
+            }
+            if (!row.pincode.isServiceable) {
+                return {
+                    pincode: toLookupPin(row),
+                    city,
+                    deliverable: false,
+                    reason: "pincode_not_serviceable",
+                };
+            }
+            return {
+                pincode: toLookupPin(row),
+                city,
+                deliverable: true,
+            };
+        }
+
+        if (!row) {
+            return {
+                pincode: null,
+                city: null,
+                deliverable: false,
+                reason: "unknown_pin",
+            };
+        }
+        if (!row.city.isActive) {
+            return {
+                pincode: toLookupPin(row),
+                city: publicCity(row.city),
+                deliverable: false,
+                reason: "city_inactive",
+            };
+        }
+        if (!row.pincode.isServiceable) {
+            return {
+                pincode: toLookupPin(row),
+                city: publicCity(row.city),
+                deliverable: false,
+                reason: "pincode_not_serviceable",
+            };
+        }
+        return {
+            pincode: toLookupPin(row),
+            city: publicCity(row.city),
+            deliverable: true,
+        };
+    }
+
+    async resolve(pincodeRaw: string, cityId?: string): Promise<ResolvedPincode> {
+        const result = await this.lookup(pincodeRaw, cityId);
+        if (!result.deliverable || !result.city) {
+            const message =
+                result.reason === "pincode_city_mismatch"
+                    ? "pincode does not match city"
+                    : result.reason === "city_inactive"
+                      ? "city not found"
+                      : "pincode not serviceable";
+            throw ApiError.badRequest(message);
+        }
+        return {
+            pincode: result.pincode ?? {
+                id: "",
+                code: normalizePincode(pincodeRaw),
+                locality: null,
+                isServiceable: true,
+            },
+            city: result.city,
+            deliverable: true,
+        };
+    }
+
+    async assertDeliveryLocation(input: DeliveryLocationInput): Promise<ResolvedPincode> {
+        return this.resolve(input.pincode, input.cityId);
     }
 
     async assertServiceable(pincodeRaw: string): Promise<ResolvedPincode> {
-        const code = normalizePincode(pincodeRaw);
-        const row = await this.pincodes.findByCodeWithCity(code);
-        if (!row || !row.pincode.isServiceable || !row.city.isActive) {
+        const result = await this.lookup(pincodeRaw);
+        if (!result.deliverable || !result.city) {
+            throw ApiError.badRequest("pincode not serviceable");
+        }
+        if (!result.pincode) {
             throw ApiError.badRequest("pincode not serviceable");
         }
         return {
-            pincode: {
-                id: row.pincode.id,
-                code: row.pincode.code,
-                locality: row.pincode.locality,
-                isServiceable: row.pincode.isServiceable,
-            },
-            city: publicCity(row.city),
+            pincode: result.pincode,
+            city: result.city,
+            deliverable: true,
         };
     }
 

@@ -20,6 +20,11 @@ import {
     vendorJobsQueryDto,
 } from "@/modules/assignment/jobs/vendor-job.dto.js";
 import {
+    vendorJobLocationDto,
+    vendorPresenceDto,
+} from "@/modules/dispatch/presence/vendor-presence.dto.js";
+import type { VendorPresenceController } from "@/modules/dispatch/presence/vendor-presence.controller.js";
+import {
     registerPushDeviceDto,
     unregisterPushDeviceDto,
     vendorNotificationIdParamsDto,
@@ -57,6 +62,7 @@ export function createVendorRouter(
     walletController: WalletController,
     payoutMethodController: PayoutMethodController,
     vendorTeamController: VendorTeamController,
+    vendorPresenceController: VendorPresenceController,
 ) {
     const router = Router();
     const partner = [authRequired, requirePartnerRole, attachPartnerContext];
@@ -89,6 +95,13 @@ export function createVendorRouter(
         validate(vendorDutyPatchDto),
         vendorController.setDuty,
     );
+    router.post(
+        "/presence",
+        ...partner,
+        validate(vendorPresenceDto),
+        vendorPresenceController.postPresence,
+    );
+    router.post("/presence/heartbeat", ...partner, vendorPresenceController.postHeartbeat);
     router.post(
         "/profile/presign-avatar",
         authRequired,
@@ -167,6 +180,18 @@ export function createVendorRouter(
         vendorJobController.get,
     );
     router.get(
+        "/jobs/:orderId/route",
+        ...partner,
+        validate(vendorJobOrderParamsDto, "params"),
+        vendorJobController.getRoute,
+    );
+    router.get(
+        "/jobs/:orderId/tracking",
+        ...partner,
+        validate(vendorJobOrderParamsDto, "params"),
+        vendorJobController.getTracking,
+    );
+    router.get(
         "/jobs/:orderId/assignments",
         ...owner,
         validate(vendorJobOrderParamsDto, "params"),
@@ -196,6 +221,13 @@ export function createVendorRouter(
         ...owner,
         validate(vendorJobOrderParamsDto, "params"),
         vendorJobController.decline,
+    );
+    router.post(
+        "/jobs/:orderId/location",
+        ...partner,
+        validate(vendorJobOrderParamsDto, "params"),
+        validate(vendorJobLocationDto),
+        vendorJobController.postLocation,
     );
     router.post(
         "/jobs/:orderId/en-route",

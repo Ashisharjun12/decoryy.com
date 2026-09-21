@@ -20,6 +20,10 @@ export function setCartLocation(body) {
   return api.post("/cart/location", body).then(unwrap);
 }
 
+export function setCartDeliveryGeo(body) {
+  return api.post("/cart/delivery-geo", body).then(unwrap);
+}
+
 export function mergeCart() {
   return api.post("/cart/merge").then(unwrap);
 }

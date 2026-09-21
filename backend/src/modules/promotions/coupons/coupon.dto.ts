@@ -130,6 +130,24 @@ export const applyCartCouponDto = z.object({
     code: z.string().trim().min(3).max(24).transform((v) => v.toUpperCase()),
 });
 
+export const availableCouponsQueryDto = z
+    .object({
+        productId: z.string().uuid().optional(),
+        categoryId: z.string().uuid().optional(),
+        cityId: z.string().uuid().optional(),
+        pincode: z.string().trim().optional(),
+        scope: z.enum(["product", "city"]).optional(),
+    })
+    .refine((value) => Boolean(value.pincode?.trim()) || Boolean(value.cityId), {
+        message: "pincode or cityId is required",
+    })
+    .refine(
+        (value) =>
+            (Boolean(value.productId) && Boolean(value.categoryId)) ||
+            (!value.productId && !value.categoryId),
+        { message: "productId and categoryId must be sent together" },
+    );
+
 export type CreateCouponInput = z.infer<typeof createCouponDto>;
 export type PatchCouponInput = z.infer<typeof patchCouponDto>;
 export type ListCouponsQuery = z.infer<typeof listCouponsQueryDto>;

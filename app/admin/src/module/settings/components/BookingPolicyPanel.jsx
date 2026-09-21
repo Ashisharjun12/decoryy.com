@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { getApiError } from "@/api/api"
 import { getBookingPolicy, patchBookingPolicy } from "@/api/settings.api"
 import { Button } from "@/components/ui/button"
@@ -11,14 +11,23 @@ import { toast } from "@/components/ui/toast"
 
 export function BookingPolicyPanel() {
   const [policy, setPolicy] = useState(null)
+  const [savedPolicy, setSavedPolicy] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+
+  const policyDirty = useMemo(() => {
+    if (!policy || !savedPolicy) return false
+    return JSON.stringify(policy) !== JSON.stringify(savedPolicy)
+  }, [policy, savedPolicy])
 
   useEffect(() => {
     let cancelled = false
     getBookingPolicy()
       .then((data) => {
-        if (!cancelled) setPolicy(data)
+        if (!cancelled) {
+          setPolicy(data)
+          setSavedPolicy(data)
+        }
       })
       .catch((err) => {
         if (!cancelled) toast.add({ title: getApiError(err), type: "error" })
@@ -32,11 +41,12 @@ export function BookingPolicyPanel() {
   }, [])
 
   async function onSave() {
-    if (!policy) return
+    if (!policy || !policyDirty) return
     setSaving(true)
     try {
       const next = await patchBookingPolicy(policy)
       setPolicy(next)
+      setSavedPolicy(next)
       toast.add({ title: "Booking policy saved", type: "success" })
     } catch (err) {
       toast.add({ title: getApiError(err), type: "error" })
@@ -141,7 +151,7 @@ export function BookingPolicyPanel() {
         </div>
 
         <div>
-          <Button onClick={onSave} disabled={saving}>
+          <Button onClick={onSave} disabled={!policyDirty || saving}>
             {saving ? "Saving…" : "Save booking policy"}
           </Button>
         </div>

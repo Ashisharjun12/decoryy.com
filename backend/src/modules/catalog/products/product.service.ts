@@ -2,7 +2,7 @@ import { settingService } from "@/modules/ops/index.js";
 import { ApiError } from "@/shared/errors/apiError.js";
 import { parsePagination } from "@/shared/http/pagination.js";
 import { isForeignKeyViolation, isUniqueViolation } from "@/modules/geo/pg-error.js";
-import { assertServiceable, getActiveCityById } from "@/modules/geo/index.js";
+import { getActiveCityById, lookupPincode } from "@/modules/geo/index.js";
 import { slugify } from "@/modules/catalog/slug.js";
 import { displayUrl, getCompletedUpload, toPublicMedia, type PublicMedia } from "@/modules/upload/index.js";
 import type { IMediaRepository } from "@/modules/upload/media/media.repository.js";
@@ -24,6 +24,10 @@ import {
     catalogProductDetailKey,
 } from "@/modules/catalog/cache/catalog-cache.keys.js";
 import { invalidateProductDetail } from "@/modules/catalog/cache/catalog-cache.invalidation.js";
+import {
+    buildPublicInstantBlock,
+    type PublicInstantInfo,
+} from "@/modules/catalog/products/product-instant.public.js";
 
 export type ProductImagePublic = PublicMedia & {
     uploadId: string;
@@ -48,6 +52,7 @@ export type ProductForCity = Product & {
     pricePaise: number;
     images: ProductImagePublic[];
     addonIds: string[];
+    instant: PublicInstantInfo | null;
 };
 
 export type PublicAddonForCity = {
@@ -63,6 +68,7 @@ export type PublicAddonForCity = {
 export type ProductPublicDetail = ProductForCity & {
     city: PublicCity;
     addons: PublicAddonForCity[];
+    instant: PublicInstantInfo | null;
 };
 
 export type CreateProductInput = {
@@ -73,6 +79,10 @@ export type CreateProductInput = {
     isActive?: boolean;
     scheduledEnabled?: boolean;
     instantEnabled?: boolean;
+    instantShowBadge?: boolean;
+    instantBadgeLabel?: string | null;
+    instantPdpNote?: string | null;
+    instantEtaMinutes?: number | null;
     paymentCod?: boolean;
     paymentOnline?: boolean;
     imageUploadIds?: string[];
@@ -92,6 +102,10 @@ export type PatchProductInput = {
     isActive?: boolean;
     scheduledEnabled?: boolean;
     instantEnabled?: boolean;
+    instantShowBadge?: boolean;
+    instantBadgeLabel?: string | null;
+    instantPdpNote?: string | null;
+    instantEtaMinutes?: number | null;
     paymentCod?: boolean;
     paymentOnline?: boolean;
     imageUploadIds?: string[];
@@ -305,6 +319,10 @@ export class ProductService implements IProductService {
                 isActive: false,
                 scheduledEnabled,
                 instantEnabled,
+                instantShowBadge: input.instantShowBadge ?? true,
+                instantBadgeLabel: input.instantBadgeLabel?.trim() || null,
+                instantPdpNote: input.instantPdpNote?.trim() || null,
+                instantEtaMinutes: input.instantEtaMinutes ?? null,
                 paymentCod,
                 paymentOnline,
                 pricePaise: defaults.pricePaise,
@@ -356,6 +374,14 @@ export class ProductService implements IProductService {
         if (input.isActive === false) data.isActive = false;
         if (input.scheduledEnabled !== undefined) data.scheduledEnabled = input.scheduledEnabled;
         if (input.instantEnabled !== undefined) data.instantEnabled = input.instantEnabled;
+        if (input.instantShowBadge !== undefined) data.instantShowBadge = input.instantShowBadge;
+        if (input.instantBadgeLabel !== undefined) {
+            data.instantBadgeLabel = input.instantBadgeLabel?.trim() || null;
+        }
+        if (input.instantPdpNote !== undefined) {
+            data.instantPdpNote = input.instantPdpNote?.trim() || null;
+        }
+        if (input.instantEtaMinutes !== undefined) data.instantEtaMinutes = input.instantEtaMinutes;
         if (input.paymentCod !== undefined) data.paymentCod = input.paymentCod;
         if (input.paymentOnline !== undefined) data.paymentOnline = input.paymentOnline;
         if (input.pricePaise !== undefined || input.compareAtPaise !== undefined) {
@@ -466,14 +492,24 @@ export class ProductService implements IProductService {
     }
 
     private async resolvePublicCity(query: PublicProductListQuery): Promise<PublicCity> {
+        const cityId = typeof query.cityId === "string" ? query.cityId.trim() : "";
         const pincode = typeof query.pincode === "string" ? query.pincode.trim() : "";
-        if (pincode) {
-            const resolved = await assertServiceable(pincode);
-            return resolved.city;
-        }
-        const cityId = typeof query.cityId === "string" ? query.cityId : "";
         if (cityId) {
-            return getActiveCityById(cityId);
+            const city = await getActiveCityById(cityId);
+            if (pincode) {
+                const lookup = await lookupPincode(pincode, city.id);
+                if (!lookup.deliverable) {
+                    throw ApiError.badRequest("pincode not serviceable");
+                }
+            }
+            return city;
+        }
+        if (pincode) {
+            const lookup = await lookupPincode(pincode);
+            if (!lookup.deliverable || !lookup.city) {
+                throw ApiError.badRequest("pincode not serviceable");
+            }
+            return lookup.city;
         }
         throw ApiError.badRequest("pincode or cityId is required");
     }
@@ -487,7 +523,8 @@ export class ProductService implements IProductService {
         return cacheService.getOrSet(key, CATALOG_CACHE_TTL.productDetailSeconds, async () => {
             const product = await this.getForCity(productId, city.id);
             const addons = await this.mappedAddonsForCity(product.addonIds, city.id);
-            return { ...product, city, addons };
+            const instant = await buildPublicInstantBlock(product);
+            return { ...product, city, addons, instant };
         });
     }
 
@@ -534,11 +571,13 @@ export class ProductService implements IProductService {
             if (!row) continue;
             const baseImages = this.buildProductImages(imageRowsByProduct.get(id) ?? [], uploadById);
             const images = await appendTrustGallerySlide(baseImages, this.siteBrand);
+            const instant = await buildPublicInstantBlock(row.product);
             items.push({
                 ...row.product,
                 pricePaise: row.pricePaise,
                 images,
                 addonIds: addonIdsByProduct.get(id) ?? [],
+                instant,
             });
         }
         return items;
@@ -608,7 +647,8 @@ export class ProductService implements IProductService {
     private async toCityProduct(product: Product, pricePaise: number): Promise<ProductForCity> {
         const admin = await this.toAdmin(product);
         const images = await appendTrustGallerySlide(admin.images, this.siteBrand);
-        return { ...admin, pricePaise, images };
+        const instant = await buildPublicInstantBlock(product);
+        return { ...admin, pricePaise, images, instant };
     }
 
     private async mappedAddonsForCity(addonIds: string[], cityId: string): Promise<PublicAddonForCity[]> {

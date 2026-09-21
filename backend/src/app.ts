@@ -8,14 +8,16 @@ import { httpLogger } from "@/shared/middlewares/logger.middleware.js";
 import mastra from "@/mastra/index.js";
 import { authRouter, userRouter, vendorRouter } from "@/modules/identity/index.js";
 import { geoRouter } from "@/modules/geo/index.js";
+import { promotionsPublicRouter } from "@/modules/promotions/index.js";
 import { catalogRouter } from "@/modules/catalog/index.js";
 import { adminRouter } from "@/modules/admin/index.js";
-import { paymentsPublicRouter } from "@/modules/ops/index.js";
+import { instantConfigPublicRouter, paymentsPublicRouter } from "@/modules/ops/index.js";
 import { cartRouter, orderRouter, paymentIntentRouter } from "@/modules/booking/index.js";
 import { userNotificationPreferenceRouter } from "@/modules/notifications/index.js";
 import { userChatRouter, vendorChatRouter } from "@/modules/chat/index.js";
 import { createPaymentWebhookRouter } from "@/modules/payments/index.js";
 import { aiPublicRouter } from "@/modules/ai/index.js";
+import { createMapsPublicRouter } from "@/modules/maps/index.js";
 
 class App {
   private app: Application;
@@ -85,10 +87,13 @@ class App {
     this.app.use("/api/v1/user/chat", userChatRouter);
     this.app.use("/api/v1/user", userRouter);
     this.app.use("/api/v1/geo", geoRouter);
+    this.app.use("/api/v1/maps", createMapsPublicRouter());
     this.app.use("/api/v1/catalog", catalogRouter);
     this.app.use("/api/v1/ai", aiPublicRouter);
+    this.app.use("/api/v1/config", instantConfigPublicRouter);
     this.app.use("/api/v1/payments", paymentsPublicRouter);
     this.app.use("/api/v1/payments", paymentIntentRouter);
+    this.app.use("/api/v1/promotions", promotionsPublicRouter);
     this.app.use("/api/v1/cart", cartRouter);
     this.app.use("/api/v1/orders", orderRouter);
     this.app.use("/api/v1/admin", adminRouter);

@@ -28,6 +28,7 @@ import { HomePage } from "@/module/home/pages/HomePage";
 import { ServiceCitiesPage } from "@/module/geo/pages/ServiceCitiesPage";
 import { LoginRedirect } from "@/module/layout/pages/LoginRedirect";
 import { CmsPagePage } from "@/module/cms/pages/CmsPagePage";
+import { OffersPage } from "@/module/promotions/pages/OffersPage";
 import { NotFoundPage } from "@/module/layout/pages/NotFoundPage";
 import { NotificationsHost } from "@/module/notifications/components/NotificationsHost";
 import { SocketProvider } from "@/providers/socket-provider";
@@ -75,6 +76,7 @@ export default function App() {
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/checkout/success/:orderId" element={<OrderConfirmationPage />} />
           <Route path="/bag" element={<BagPage />} />
+          <Route path="/offers" element={<OffersPage />} />
           <Route path="/pages/:slug" element={<CmsPagePage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>

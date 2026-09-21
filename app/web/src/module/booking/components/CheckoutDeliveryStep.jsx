@@ -1,13 +1,22 @@
 import { useEffect, useState } from "react";
-import { resolvePincode } from "@/api/geo.api";
-import { pinResolveErrorMessage } from "@/lib/pin-delivery-message";
+import { isPincodeDeliverable, resolvePincode } from "@/api/geo.api";
+import {
+  deliveryPinCartCityMessage,
+  isDeliveryPinInCartCity,
+  pinLookupMessage,
+  pinResolveErrorMessage,
+  SELECT_CITY_FIRST_MESSAGE,
+} from "@/lib/pin-delivery-message";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckoutAddressPicker } from "@/module/booking/components/CheckoutAddressPicker";
+import { CheckoutDeliveryGeo } from "@/module/booking/components/CheckoutDeliveryGeo";
+import { useCartStore } from "@/store/cart.store";
+import { useLocationStore } from "@/store/location.store";
 
-function ManualDeliveryFields({ value, onChange, cartCityId }) {
+function ManualDeliveryFields({ value, onChange, cartCityId, cartCityName }) {
   function patch(partial) {
     onChange({ ...value, ...partial });
   }
@@ -30,24 +39,42 @@ function ManualDeliveryFields({ value, onChange, cartCityId }) {
     patch({ pinStatus: "loading", pinMessage: "" });
 
     const timer = window.setTimeout(() => {
+      if (!cartCityId) {
+        patch({
+          pinStatus: "error",
+          pinMessage: SELECT_CITY_FIRST_MESSAGE,
+          cityName: "",
+          cityId: null,
+        });
+        return;
+      }
       void resolvePincode(code)
         .then((data) => {
           if (cancelled) return;
-          const city = data?.city;
-          if (cartCityId && city?.id && city.id !== cartCityId) {
+          if (!isPincodeDeliverable(data)) {
             patch({
               pinStatus: "error",
-              pinMessage: `This PIN is in ${city.name}. Your bag is priced for a different city. Change city or bag first.`,
-              cityName: city.name ?? "",
-              cityId: city.id,
+              pinMessage: pinLookupMessage(data),
+              cityName: data?.city?.name ?? "",
+              cityId: data?.city?.id ?? null,
             });
             return;
           }
+          if (!isDeliveryPinInCartCity(data, cartCityId)) {
+            patch({
+              pinStatus: "error",
+              pinMessage: deliveryPinCartCityMessage(data, cartCityName ?? "your city"),
+              cityName: data?.city?.name ?? "",
+              cityId: data?.city?.id ?? null,
+            });
+            return;
+          }
+          const city = data.city;
           patch({
             pinStatus: "ok",
-            pinMessage: city?.name ? `We deliver to ${city.name}` : "We deliver here",
+            pinMessage: pinLookupMessage(data),
             cityName: city?.name ?? "",
-            cityId: city?.id ?? null,
+            cityId: cartCityId,
           });
         })
         .catch((err) => {
@@ -66,7 +93,7 @@ function ManualDeliveryFields({ value, onChange, cartCityId }) {
       window.clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value.pincode, cartCityId]);
+  }, [value.pincode, cartCityId, cartCityName]);
 
   return (
     <FieldGroup className="gap-4">
@@ -127,11 +154,27 @@ function clearDeliveryForManual(value) {
     cityId: null,
     pinStatus: "idle",
     pinMessage: "",
+    latitude: null,
+    longitude: null,
   };
 }
 
-export function CheckoutDeliveryStep({ value, onChange, cartCityId }) {
+export function CheckoutDeliveryStep({
+  value,
+  onChange,
+  cartCityId,
+  geoConfirmed,
+  onGeoConfirmed,
+}) {
   const [useManual, setUseManual] = useState(false);
+  const cart = useCartStore((s) => s.cart);
+  const cities = useLocationStore((s) => s.cities);
+  const headerCity = useLocationStore((s) => s.city);
+  const cartCityName =
+    cities.find((c) => c.id === cartCityId)?.name ??
+    (headerCity?.id === cartCityId ? headerCity.name : null);
+  const requireGeo = cart?.fulfillmentType === "instant";
+  const deliveryOk = value.pinStatus === "ok" && value.address.trim().length > 5;
 
   function startManualEntry() {
     setUseManual(true);
@@ -145,6 +188,12 @@ export function CheckoutDeliveryStep({ value, onChange, cartCityId }) {
 
   return (
     <div className="flex flex-col gap-6">
+      {cartCityName ? (
+        <p className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-foreground">
+          Your order is priced for <span className="font-semibold">{cartCityName}</span>. Use a
+          delivery PIN in this city.
+        </p>
+      ) : null}
       <CheckoutAddressPicker
         value={value}
         onChange={onChange}
@@ -153,10 +202,23 @@ export function CheckoutDeliveryStep({ value, onChange, cartCityId }) {
         onUseManualChange={startManualEntry}
         onReturnToSaved={returnToSavedAddresses}
         onExitManual={() => setUseManual(false)}
+        onGeoConfirmed={onGeoConfirmed}
       />
       {useManual ? (
-        <ManualDeliveryFields value={value} onChange={onChange} cartCityId={cartCityId} />
+        <ManualDeliveryFields
+          value={value}
+          onChange={onChange}
+          cartCityId={cartCityId}
+          cartCityName={cartCityName}
+        />
       ) : null}
+      <CheckoutDeliveryGeo
+        delivery={value}
+        deliveryOk={deliveryOk}
+        geoConfirmed={geoConfirmed}
+        onGeoConfirmed={onGeoConfirmed}
+        requireGeo={requireGeo}
+      />
     </div>
   );
 }
