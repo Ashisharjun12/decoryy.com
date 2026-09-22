@@ -2,16 +2,17 @@ import { useVendorGateStatus } from '@/module/application-review/hooks/use-vendo
 import { Href, router } from 'expo-router';
 import { useCallback } from 'react';
 
-export function usePendingReview() {
+export function useBlockedReview() {
   const onStatusChange = useCallback((user: { vendor?: { onboardingStatus: string } } | null) => {
-    if (user?.vendor?.onboardingStatus === 'ACTIVE') {
+    const status = user?.vendor?.onboardingStatus;
+    if (status === 'ACTIVE') {
       router.replace('/(app)' as Href);
     }
-    if (user?.vendor?.onboardingStatus === 'REJECTED') {
-      router.replace('/(gate)/rejected' as Href);
+    if (status === 'PENDING') {
+      router.replace('/(gate)/pending' as Href);
     }
-    if (user?.vendor?.onboardingStatus === 'BLOCKED') {
-      router.replace('/(gate)/blocked' as Href);
+    if (status === 'REJECTED') {
+      router.replace('/(gate)/rejected' as Href);
     }
   }, []);
 

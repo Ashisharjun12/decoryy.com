@@ -53,6 +53,7 @@ export class AuthController {
             req.body.phone,
             clientIp(req),
             req.body.androidAppHash,
+            req.body.loginIntent,
         );
         res.status(200).json(new ApiResponse(200, data, "otp sent"));
     });

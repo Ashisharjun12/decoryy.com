@@ -9,6 +9,11 @@ export default function Index() {
   const hasSeenWelcome = useAuthStore((s) => s.hasSeenWelcome);
   const accessToken = useAuthStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.user);
+  const platformAccessPaused = useAuthStore((s) => s.platformAccessPaused);
+
+  if (platformAccessPaused && user) {
+    return <Redirect href={'/(gate)/blocked' as Href} />;
+  }
 
   const href = getAuthRedirectPath({ hydrated, hasSeenWelcome, accessToken, user });
 

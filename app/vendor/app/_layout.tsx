@@ -9,6 +9,7 @@ import { useNotificationListeners } from '@/hooks/use-notification-listeners';
 import { ThemeBootstrap } from '@/module/settings/components/ThemeBootstrap';
 import { QueryProvider } from '@/providers/query-provider';
 import { SocketProvider } from '@/providers/socket-provider';
+import { PlatformAccessPausedHost } from '@/module/auth/components/PlatformAccessPausedHost';
 import { useAuthStore } from '@/store/auth.store';
 import { usePartnerModeStore } from '@/store/partner-mode.store';
 import { PortalHost } from '@rn-primitives/portal';
@@ -45,6 +46,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryProvider>
         <SocketProvider>
+          <PlatformAccessPausedHost />
           {!hydrated ? (
             <View className="flex-1 items-center justify-center bg-background">
               <LoadingPlaceholder className="py-0" />

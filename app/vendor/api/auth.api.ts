@@ -10,11 +10,16 @@ export type OtpRequestResult = {
   otp?: string;
 };
 
-export function requestOtp(phone: string, androidAppHash?: string) {
+export function requestOtp(
+  phone: string,
+  androidAppHash?: string,
+  loginIntent?: PartnerLoginIntent,
+) {
   return api
     .post('/auth/otp/request', {
       phone,
       ...(androidAppHash ? { androidAppHash } : {}),
+      ...(loginIntent ? { loginIntent } : {}),
     })
     .then(unwrap<OtpRequestResult>);
 }
@@ -26,7 +31,7 @@ export function verifyOtp(phone: string, otp: string, loginIntent?: PartnerLogin
       otp,
       clientType: 'mobile',
       device: Platform.OS === 'ios' ? 'ios' : 'android',
-      ...(loginIntent ? { loginIntent } : {}),
+      ...(loginIntent ? { loginIntent, partnerSignIn: true as const } : {}),
     })
     .then(unwrap<AuthSessionPayload>);
 }

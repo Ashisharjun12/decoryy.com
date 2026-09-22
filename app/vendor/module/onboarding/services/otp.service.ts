@@ -4,7 +4,8 @@ import { useAuthStore } from '@/store/auth.store';
 
 export async function sendSignInOtp(phone: string) {
   const androidAppHash = await getAndroidOtpAppHash();
-  return requestOtp(phone, androidAppHash);
+  const loginIntent = useAuthStore.getState().pendingLoginIntent ?? undefined;
+  return requestOtp(phone, androidAppHash, loginIntent);
 }
 
 export async function verifySignInOtp(phone: string, otp: string) {

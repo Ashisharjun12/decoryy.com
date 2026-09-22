@@ -38,6 +38,7 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
         return res.status(statusCode).json({
             success: false,
             message,
+            ...(err instanceof ApiError && err.code ? { code: err.code } : {}),
             errors,
         });
     }

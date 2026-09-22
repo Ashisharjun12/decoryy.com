@@ -1,5 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom"
 import { useEffect } from "react"
+import { ADMIN_ACCOUNT_SETUP_PATH, adminNeedsSetup } from "@/module/auth/admin-setup"
+import { useAuthStore } from "@/store/auth.store"
 import { LayoutDashboardIcon, MapPinIcon, ImagesIcon, TagsIcon, TicketPercentIcon, StarIcon, CalendarClockIcon, UsersIcon, Settings, MessageSquareIcon, WalletIcon, LayoutTemplateIcon, PaletteIcon, RotateCcwIcon } from "lucide-react"
 import { getUnreadCount } from "@/api/chat.api"
 import { useChatStore } from "@/store/chat.store"
@@ -91,6 +93,8 @@ const navItems = [
 
 export function AppSidebar(props) {
   const location = useLocation()
+  const user = useAuthStore((s) => s.user)
+  const setupRequired = adminNeedsSetup(user)
   const totalUnreadCount = useChatStore((s) => s.totalUnreadCount)
   const setTotalUnreadCount = useChatStore((s) => s.setTotalUnreadCount)
 
@@ -100,11 +104,15 @@ export function AppSidebar(props) {
       .catch(() => {})
   }, [setTotalUnreadCount])
 
-  const items = navItems.map((item) =>
-    item.url === "/inbox" && totalUnreadCount > 0
-      ? { ...item, badge: totalUnreadCount }
-      : item,
-  )
+  const items = setupRequired
+    ? []
+    : navItems.map((item) =>
+        item.url === "/inbox" && totalUnreadCount > 0
+          ? { ...item, badge: totalUnreadCount }
+          : item,
+      )
+
+  const homeTo = setupRequired ? ADMIN_ACCOUNT_SETUP_PATH : "/dashboard"
 
   return (
     <Sidebar
@@ -114,7 +122,7 @@ export function AppSidebar(props) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" render={<NavLink to="/dashboard" />}>
+            <SidebarMenuButton size="lg" render={<NavLink to={homeTo} />}>
               <DecoryLogo />
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">Decory</span>

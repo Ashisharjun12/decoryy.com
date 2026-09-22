@@ -9,6 +9,7 @@ type AuthGateProps = {
     hasSeenWelcome: boolean;
     accessToken: string | null;
     user: ReturnType<typeof useAuthStore.getState>['user'];
+    platformAccessPaused: boolean;
   }) => Href | null;
   children: React.ReactNode;
 };
@@ -18,6 +19,7 @@ export function AuthGate({ resolveRedirect, children }: AuthGateProps) {
   const hasSeenWelcome = useAuthStore((s) => s.hasSeenWelcome);
   const accessToken = useAuthStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.user);
+  const platformAccessPaused = useAuthStore((s) => s.platformAccessPaused);
 
   if (!hydrated) {
     return (
@@ -27,7 +29,13 @@ export function AuthGate({ resolveRedirect, children }: AuthGateProps) {
     );
   }
 
-  const redirect = resolveRedirect({ hydrated, hasSeenWelcome, accessToken, user });
+  const redirect = resolveRedirect({
+    hydrated,
+    hasSeenWelcome,
+    accessToken,
+    user,
+    platformAccessPaused,
+  });
   if (redirect) {
     return <Redirect href={redirect} />;
   }

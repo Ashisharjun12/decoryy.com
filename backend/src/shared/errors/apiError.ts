@@ -3,6 +3,7 @@ export class ApiError extends Error{
     public readonly statusCode:number;
     public readonly isOperational:boolean;
     public errors:unknown[];
+    public code?: string;
 
     constructor(statusCode:number,message:string,isOperational=true,errors:unknown[]= []){
         super(message);

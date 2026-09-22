@@ -1,7 +1,12 @@
 import { useEffect } from "react"
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
 import { Toaster } from "@/components/ui/toast"
-import { GuestOnly, RequireAdmin } from "@/module/auth/guards"
+import {
+  AdminHomeRedirect,
+  GuestOnly,
+  RequireAdmin,
+  RequireAdminSetupComplete,
+} from "@/module/auth/guards"
 import { hydrateAuth } from "@/module/auth/hydrate"
 import { LoginPage } from "@/module/auth/pages/LoginPage"
 import { VerifyEmailChangePage } from "@/module/auth/pages/VerifyEmailChangePage"
@@ -45,8 +50,9 @@ export default function App() {
           <Route path="/verify-email-change" element={<VerifyEmailChangePage />} />
           <Route element={<RequireAdmin />}>
             <Route element={<AdminShell />}>
+            <Route element={<RequireAdminSetupComplete />}>
             <Route element={<Layout />}>
-              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route index element={<AdminHomeRedirect />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/locations" element={<LocationsPage />} />
               <Route path="/media" element={<MediaPage />} />
@@ -72,6 +78,7 @@ export default function App() {
               <Route path="/inbox" element={<InboxPage />} />
               <Route path="/inbox/:conversationId" element={<InboxPage />} />
               <Route path="*" element={<NotFoundPage />} />
+            </Route>
             </Route>
             </Route>
           </Route>

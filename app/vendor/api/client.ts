@@ -1,3 +1,4 @@
+import { isPlatformAccessPausedError } from '@/module/auth/lib/account-blocked';
 import { API_URL } from '@/lib/env';
 import { loadPartnerMode } from '@/lib/partner-mode';
 import { loadAccessToken } from '@/lib/secure-storage';
@@ -5,6 +6,11 @@ import axios from 'axios';
 
 let accessTokenGetter: (() => string | null) | null = null;
 let partnerModeGetter: (() => 'owner' | 'field' | null) | null = null;
+let platformAccessPausedHandler: (() => void) | null = null;
+
+export function registerPlatformAccessPausedHandler(handler: (() => void) | null) {
+  platformAccessPausedHandler = handler;
+}
 
 export function registerAccessTokenGetter(getter: () => string | null) {
   accessTokenGetter = getter;
@@ -30,7 +36,8 @@ export function getApiError(err: unknown): string {
       }
       return 'Network error. Check that the API is reachable and try again.';
     }
-    const message = err.response?.data?.message;
+    const data = err.response?.data as { message?: string; code?: string } | undefined;
+    const message = data?.message;
     if (typeof message === 'string' && message.length > 0) {
       return message;
     }
@@ -63,3 +70,13 @@ api.interceptors.request.use(async (config) => {
   }
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (isPlatformAccessPausedError(error)) {
+      platformAccessPausedHandler?.();
+    }
+    return Promise.reject(error);
+  },
+);

@@ -1,4 +1,5 @@
 import { me, refresh } from '@/api/auth.api';
+import { isPlatformAccessPausedError } from '@/module/auth/lib/account-blocked';
 import { registerAccessTokenGetter, registerPartnerModeGetter } from '@/api/client';
 import type { PartnerLoginIntent } from '@/lib/login-intent';
 import { usePartnerModeStore } from '@/store/partner-mode.store';
@@ -55,6 +56,7 @@ type AuthState = {
   registerOtpRequested: boolean;
   lastDevOtp: string | null;
   isReapplyMode: boolean;
+  platformAccessPaused: boolean;
   hydrate: () => Promise<void>;
   completeWelcome: () => Promise<void>;
   setRegisterDraft: (data: RegisterBasicPayload) => void;
@@ -78,6 +80,7 @@ type AuthState = {
   completeReapply: (user: AuthUser) => void;
   clearReapplyMode: () => void;
   updateUser: (user: AuthUser) => void;
+  markPlatformAccessPaused: () => void;
 };
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -94,6 +97,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   registerOtpRequested: false,
   lastDevOtp: null,
   isReapplyMode: false,
+  platformAccessPaused: false,
 
   hydrate: async () => {
     const [hasSeenWelcome, refreshToken] = await Promise.all([
@@ -116,8 +120,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         accessToken: payload.accessToken,
         refreshToken: payload.refreshToken ?? refreshToken,
         user: payload.user,
+        platformAccessPaused: payload.user.vendor?.onboardingStatus === 'BLOCKED',
       });
-    } catch {
+    } catch (err) {
       await clearTokens();
       set({
         hydrated: true,
@@ -125,6 +130,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         accessToken: null,
         refreshToken: null,
         user: null,
+        platformAccessPaused: isPlatformAccessPausedError(err),
       });
     }
   },
@@ -179,7 +185,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       lastDevOtp: null,
       registerDraft: null,
       isReapplyMode: false,
+      platformAccessPaused: payload.user.vendor?.onboardingStatus === 'BLOCKED',
     });
+  },
+
+  markPlatformAccessPaused: () => {
+    const user = get().user;
+    if (user?.vendor) {
+      set({
+        platformAccessPaused: true,
+        user: {
+          ...user,
+          vendor: {
+            ...user.vendor,
+            onboardingStatus: 'BLOCKED',
+            isOnDuty: false,
+          },
+        },
+      });
+      return;
+    }
+    set({ platformAccessPaused: true });
   },
 
   refreshSession: async () => {
@@ -189,7 +215,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const user = await me();
       set({ user });
       return user;
-    } catch {
+    } catch (err) {
+      if (isPlatformAccessPausedError(err)) {
+        get().markPlatformAccessPaused();
+        return get().user;
+      }
       const refreshToken = get().refreshToken ?? (await loadRefreshToken());
       if (!refreshToken) {
         await get().signOut();
@@ -199,7 +229,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const payload = await refresh(refreshToken);
         await get().setSession(payload);
         return payload.user;
-      } catch {
+      } catch (refreshErr) {
+        if (isPlatformAccessPausedError(refreshErr)) {
+          get().markPlatformAccessPaused();
+          return get().user;
+        }
         await get().signOut();
         return null;
       }
@@ -269,6 +303,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       registerOtpRequested: false,
       lastDevOtp: null,
       isReapplyMode: false,
+      platformAccessPaused: false,
     });
   },
 

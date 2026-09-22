@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 import { login } from "@/api/auth.api"
 import { getApiError } from "@/api/api"
 import { loginSchema } from "@/module/auth/schema"
+import { adminHomePath } from "@/module/auth/admin-setup"
 import { useAuthStore } from "@/store/auth.store"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -56,11 +57,7 @@ export function LoginForm({
         return
       }
       setSession(payload)
-      if (payload.user?.mustChangePassword) {
-        navigate("/settings?tab=account", { replace: true })
-      } else {
-        navigate("/dashboard", { replace: true })
-      }
+      navigate(adminHomePath(payload.user), { replace: true })
     } catch (err) {
       setApiError(getApiError(err))
     }

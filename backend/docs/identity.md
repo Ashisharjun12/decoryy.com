@@ -554,6 +554,33 @@ refreshToken=<64 hex chars>; Max-Age=2592000; Path=/; HttpOnly; SameSite=Lax
 | 403    | `account blocked`                             |
 
 
+#### Partner app (`loginIntent` + `partnerSignIn`)
+
+Decoryy **Partner** (vendor mobile) sends `loginIntent`: `owner` (shop owner) or `staff` (field worker).
+
+- `POST /auth/otp/request` — optional `loginIntent`. When set for login (not vendor register), eligibility is checked **before** OTP is sent.
+- `POST /auth/otp/verify` — for partner sign-in, send `loginIntent` and `partnerSignIn: true`. Customer/user apps omit both; behavior unchanged.
+
+**Error `code` (JSON body, with `message`):**
+
+| code | When |
+|------|------|
+| `USE_STAFF_LOGIN` | Worker number — use staff login (e.g. owner path with staff phone) |
+| `USE_OWNER_LOGIN` | Shop owner number — use vendor partner login (e.g. staff path with owner phone) |
+| `PARTNER_LOGIN_NOT_FOUND` | No matching partner account for that intent |
+| `LOGIN_INTENT_REQUIRED` | `partnerSignIn` without `loginIntent` |
+| `SHOP_NOT_ACTIVE` | Staff invite shop not ACTIVE |
+
+**Manual QA (partner login):**
+
+- Owner phone + staff login → blocked at request or verify; switch-login CTA on OTP screen.
+- Staff phone + vendor login → same.
+- Invited worker first OTP (staff) → succeeds.
+- Owner ACTIVE / PENDING / blocked → vendor login routing unchanged.
+- Customer phone + either intent → `PARTNER_LOGIN_NOT_FOUND`.
+- Resend preserves `loginIntent`; rate limit shows clear message.
+
+
 ---
 
 

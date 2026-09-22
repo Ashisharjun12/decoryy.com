@@ -2,9 +2,11 @@ import { z } from "zod";
 
 export const clientTypeSchema = z.enum(["web", "mobile"]);
 export const deviceSchema = z.enum(["web", "ios", "android"]).optional();
+export const partnerLoginIntentSchema = z.enum(["owner", "staff"]);
 
 export const otpRequestDto = z.object({
     phone: z.string().min(10),
+    loginIntent: partnerLoginIntentSchema.optional(),
     androidAppHash: z
         .string()
         .trim()
@@ -12,14 +14,13 @@ export const otpRequestDto = z.object({
         .optional(),
 });
 
-export const partnerLoginIntentSchema = z.enum(["owner", "staff"]);
-
 export const otpVerifyDto = z.object({
     phone: z.string().min(10),
     otp: z.string().length(6),
     clientType: clientTypeSchema,
     device: deviceSchema,
     loginIntent: partnerLoginIntentSchema.optional(),
+    partnerSignIn: z.literal(true).optional(),
 });
 
 export const googleLoginDto = z.object({

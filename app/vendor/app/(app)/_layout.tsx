@@ -200,8 +200,8 @@ function AppSessionStateHost() {
 export default function AppLayout() {
   return (
     <AuthGate
-      resolveRedirect={({ accessToken, user, hasSeenWelcome }) =>
-        getAppAccessRedirect(accessToken, user, hasSeenWelcome)
+      resolveRedirect={({ accessToken, user, hasSeenWelcome, platformAccessPaused }) =>
+        getAppAccessRedirect(accessToken, user, hasSeenWelcome, platformAccessPaused)
       }>
       <AppSessionStateHost />
       <EnRouteLocationController />

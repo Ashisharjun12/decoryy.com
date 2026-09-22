@@ -34,6 +34,11 @@ import {
     type PublicPartnerMembership,
     type PartnerCapabilities,
 } from "@/modules/identity/partner/partner-context.js";
+import {
+    assertPartnerLoginEligibleForPhone,
+    assertPartnerLoginIntentOnProfile,
+    requirePartnerLoginIntentForSignIn,
+} from "@/modules/identity/auth/partner-login-eligibility.js";
 
 export type PublicUser = {
     id: string;
@@ -55,6 +60,7 @@ export interface IAuthService {
         phoneRaw: string,
         ip?: string,
         androidAppHash?: string,
+        loginIntent?: "owner" | "staff",
     ): Promise<{ phone: string; otp?: string }>;
     registerVendor(
         input: VendorRegisterInput & { phone: string; androidAppHash?: string },
@@ -66,6 +72,7 @@ export interface IAuthService {
         clientType: ClientType;
         device?: Device;
         loginIntent?: "owner" | "staff";
+        partnerSignIn?: true;
     }): Promise<{ user: PublicUser; tokens: AuthTokens }>;
     googleLogin(input: {
         idToken: string;
@@ -162,28 +169,6 @@ export class AuthService implements IAuthService {
         return publicUser(user, vendor, membership, capabilities);
     }
 
-    private assertPartnerLoginIntent(loginIntent: "owner" | "staff" | undefined, profile: PublicUser) {
-        if (!loginIntent) {
-            return;
-        }
-        if (loginIntent === "staff") {
-            if (profile.role !== "vendor_staff" || !profile.partnerMembership) {
-                throw ApiError.forbidden(
-                    "no staff account for this phone. ask your shop owner to add you in team",
-                );
-            }
-            return;
-        }
-        if (profile.role === "vendor_staff" && !profile.capabilities.isShopOwner) {
-            throw ApiError.forbidden("use staff login for this account");
-        }
-        if (profile.role !== "vendor" || !profile.vendor) {
-            throw ApiError.forbidden(
-                "no vendor partner account for this phone. register your shop or use staff login",
-            );
-        }
-    }
-
     private async activateStaffInvite(phone: string, user: User): Promise<User> {
         const invite = await this.memberRepo.findInvitedByPhone(phone);
         if (!invite) {
@@ -240,10 +225,22 @@ export class AuthService implements IAuthService {
         };
     }
 
-    async requestOtp(phoneRaw: string, ip?: string, androidAppHash?: string) {
+    async requestOtp(
+        phoneRaw: string,
+        ip?: string,
+        androidAppHash?: string,
+        loginIntent?: "owner" | "staff",
+    ) {
         const phone = normalizePhone(phoneRaw);
         const pending = await peekVendorPending(phone);
         const purpose: OtpPurpose = pending ? "vendor_register" : "login";
+        if (purpose === "login" && loginIntent) {
+            await assertPartnerLoginEligibleForPhone(phone, loginIntent, {
+                users: this.users,
+                vendorRepo: this.vendorRepo,
+                memberRepo: this.memberRepo,
+            });
+        }
         return this.sendOtp(phone, purpose, ip, androidAppHash);
     }
 
@@ -273,6 +270,7 @@ export class AuthService implements IAuthService {
         clientType: ClientType;
         device?: Device;
         loginIntent?: "owner" | "staff";
+        partnerSignIn?: true;
     }): Promise<{ user: PublicUser; tokens: AuthTokens }> {
         const phone = normalizePhone(input.phone);
         const pending = await peekVendorPending(phone);
@@ -323,7 +321,15 @@ export class AuthService implements IAuthService {
         user = await this.activateStaffInvite(phone, user);
 
         const publicProfile = await this.withVendor(user);
-        this.assertPartnerLoginIntent(input.loginIntent, publicProfile);
+        if (purpose === "login") {
+            const loginIntent = requirePartnerLoginIntentForSignIn(
+                input.partnerSignIn,
+                input.loginIntent,
+            );
+            if (loginIntent) {
+                assertPartnerLoginIntentOnProfile(loginIntent, publicProfile);
+            }
+        }
 
         const tokens = await this.sessions.issue(user, device);
         return { user: publicProfile, tokens };

@@ -10,6 +10,9 @@ export function useRejectedReview() {
     if (user?.vendor?.onboardingStatus === 'PENDING') {
       router.replace('/(gate)/pending' as Href);
     }
+    if (user?.vendor?.onboardingStatus === 'BLOCKED') {
+      router.replace('/(gate)/blocked' as Href);
+    }
   }, []);
 
   return useVendorGateStatus({ onStatusChange });

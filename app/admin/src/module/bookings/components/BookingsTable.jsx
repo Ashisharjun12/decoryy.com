@@ -1,13 +1,5 @@
-import { EyeIcon, MoreHorizontalIcon } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { formatPaise } from "@/lib/money"
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   Table,
   TableBody,
@@ -25,27 +17,17 @@ import {
   fulfillmentTypeLabel,
 } from "@/module/bookings/lib/instant-dispatch-ui"
 import {
-  clipCityLabel,
-  clipText,
   formatBookingSlot,
   formatPaymentMethodShort,
 } from "@/module/bookings/lib/booking-format"
 
 const SKELETON_ROWS = 6
-const TEXT_LIMIT = 9
-const REFERENCE_LIMIT = 12
-const SLOT_LIMIT = 14
 
-function ClippedCell({ value, maxLength = TEXT_LIMIT, className, mono = false }) {
-  const full = String(value ?? "").trim() || "—"
-  const clipped = clipText(full, maxLength)
-
+function CellText({ children, title, className = "" }) {
+  const text = children ?? "—"
   return (
-    <span
-      className={mono ? `font-mono ${className ?? ""}` : className}
-      title={full !== clipped ? full : undefined}
-    >
-      {clipped}
+    <span className={`block truncate ${className}`} title={title ?? (typeof text === "string" ? text : undefined)}>
+      {text}
     </span>
   )
 }
@@ -68,30 +50,24 @@ export function BookingsTable({ items, loading }) {
   }
 
   return (
-    <div className="w-full overflow-hidden">
-      <Table className="w-full table-fixed">
+    <div className="w-full overflow-x-auto">
+      <Table className="w-full min-w-[52rem]">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[10%]">Reference</TableHead>
-            <TableHead className="w-[11%]">Setup slot</TableHead>
-            <TableHead className="w-[9%]">Type</TableHead>
-            <TableHead className="w-[10%]">City</TableHead>
-            <TableHead className="w-[12%]">Customer</TableHead>
-            <TableHead className="w-[8%]">Payment</TableHead>
-            <TableHead className="w-[10%]">Status</TableHead>
-            <TableHead className="w-[8%]">Total</TableHead>
-            <TableHead className="w-[9%]">Assignee</TableHead>
-            <TableHead className="w-10" />
+            <TableHead className="min-w-[9.5rem]">Reference</TableHead>
+            <TableHead className="min-w-[10rem] whitespace-nowrap">Setup slot</TableHead>
+            <TableHead className="min-w-[7.5rem]">Type</TableHead>
+            <TableHead className="min-w-[7rem]">City</TableHead>
+            <TableHead className="min-w-[8.5rem]">Customer</TableHead>
+            <TableHead className="min-w-[5rem]">Payment</TableHead>
+            <TableHead className="min-w-[7rem]">Status</TableHead>
+            <TableHead className="min-w-[5.5rem] text-right">Total</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {items.map((booking) => {
-            const slotFull = formatBookingSlot(booking.scheduledAt)
-            const slotLabel = clipText(slotFull, SLOT_LIMIT)
-            const cityFull = `${booking.cityName} · ${booking.pincode}`
-            const cityLabel = clipCityLabel(booking.cityName, booking.pincode, TEXT_LIMIT)
-            const assigneeFull = booking.assigneeName || "—"
-            const assigneeLabel = clipText(assigneeFull, TEXT_LIMIT)
+            const slotLabel = formatBookingSlot(booking.scheduledAt)
+            const cityFull = [booking.cityName, booking.pincode].filter(Boolean).join(" · ")
 
             return (
               <TableRow
@@ -99,47 +75,46 @@ export function BookingsTable({ items, loading }) {
                 className="cursor-pointer"
                 onClick={() => openBooking(booking.id)}
               >
-                <TableCell className="text-sm">
-                  <ClippedCell
-                    value={booking.reference}
-                    maxLength={REFERENCE_LIMIT}
-                    mono
-                  />
+                <TableCell className="max-w-[11rem] text-sm">
+                  <CellText className="font-mono text-xs sm:text-sm" title={booking.reference}>
+                    {booking.reference || "—"}
+                  </CellText>
                 </TableCell>
-                <TableCell className="text-sm" title={slotFull !== slotLabel ? slotFull : undefined}>
+                <TableCell className="whitespace-nowrap text-sm" title={slotLabel}>
                   {slotLabel}
                 </TableCell>
                 <TableCell className="text-sm">
-                  <div className="flex flex-col gap-0.5">
+                  <div className="flex flex-col items-start gap-1">
                     {booking.fulfillmentType === "instant" ? (
-                      <Badge variant="outline" className="w-fit text-[10px] px-1.5 py-0">
+                      <Badge variant="outline" className="w-fit shrink-0 text-[10px] px-1.5 py-0">
                         {fulfillmentTypeLabel(booking.fulfillmentType)}
                       </Badge>
                     ) : (
-                      <span className="text-muted-foreground text-xs">Scheduled</span>
+                      <span className="text-muted-foreground text-xs whitespace-nowrap">Scheduled</span>
                     )}
                     {booking.fulfillmentType === "instant" && booking.dispatchStatus !== "idle" ? (
                       <Badge
                         variant={dispatchStatusVariant(booking.dispatchStatus)}
-                        className="w-fit text-[10px] px-1.5 py-0"
+                        className="w-fit max-w-full shrink-0 text-[10px] px-1.5 py-0"
+                        title={dispatchStatusLabel(booking.dispatchStatus)}
                       >
-                        {dispatchStatusLabel(booking.dispatchStatus)}
+                        <span className="truncate">{dispatchStatusLabel(booking.dispatchStatus)}</span>
                       </Badge>
                     ) : null}
                   </div>
                 </TableCell>
-                <TableCell className="text-sm" title={cityFull !== cityLabel ? cityFull : undefined}>
-                  {cityLabel}
+                <TableCell className="max-w-[9rem] text-sm" title={cityFull}>
+                  <CellText>{cityFull || "—"}</CellText>
                 </TableCell>
-                <TableCell className="text-sm">
-                  <div className="font-medium">
-                    <ClippedCell value={booking.customerName} maxLength={TEXT_LIMIT} />
-                  </div>
-                  <div className="text-muted-foreground">
-                    <ClippedCell value={booking.customerPhone} maxLength={TEXT_LIMIT} mono />
-                  </div>
+                <TableCell className="max-w-[10rem] text-sm">
+                  <CellText className="font-medium" title={booking.customerName}>
+                    {booking.customerName || "—"}
+                  </CellText>
+                  <CellText className="text-muted-foreground font-mono text-xs" title={booking.customerPhone}>
+                    {booking.customerPhone || "—"}
+                  </CellText>
                 </TableCell>
-                <TableCell className="text-sm">
+                <TableCell className="text-sm whitespace-nowrap">
                   <div className="flex flex-wrap items-center gap-1">
                     <span>{formatPaymentMethodShort(booking.paymentMethod)}</span>
                     {booking.source === "admin" ? (
@@ -150,38 +125,10 @@ export function BookingsTable({ items, loading }) {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <BookingStatusBadge status={booking.status} className="max-w-full truncate" />
+                  <BookingStatusBadge status={booking.status} className="whitespace-nowrap" />
                 </TableCell>
-                <TableCell className="truncate tabular-nums text-sm">
+                <TableCell className="text-right text-sm tabular-nums whitespace-nowrap">
                   ₹{formatPaise(booking.subtotalPaise)}
-                </TableCell>
-                <TableCell
-                  className="text-sm text-muted-foreground"
-                  title={assigneeFull !== assigneeLabel ? assigneeFull : undefined}
-                >
-                  {assigneeLabel}
-                </TableCell>
-                <TableCell onClick={(event) => event.stopPropagation()}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label={`Actions for ${booking.reference}`}
-                        />
-                      }
-                    >
-                      <MoreHorizontalIcon />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => openBooking(booking.id)}>
-                        <EyeIcon />
-                        View
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             )

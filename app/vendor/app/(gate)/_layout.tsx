@@ -5,8 +5,8 @@ import { Stack } from 'expo-router';
 export default function GateLayout() {
   return (
     <AuthGate
-      resolveRedirect={({ accessToken, user, hasSeenWelcome }) =>
-        getGateAccessRedirect(accessToken, user, hasSeenWelcome)
+      resolveRedirect={({ accessToken, user, hasSeenWelcome, platformAccessPaused }) =>
+        getGateAccessRedirect(accessToken, user, hasSeenWelcome, platformAccessPaused)
       }>
       <Stack screenOptions={{ headerShown: false, animation: 'fade' }} />
     </AuthGate>

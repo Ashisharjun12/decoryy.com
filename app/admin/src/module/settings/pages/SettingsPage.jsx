@@ -1,4 +1,7 @@
+import { useEffect } from "react"
 import { useSearchParams } from "react-router-dom"
+import { adminNeedsSetup } from "@/module/auth/admin-setup"
+import { useAuthStore } from "@/store/auth.store"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AiPolicyPanel } from "@/module/settings/components/AiPolicyPanel"
 import { BookingPolicyPanel } from "@/module/settings/components/BookingPolicyPanel"
@@ -15,30 +18,45 @@ function normalizeTab(value) {
 }
 
 export function SettingsPage() {
+  const user = useAuthStore((s) => s.user)
+  const setupRequired = adminNeedsSetup(user)
   const [params, setParams] = useSearchParams()
-  const tab = normalizeTab(params.get("tab"))
+  const tab = setupRequired ? "account" : normalizeTab(params.get("tab"))
+
+  useEffect(() => {
+    if (setupRequired && params.get("tab") && params.get("tab") !== "account") {
+      setParams({ tab: "account" }, { replace: true })
+    }
+  }, [setupRequired, params, setParams])
 
   function onTabChange(next) {
+    if (setupRequired) return
     setParams({ tab: next }, { replace: true })
   }
 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="font-heading text-2xl font-medium tracking-tight">Settings</h1>
+        <h1 className="font-heading text-2xl font-medium tracking-tight">
+          {setupRequired ? "Set up your admin account" : "Settings"}
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Admin account, notifications, booking and instant dispatch, AI controls, and audit trail.
+          {setupRequired
+            ? "Verify your login email and choose a new password before using the admin panel."
+            : "Admin account, notifications, booking and instant dispatch, AI controls, and audit trail."}
         </p>
       </div>
 
       <Tabs value={tab} onValueChange={onTabChange}>
-        <TabsList variant="line">
-          <TabsTrigger value="account">Account</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="booking">Booking</TabsTrigger>
-          <TabsTrigger value="ai">AI</TabsTrigger>
-          <TabsTrigger value="audit">Audit log</TabsTrigger>
-        </TabsList>
+        {setupRequired ? null : (
+          <TabsList variant="line">
+            <TabsTrigger value="account">Account</TabsTrigger>
+            <TabsTrigger value="notifications">Notifications</TabsTrigger>
+            <TabsTrigger value="booking">Booking</TabsTrigger>
+            <TabsTrigger value="ai">AI</TabsTrigger>
+            <TabsTrigger value="audit">Audit log</TabsTrigger>
+          </TabsList>
+        )}
 
         <TabsContent value="account" className="pt-4">
           <AdminAccountPanel />

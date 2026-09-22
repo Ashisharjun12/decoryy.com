@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { useNavigate } from "react-router-dom"
+import { allowSkipAdminPasswordSetup } from "@/module/auth/admin-setup"
 import { CheckCircle2, EyeIcon, EyeOffIcon, Mail } from "lucide-react"
 import { getApiError } from "@/api/api"
 import {
@@ -79,6 +81,8 @@ export function AdminAccountPanel() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [skippingSetup, setSkippingSetup] = useState(false)
   const patchUser = useAuthStore((s) => s.patchUser)
+  const navigate = useNavigate()
+  const canSkipSetup = allowSkipAdminPasswordSetup()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -88,12 +92,15 @@ export function AdminAccountPanel() {
       setAccount(data)
       setName(data.name ?? "")
       setLoginEmail(data.email ?? "")
+      if (!data.mustChangePassword) {
+        patchUser({ mustChangePassword: false })
+      }
     } catch (err) {
       setError(getApiError(err))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [patchUser])
 
   useEffect(() => {
     void load()
@@ -129,6 +136,7 @@ export function AdminAccountPanel() {
       setAccount(data)
       patchUser({ mustChangePassword: false })
       toast.add({ title: "You can keep using your current password", type: "success" })
+      navigate("/dashboard", { replace: true })
     } catch (err) {
       toast.add({ title: getApiError(err), type: "error" })
     } finally {
@@ -175,21 +183,30 @@ export function AdminAccountPanel() {
   return (
     <div className="flex w-full flex-col gap-4">
       {account?.mustChangePassword ? (
-        <Alert className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Alert
+          className={
+            canSkipSetup
+              ? "flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+              : "w-full"
+          }
+        >
           <AlertDescription>
-            First-time setup: update email and password here if you want, or keep your current login
-            and use the rest of the admin panel.
+            {canSkipSetup
+              ? "First-time setup: verify your email and set a new password, or continue with your current login (local dev only)."
+              : "First-time setup: enter your login email and a new password, then open the verification link we send. You cannot use the rest of the admin panel until this is done."}
           </AlertDescription>
-          <Button
-            type="button"
-            variant="secondary"
-            className="shrink-0"
-            disabled={skippingSetup}
-            onClick={() => void continueWithCurrentPassword()}
-          >
-            {skippingSetup ? <Spinner className="size-4" /> : null}
-            Continue with current password
-          </Button>
+          {canSkipSetup ? (
+            <Button
+              type="button"
+              variant="secondary"
+              className="shrink-0"
+              disabled={skippingSetup}
+              onClick={() => void continueWithCurrentPassword()}
+            >
+              {skippingSetup ? <Spinner className="size-4" /> : null}
+              Continue with current password
+            </Button>
+          ) : null}
         </Alert>
       ) : null}
 

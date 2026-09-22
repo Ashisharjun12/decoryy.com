@@ -25,13 +25,17 @@ export function RecentBookingsCard({ items = [], loading }) {
           <ArrowRightIcon className="size-4" />
         </Button>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-0 sm:px-6">
         {isEmpty ? (
-          <div className="flex min-h-32 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
-            No bookings yet. New orders will appear here.
+          <div className="mx-6 sm:mx-0">
+            <div className="flex min-h-32 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
+              No bookings yet. New orders will appear here.
+            </div>
           </div>
         ) : (
-          <BookingsTable items={items} loading={loading} />
+          <div className="px-4 sm:px-0">
+            <BookingsTable items={items} loading={loading} />
+          </div>
         )}
       </CardContent>
     </Card>
