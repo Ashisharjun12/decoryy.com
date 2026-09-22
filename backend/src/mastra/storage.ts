@@ -1,10 +1,20 @@
-import { PostgresStore } from '@mastra/pg'
-import DbFactory from '../infrastructure/database/db.factory.js'
+import { PostgresStore } from "@mastra/pg";
+import DbFactory from "../infrastructure/database/db.factory.js";
+import { isAiInfrastructureEnabled } from "./ai-config.js";
 
-const aiDatabase = DbFactory.getAIDatabase()
+let aiStorage: PostgresStore | null = null;
 
-export const aiStorage = new PostgresStore({
-    id: 'ai-database-storage',
-    pool: aiDatabase.getPool(),
-    schemaName: 'mastra',
-})
+export function getAiStorage(): PostgresStore {
+    if (!isAiInfrastructureEnabled()) {
+        throw new Error("AI storage is disabled (set AI_ENABLED=true and AI_DATABASE_URL)");
+    }
+    if (!aiStorage) {
+        const aiDatabase = DbFactory.getAIDatabase();
+        aiStorage = new PostgresStore({
+            id: "ai-database-storage",
+            pool: aiDatabase.getPool(),
+            schemaName: "mastra",
+        });
+    }
+    return aiStorage;
+}

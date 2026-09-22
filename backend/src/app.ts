@@ -5,7 +5,8 @@ import cookieParser from "cookie-parser";
 import { MastraServer } from "@mastra/express";
 import { errorHandler } from "@/shared/errors/apiHandler.js";
 import { httpLogger } from "@/shared/middlewares/logger.middleware.js";
-import mastra from "@/mastra/index.js";
+import { getMastra, isAiInfrastructureEnabled } from "@/mastra/index.js";
+import { _config } from "@/config/config.js";
 import { authRouter, userRouter, vendorRouter } from "@/modules/identity/index.js";
 import { geoRouter } from "@/modules/geo/index.js";
 import { promotionsPublicRouter } from "@/modules/promotions/index.js";
@@ -31,7 +32,10 @@ class App {
   }
 
   async setupMastra(): Promise<void> {
-    const server = new MastraServer({ app: this.app, mastra });
+    if (!isAiInfrastructureEnabled()) {
+      return;
+    }
+    const server = new MastraServer({ app: this.app, mastra: getMastra() });
     await server.init();
   }
 
@@ -45,6 +49,8 @@ class App {
             const allowed = [
                 "http://localhost:5173",
                 "http://localhost:5174",
+                _config.WEB_APP_ORIGIN,
+                _config.ADMIN_APP_ORIGIN,
                 process.env.EXPO_PUBLIC_ORIGIN,
             ].filter(Boolean) as string[];
             if (

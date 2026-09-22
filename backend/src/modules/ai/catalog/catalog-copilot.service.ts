@@ -1,5 +1,5 @@
 import { _config } from "@/config/config.js";
-import mastra from "@/mastra/index.js";
+import { getMastra } from "@/mastra/index.js";
 import { toolAgentModel } from "@/mastra/model.js";
 import { buildSeoSlug } from "@/modules/ai/lib/build-seo-slug.js";
 import { auditService } from "@/modules/ops/audit/audit.service.js";
@@ -83,7 +83,7 @@ export class CatalogCopilotService {
             tone: input.tone,
         };
 
-        const agent = mastra.getAgentById("catalog-copilot");
+        const agent = getMastra().getAgentById("catalog-copilot");
         const prompt = buildCatalogCopilotPrompt(payload);
         const started = Date.now();
         const abortController = new AbortController();
