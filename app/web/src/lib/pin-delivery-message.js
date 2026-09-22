@@ -2,6 +2,7 @@ import { getApiError } from "@/api/api";
 
 export const NOT_DELIVERABLE_MESSAGE = "We don't deliver to this address.";
 export const SELECT_CITY_FIRST_MESSAGE = "Select your city in the header first.";
+export const UNKNOWN_PIN_MESSAGE = "We don't recognize this PIN yet.";
 
 export function pinLookupMessage(data) {
   if (data?.deliverable && data?.city?.name) {
@@ -15,7 +16,7 @@ export function pinLookupMessage(data) {
     case "city_inactive":
       return "We are not operating in this city yet.";
     case "unknown_pin":
-      return SELECT_CITY_FIRST_MESSAGE;
+      return UNKNOWN_PIN_MESSAGE;
     default:
       return NOT_DELIVERABLE_MESSAGE;
   }

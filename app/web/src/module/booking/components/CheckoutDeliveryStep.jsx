@@ -219,6 +219,7 @@ export function CheckoutDeliveryStep({
         value={value}
         onChange={onChange}
         cartCityId={cartCityId}
+        cartCityName={cartCityName ?? ""}
         useManual={useManual}
         onUseManualChange={startManualEntry}
         onReturnToSaved={returnToSavedAddresses}

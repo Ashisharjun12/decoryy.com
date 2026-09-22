@@ -12,15 +12,17 @@ import {
 } from "@/module/account/components/AddressFormDialog";
 import { useAddressMutations, useAddressesQuery } from "@/module/account/hooks/use-addresses-query";
 
-function checkoutAddressInitial(delivery) {
+function checkoutAddressInitial(delivery, cartCityId, cartCityName) {
   const pin = (delivery?.pincode ?? "").replace(/\D/g, "").slice(0, 6);
+  const cityId = delivery?.cityId ?? cartCityId ?? null;
+  const cityName = delivery?.cityName || cartCityName || "";
   return {
     ...emptyAddressForm,
     pincode: pin,
     address: delivery?.address ?? "",
     landmark: delivery?.landmark ?? "",
-    cityName: delivery?.cityName ?? "",
-    cityId: delivery?.cityId ?? null,
+    cityName,
+    cityId,
     latitude: delivery?.latitude ?? null,
     longitude: delivery?.longitude ?? null,
   };
@@ -49,6 +51,7 @@ export function CheckoutAddressPicker({
   value,
   onChange,
   cartCityId,
+  cartCityName = "",
   useManual,
   onUseManualChange,
   onReturnToSaved,
@@ -65,7 +68,7 @@ export function CheckoutAddressPicker({
   const [selectedId, setSelectedId] = useState(null);
 
   function openAddressDialog() {
-    setAddressFormInitial(checkoutAddressInitial(value));
+    setAddressFormInitial(checkoutAddressInitial(value, cartCityId, cartCityName));
     setDialogOpen(true);
   }
 
@@ -234,6 +237,9 @@ export function CheckoutAddressPicker({
         submitLabel="Save & use for order"
         initial={addressFormInitial}
         submitting={create.isPending}
+        contextCityId={cartCityId ?? null}
+        contextCityName={cartCityName}
+        contextCityPinHint={Boolean(cartCityName)}
         onSubmit={(body) => void onCreateAddress(body)}
       />
     </div>

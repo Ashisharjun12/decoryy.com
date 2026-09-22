@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { isPincodeDeliverable, resolvePincode } from "@/api/geo.api";
 import {
+  deliveryPinCartCityMessage,
+  isDeliveryPinInCartCity,
   NOT_DELIVERABLE_MESSAGE,
   pinLookupMessage,
   pinResolveErrorMessage,
-  SELECT_CITY_FIRST_MESSAGE,
 } from "@/lib/pin-delivery-message";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,6 +46,7 @@ export function AddressFormDialog({
   onSubmit,
   contextCityId = null,
   contextCityName = "",
+  contextCityPinHint = false,
 }) {
   const [form, setForm] = useState(initial);
   const [pinStatus, setPinStatus] = useState("idle");
@@ -84,17 +86,16 @@ export function AddressFormDialog({
       return undefined;
     }
 
-    const marketCityId = form.cityId ?? contextCityId;
-    if (!marketCityId) {
-      setPinStatus("error");
-      setPinMessage(SELECT_CITY_FIRST_MESSAGE);
-      return undefined;
-    }
+    const scopedCityId = form.cityId ?? contextCityId ?? null;
 
     let cancelled = false;
     setPinStatus("loading");
     const timer = window.setTimeout(() => {
-      void resolvePincode(code, { cityId: marketCityId })
+      const request = scopedCityId
+        ? resolvePincode(code, { cityId: scopedCityId })
+        : resolvePincode(code);
+
+      void request
         .then((data) => {
           if (cancelled) return;
           if (!isPincodeDeliverable(data)) {
@@ -102,10 +103,26 @@ export function AddressFormDialog({
             setPinMessage(pinLookupMessage(data));
             return;
           }
+          if (
+            contextCityId &&
+            !isDeliveryPinInCartCity(data, contextCityId)
+          ) {
+            setPinStatus("error");
+            setPinMessage(
+              deliveryPinCartCityMessage(data, contextCityName || "your city"),
+            );
+            const city = data.city;
+            setForm((f) => ({
+              ...f,
+              cityName: city?.name ?? f.cityName,
+              cityId: city?.id ?? f.cityId,
+            }));
+            return;
+          }
           const city = data.city;
           setForm((f) => ({
             ...f,
-            cityId: city?.id ?? marketCityId,
+            cityId: city?.id ?? scopedCityId ?? f.cityId,
             cityName: city?.name ?? f.cityName,
           }));
           setPinStatus("ok");
@@ -122,7 +139,7 @@ export function AddressFormDialog({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [form.pincode, form.cityId, contextCityId]);
+  }, [form.pincode, form.cityId, contextCityId, contextCityName]);
 
   function validateDetails() {
     const errors = {};
@@ -237,6 +254,12 @@ export function AddressFormDialog({
             </Field>
             <Field>
               <FieldLabel htmlFor="addr-pin">PIN code</FieldLabel>
+              {contextCityPinHint && contextCityName ? (
+                <FieldDescription>
+                  Order is for <span className="font-medium text-foreground">{contextCityName}</span>
+                  — PIN must be in this city.
+                </FieldDescription>
+              ) : null}
               <Input
                 id="addr-pin"
                 inputMode="numeric"
