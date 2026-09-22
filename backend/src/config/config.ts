@@ -1,4 +1,6 @@
 import { config } from 'dotenv'
+import { loadMsg91EnvConfig } from './msg91.config.js'
+
 config()
 
 const {
@@ -67,6 +69,8 @@ const {
     OLA_MAPS_CLIENT_SECRET,
 } = process.env
 
+const MSG91 = loadMsg91EnvConfig(process.env)
+
 export const _config = {
     PORT,
     LLM_MODEL,
@@ -108,6 +112,7 @@ export const _config = {
     MSG91_SENDER_ID,
     MSG91_ROUTE: MSG91_ROUTE || "4",
     MSG91_DLT_ENTITY_ID,
+    MSG91,
     RAZORPAY_KEY_ID,
     RAZORPAY_KEY_SECRET,
     RAZORPAY_WEBHOOK_SECRET,

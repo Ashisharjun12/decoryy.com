@@ -6,8 +6,6 @@ import {
 import { assertMsg91Configured, msg91MobileFromE164 } from "@/infrastructure/sms/msg91.template-map.js";
 import { logger } from "@/utils/logger.js";
 
-const DEFAULT_FLOW_URL = "https://api.msg91.com/api/v5/flow/";
-
 export type Msg91FlowSendInput = {
     to: string;
     event?: string;
@@ -48,7 +46,7 @@ export async function sendMsg91Flow(input: Msg91FlowSendInput): Promise<void> {
         payload.sender = sender;
     }
 
-    const url = (process.env.MSG91_FLOW_API_URL?.trim() || DEFAULT_FLOW_URL).replace(/\/?$/, "/");
+    const url = _config.MSG91.flowApiUrl.replace(/\/?$/, "/");
     const authKey = _config.MSG91_AUTH_KEY!.trim();
 
     const response = await fetch(url, {
