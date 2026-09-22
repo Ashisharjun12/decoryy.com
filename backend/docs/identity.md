@@ -545,9 +545,9 @@ refreshToken=<64 hex chars>; Max-Age=2592000; Path=/; HttpOnly; SameSite=Lax
 
 | Status | Message                                       |
 | ------ | --------------------------------------------- |
-| 401    | `otp expired or not requested`                |
-| 401    | `invalid otp`                                 |
-| 401    | `too many invalid otp attempts`               |
+| 401    | `otp expired or not requested` (`code`: `OTP_EXPIRED`) |
+| 401    | `invalid otp` (`code`: `OTP_INVALID`)                  |
+| 401    | `too many invalid otp attempts` (`code`: `OTP_ATTEMPTS_EXHAUSTED`) |
 | 400    | `vendor registration expired, register again` |
 | 409    | `phone already registered`                    |
 | 409    | `finish vendor signup`                        |

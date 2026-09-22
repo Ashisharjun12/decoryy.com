@@ -6,6 +6,7 @@ import { AuthTopBar } from '@/module/onboarding/components/AuthTopBar';
 import { OtpInput } from '@/module/onboarding/components/OtpInput';
 import { useSmsOtpAutofill } from '@/module/onboarding/hooks/use-sms-otp-autofill';
 import { partnerLoginErrorFromUnknown } from '@/module/onboarding/lib/partner-login-errors';
+import { mapOtpVerifyError } from '@/module/onboarding/lib/otp-verify-errors';
 import { sendSignInOtp, verifyRegisterOtp, verifySignInOtp } from '@/module/onboarding/services/otp.service';
 import { submitVendorRegistration } from '@/module/onboarding/services/register.service';
 import { getPostOtpRedirectPath, useAuthStore } from '@/store/auth.store';
@@ -14,14 +15,23 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { BackHandler, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-function applyLoginError(
+function applyVerifyError(
   err: unknown,
   intent: PartnerLoginIntent | null,
   setError: (msg: string) => void,
   setSuggestIntent: (intent: PartnerLoginIntent | null) => void,
+  setHighlightResend: (value: boolean) => void,
 ) {
+  const otpMapped = mapOtpVerifyError(err);
+  if (otpMapped) {
+    setError(otpMapped.message);
+    setSuggestIntent(null);
+    setHighlightResend(otpMapped.suggestResend);
+    return;
+  }
   const mapped = partnerLoginErrorFromUnknown(err, intent);
   setError(mapped.message);
+  setHighlightResend(false);
   setSuggestIntent(
     mapped.suggestIntent && mapped.suggestIntent !== intent ? mapped.suggestIntent : null,
   );
@@ -40,6 +50,7 @@ export default function VerifyOtpScreen() {
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [suggestIntent, setSuggestIntent] = useState<PartnerLoginIntent | null>(null);
+  const [highlightResend, setHighlightResend] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
@@ -64,13 +75,14 @@ export default function VerifyOtpScreen() {
       setSubmitting(true);
       setError('');
       setSuggestIntent(null);
+      setHighlightResend(false);
       try {
         const result =
           isSignIn ? await verifySignInOtp(phone, code) : await verifyRegisterOtp(phone, code);
         router.replace(getPostOtpRedirectPath(result.user) as Href);
       } catch (err) {
         autoVerifyRef.current = '';
-        applyLoginError(err, pendingLoginIntent, setError, setSuggestIntent);
+        applyVerifyError(err, pendingLoginIntent, setError, setSuggestIntent, setHighlightResend);
       } finally {
         setSubmitting(false);
       }
@@ -126,6 +138,7 @@ export default function VerifyOtpScreen() {
     setOtpReady(false);
     setError('');
     setSuggestIntent(null);
+    setHighlightResend(false);
 
     void (async () => {
       try {
@@ -135,7 +148,7 @@ export default function VerifyOtpScreen() {
         }
       } catch (err) {
         if (!cancelled && sendId === otpSendRef.current) {
-          applyLoginError(err, pendingLoginIntent, setError, setSuggestIntent);
+          applyVerifyError(err, pendingLoginIntent, setError, setSuggestIntent, setHighlightResend);
         }
       } finally {
         if (!cancelled && sendId === otpSendRef.current) {
@@ -192,6 +205,7 @@ export default function VerifyOtpScreen() {
     setResending(true);
     setError('');
     setSuggestIntent(null);
+    setHighlightResend(false);
     setOtp('');
     autoVerifyRef.current = '';
     otpSendRef.current += 1;
@@ -207,7 +221,7 @@ export default function VerifyOtpScreen() {
       }
       setOtpReady(true);
     } catch (err) {
-      applyLoginError(err, pendingLoginIntent, setError, setSuggestIntent);
+      applyVerifyError(err, pendingLoginIntent, setError, setSuggestIntent, setHighlightResend);
     } finally {
       setResending(false);
     }
@@ -224,6 +238,7 @@ export default function VerifyOtpScreen() {
     setOtp('');
     setError('');
     setSuggestIntent(null);
+    setHighlightResend(false);
     autoVerifyRef.current = '';
     setOtpReady(false);
     setResending(true);
@@ -231,7 +246,7 @@ export default function VerifyOtpScreen() {
       await sendSignInOtp(phone);
       setOtpReady(true);
     } catch (err) {
-      applyLoginError(err, suggestIntent, setError, setSuggestIntent);
+      applyVerifyError(err, suggestIntent, setError, setSuggestIntent, setHighlightResend);
     } finally {
       setResending(false);
     }
@@ -279,6 +294,7 @@ export default function VerifyOtpScreen() {
                 setOtp(value);
                 setError('');
                 setSuggestIntent(null);
+                setHighlightResend(false);
               }}
             />
 
@@ -302,7 +318,12 @@ export default function VerifyOtpScreen() {
               className="self-start"
               disabled={resending || sendingOtp}
               onPress={() => void handleResend()}>
-              <Text className="text-foreground text-sm underline">
+              <Text
+                className={
+                  highlightResend
+                    ? 'text-primary text-sm font-semibold underline'
+                    : 'text-foreground text-sm underline'
+                }>
                 {resending || sendingOtp ? 'Please wait…' : "Didn't receive a code?"}
               </Text>
             </Pressable>

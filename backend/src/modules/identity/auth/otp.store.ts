@@ -4,6 +4,18 @@ import DbFactory from "@/infrastructure/database/db.factory.js";
 import { ApiError } from "@/shared/errors/apiError.js";
 
 export const OTP_TTL_SECONDS = 300;
+
+export const OTP_ERROR_CODES = {
+    EXPIRED: "OTP_EXPIRED",
+    INVALID: "OTP_INVALID",
+    ATTEMPTS_EXHAUSTED: "OTP_ATTEMPTS_EXHAUSTED",
+} as const;
+
+function otpUnauthorized(message: string, code: string): ApiError {
+    const err = ApiError.unauthorized(message);
+    err.code = code;
+    return err;
+}
 const RATE_TTL_SECONDS = 3600;
 const MAX_SENDS_PER_HOUR = 5;
 const MAX_ATTEMPTS = 5;
@@ -117,12 +129,12 @@ export async function consumeOtp(phone: string, otp: string): Promise<OtpPurpose
     const key = otpKey(phone);
     const raw = await redis().getdel(key);
     if (!raw) {
-        throw ApiError.unauthorized("otp expired or not requested");
+        throw otpUnauthorized("otp expired or not requested", OTP_ERROR_CODES.EXPIRED);
     }
 
     const record = JSON.parse(raw) as OtpRecord;
     if (record.attempts >= MAX_ATTEMPTS) {
-        throw ApiError.unauthorized("too many invalid otp attempts");
+        throw otpUnauthorized("too many invalid otp attempts", OTP_ERROR_CODES.ATTEMPTS_EXHAUSTED);
     }
 
     if (!hashesMatch(record.hash, hashOtp(phone, otp))) {
@@ -130,7 +142,7 @@ export async function consumeOtp(phone: string, otp: string): Promise<OtpPurpose
         if (record.attempts < MAX_ATTEMPTS) {
             await redis().set(key, JSON.stringify(record), "EX", OTP_TTL_SECONDS);
         }
-        throw ApiError.unauthorized("invalid otp");
+        throw otpUnauthorized("invalid otp", OTP_ERROR_CODES.INVALID);
     }
 
     return record.purpose;
