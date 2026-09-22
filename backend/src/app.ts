@@ -47,8 +47,6 @@ class App {
                 return;
             }
             const allowed = [
-                "http://localhost:5173",
-                "http://localhost:5174",
                 _config.WEB_APP_ORIGIN,
                 _config.ADMIN_APP_ORIGIN,
                 process.env.EXPO_PUBLIC_ORIGIN,
