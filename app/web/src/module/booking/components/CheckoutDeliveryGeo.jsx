@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { MapPinCheckIcon, MapPinIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DeliveryMapConfirmDialog } from "@/module/geo/components/DeliveryMapConfirmDialog";
+import { useAddressMutations } from "@/module/account/hooks/use-addresses-query";
 import { useCartStore } from "@/store/cart.store";
 import { toast } from "@/components/ui/toast";
 import { getApiError } from "@/api/api";
@@ -11,12 +12,22 @@ export function CheckoutDeliveryGeo({
   delivery,
   geoConfirmed,
   onGeoConfirmed,
+  onDeliveryCoordsChange,
+  onDeliveryLocationPreview,
   requireGeo,
+  mapOpen: mapOpenProp,
+  onMapOpenChange,
+  saveAddressId = null,
 }) {
   const setDeliveryGeo = useCartStore((s) => s.setDeliveryGeo);
   const cart = useCartStore((s) => s.cart);
-  const [mapOpen, setMapOpen] = useState(false);
+  const { update: updateAddress } = useAddressMutations();
+  const [mapOpenInternal, setMapOpenInternal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const lastPinPatchRef = useRef(null);
+
+  const mapOpen = mapOpenProp ?? mapOpenInternal;
+  const setMapOpen = onMapOpenChange ?? setMapOpenInternal;
 
   const canOpenMap = deliveryOk;
   const hasCartGeo =
@@ -35,10 +46,32 @@ export function CheckoutDeliveryGeo({
     };
   }, [delivery]);
 
+  function handleLiveLocationChange(patch) {
+    lastPinPatchRef.current = patch;
+    onDeliveryLocationPreview?.(patch);
+  }
+
   async function handleConfirm(coords) {
     setSaving(true);
     try {
       await setDeliveryGeo(coords);
+      onDeliveryCoordsChange?.(coords);
+
+      if (saveAddressId) {
+        try {
+          await updateAddress.mutateAsync({
+            id: saveAddressId,
+            body: {
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+              geoSource: "geocode_manual",
+            },
+          });
+        } catch {
+          // order pin still saved on cart
+        }
+      }
+
       onGeoConfirmed?.(true);
       setMapOpen(false);
       toast.add({ title: "Delivery location saved", type: "success" });
@@ -64,12 +97,12 @@ export function CheckoutDeliveryGeo({
           )}
           <div>
             <p className="text-sm font-medium text-foreground">
-              {hasCartGeo ? "Location confirmed on map" : "Confirm on map"}
+              {hasCartGeo ? "Pin saved for this order" : "Adjust pin on map"}
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
               {requireGeo
-                ? "Required for instant delivery so we can assign the nearest decorator."
-                : "Optional — pin your venue on setup day to see live tracking when your decorator is on the way."}
+                ? "Required for instant delivery — move the map and tap Save location."
+                : "Optional — fine-tune the pin on the map. Your saved address text stays as-is."}
             </p>
           </div>
         </div>
@@ -90,6 +123,10 @@ export function CheckoutDeliveryGeo({
         initialLatitude={cart?.deliveryLatitude ?? delivery?.latitude ?? null}
         initialLongitude={cart?.deliveryLongitude ?? delivery?.longitude ?? null}
         addressSummary={addressSummary}
+        confirmLabel="Save location"
+        saving={saving}
+        livePreview
+        onLiveLocationChange={handleLiveLocationChange}
         onConfirm={handleConfirm}
       />
     </div>

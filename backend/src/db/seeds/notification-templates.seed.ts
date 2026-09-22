@@ -284,7 +284,7 @@ export const NOTIFICATION_TEMPLATE_SEEDS: NotificationTemplateSeed[] = [
         editable: true,
         subject: "Job assigned — {{orderRef}}",
         content: "You were assigned to job {{orderRef}}. Open the partner app to view details.",
-        variables: ["orderRef", "orderId", "bookingId"],
+        variables: ["orderRef", "orderId", "bookingId", "scheduledAt", "address"],
     },
     {
         key: "vendor_job_assigned",
@@ -295,7 +295,19 @@ export const NOTIFICATION_TEMPLATE_SEEDS: NotificationTemplateSeed[] = [
         editable: true,
         subject: "Job assigned — {{orderRef}}",
         content: "You were assigned to job {{orderRef}}. Tap to open the job.",
-        variables: ["orderRef", "orderId", "bookingId"],
+        variables: ["orderRef", "orderId", "bookingId", "scheduledAt", "address"],
+    },
+    {
+        key: "vendor_job_assigned",
+        name: "Job assigned to worker SMS",
+        type: "transactional",
+        channel: "sms",
+        locale: "en",
+        editable: true,
+        subject: null,
+        content:
+            "Decoryy: You were assigned job {{orderRef}} on {{scheduledAt}} at {{address}}. Open partner app.",
+        variables: ["orderRef", "scheduledAt", "address", "orderId", "bookingId"],
     },
     {
         key: "booking_reminder",
@@ -384,9 +396,9 @@ export const NOTIFICATION_TEMPLATE_SEEDS: NotificationTemplateSeed[] = [
         channel: "email",
         locale: "en",
         editable: true,
-        subject: "No vendor accepted — {{orderRef}}",
+        subject: "Action needed — no vendor for {{orderRef}}",
         content:
-            "Instant dispatch exhausted for booking {{orderRef}} in {{city}}. Address: {{address}}. Open admin: {{adminUrl}}",
+            "Instant dispatch could not place {{orderRef}} with an available partner in {{city}}. Please assign a vendor manually.",
         variables: ["orderRef", "city", "address", "adminUrl", "orderId"],
     },
     {

@@ -172,6 +172,7 @@ function AppTabs() {
           ),
         }}
       />
+      <Tabs.Screen name="help-support" options={{ href: null }} />
       <Tabs.Screen name="support" options={{ href: null }} />
       <Tabs.Screen name="notifications" options={{ href: null }} />
       <Tabs.Screen name="enable-notifications" options={{ href: null }} />

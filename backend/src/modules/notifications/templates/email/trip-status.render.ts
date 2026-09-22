@@ -52,7 +52,7 @@ export async function renderTripStatusEmailHtml(input: {
     trackUrl: string;
     orderId: string;
 }): Promise<string> {
-    const origin = (_config.WEB_APP_ORIGIN || "http://localhost:5173").replace(/\/$/, "");
+    const origin = (_config.WEB_APP_ORIGIN || "http://localhost:5174").replace(/\/$/, "");
     const meta = VARIANT_META[input.variant];
     const viewUrl = input.trackUrl || `${origin}/account/bookings/${input.orderId}`;
     const scheduledLabel = input.scheduledAt.includes("T")

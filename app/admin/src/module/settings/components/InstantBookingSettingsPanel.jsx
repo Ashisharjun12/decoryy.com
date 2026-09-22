@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { CircleHelpIcon } from "lucide-react"
 import { getApiError } from "@/api/api"
 import {
   getInstantDispatchPolicy,
@@ -16,6 +17,32 @@ import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "@/components/ui/toast"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+
+function FieldLabelWithHint({ id, label, hint }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <Tooltip>
+        <TooltipTrigger
+          type="button"
+          className="inline-flex text-muted-foreground transition-colors hover:text-foreground"
+          aria-label={`About ${label}`}
+        >
+          <CircleHelpIcon className="size-3.5 shrink-0" />
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+          {hint}
+        </TooltipContent>
+      </Tooltip>
+    </div>
+  )
+}
 
 function parseRadiusWaves(raw) {
   if (Array.isArray(raw)) return raw.join(", ")
@@ -193,6 +220,7 @@ export function InstantBookingSettingsPanel() {
   }
 
   return (
+    <TooltipProvider delay={200}>
     <div className="flex flex-col gap-6">
       <Card>
         <CardHeader>
@@ -232,7 +260,8 @@ export function InstantBookingSettingsPanel() {
           <CardDescription>
             Redis GEO matching, sequential vendor offers, and BullMQ timers. Enable when you are ready
             to auto-offer vendors (separate from marketplace save). Requires a system user UUID for
-            assignment rows.
+            assignment rows. When no vendor accepts, status becomes exhausted and an email goes to{" "}
+            platform admin account email(s) (or <span className="font-medium text-foreground">ADMIN_EMAIL</span> env if no admin user yet).
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
@@ -287,7 +316,11 @@ export function InstantBookingSettingsPanel() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="offer-ttl">Offer TTL (seconds)</Label>
+              <FieldLabelWithHint
+                id="offer-ttl"
+                label="Offer TTL (seconds)"
+                hint="How long one vendor has to accept before the offer expires and the next partner is tried. Typical: 60–90 seconds."
+              />
               <Input
                 id="offer-ttl"
                 type="number"
@@ -303,7 +336,11 @@ export function InstantBookingSettingsPanel() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="max-offers">Max offers per order</Label>
+              <FieldLabelWithHint
+                id="max-offers"
+                label="Max offers per order"
+                hint="Stop auto-dispatch after this many vendor offers. Order is marked exhausted; assign manually in admin."
+              />
               <Input
                 id="max-offers"
                 type="number"
@@ -319,7 +356,11 @@ export function InstantBookingSettingsPanel() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="geo-count">GEO candidate cap</Label>
+              <FieldLabelWithHint
+                id="geo-count"
+                label="GEO candidate cap"
+                hint="Max nearest on-duty vendors Redis returns per radius wave. Still only one offer at a time."
+              />
               <Input
                 id="geo-count"
                 type="number"
@@ -335,7 +376,11 @@ export function InstantBookingSettingsPanel() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="sla-minutes">Instant SLA (minutes)</Label>
+              <FieldLabelWithHint
+                id="sla-minutes"
+                label="Instant SLA (minutes)"
+                hint="Sets the order setup slot time at checkout: confirm time + this many minutes. Not the same as offer TTL or product ETA badge."
+              />
               <Input
                 id="sla-minutes"
                 type="number"
@@ -417,5 +462,6 @@ export function InstantBookingSettingsPanel() {
         </CardContent>
       </Card>
     </div>
+    </TooltipProvider>
   )
 }

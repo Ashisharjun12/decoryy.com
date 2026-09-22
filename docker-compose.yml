@@ -1,7 +1,3 @@
-# Valkey for Decory backend. From repo root: docker compose up -d
-# Matches backend/.env.sample production Redis URLs:
-#   REDIS_URL=redis://127.0.0.1:6379/0   (queues, geo, Socket.io adapter)
-#   REDIS_CACHE_URL=redis://127.0.0.1:6380/0   (HTTP response cache)
 
 services:
   valkey-queue:

@@ -13,7 +13,11 @@ import {
     saveDeliveryCode,
 } from "@/modules/booking/delivery/delivery-code.store.js";
 import { BOOKING_STATUS_EVENT } from "@/modules/booking/lib/booking.events.js";
-import { VENDOR_JOB_UPDATED_EVENT } from "@/modules/assignment/lib/assignment.events.js";
+import {
+    VENDOR_JOB_ASSIGNED_EVENT,
+    VENDOR_JOB_UPDATED_EVENT,
+} from "@/modules/assignment/lib/assignment.events.js";
+import type { IUserRepository } from "@/modules/identity/users/user.repository.js";
 import type { IVendorRepository } from "@/modules/identity/vendors/vendor.repository.js";
 import type { INotificationService } from "@/modules/notifications/notification.service.js";
 import { cancelBookingReminders } from "@/modules/assignment/jobs/assignment-reminder.service.js";
@@ -21,6 +25,7 @@ import { bookingTrackUrl } from "@/modules/notifications/lib/render.js";
 import { formatBookingSchedule } from "@/modules/notifications/templates/email/booking-confirmed.render.js";
 import type { RealtimePort } from "@/infrastructure/realtime/realtime.port.js";
 import type { PaginationQuery } from "@/shared/http/pagination.js";
+import { buildBullJobId } from "@/infrastructure/queue/bull-job-id.js";
 import { logger } from "@/utils/logger.js";
 import type { IVendorJobRepository, VendorJobRow } from "@/modules/assignment/jobs/vendor-job.repository.js";
 import type { IBookingChatService } from "@/modules/chat/services/booking-chat.service.js";
@@ -155,6 +160,7 @@ export class VendorJobService implements IVendorJobService {
         private readonly orders: IOrderRepository,
         private readonly notifications: INotificationService,
         private readonly reloadOrder: (orderId: string) => Promise<PublicOrder>,
+        private readonly users: IUserRepository,
         private readonly bookingChat?: IBookingChatService,
         private readonly realtime?: RealtimePort,
     ) {}
@@ -721,7 +727,10 @@ export class VendorJobService implements IVendorJobService {
                 await queues.ledgerPostOnComplete.add(
                     "post-on-complete",
                     { orderId },
-                    { jobId: `ledger-complete:${orderId}`, removeOnComplete: true },
+                    {
+                        jobId: buildBullJobId("ledger", "complete", orderId),
+                        removeOnComplete: true,
+                    },
                 );
             } catch (enqueueErr) {
                 logger.error({ enqueueErr, orderId }, "ledger post-on-complete enqueue failed");
@@ -776,7 +785,7 @@ export class VendorJobService implements IVendorJobService {
             summary: `Assigned ${uniqueIds.length} worker(s) to job`,
             after: { memberIds: uniqueIds },
         });
-        await this.notifyFieldAssignees(orderId, rows);
+        await this.notifyFieldAssignees(partner.vendorId, orderId, rows);
         try {
             await this.bookingChat?.syncBookingFieldWorker(orderId, partner.vendorId);
         } catch (err) {
@@ -793,26 +802,83 @@ export class VendorJobService implements IVendorJobService {
         return this.setFieldAssignments(partner, orderId, [partner.memberId]);
     }
 
-    private async notifyFieldAssignees(orderId: string, rows: FieldAssignmentWithMember[]) {
-        const order = await this.orders.findById(orderId);
-        if (!order) return;
+    private async resolveWorkerNotifyPhone(
+        vendorId: string,
+        row: FieldAssignmentWithMember,
+    ): Promise<string | undefined> {
+        if (row.userId) {
+            const user = await this.users.findById(row.userId);
+            const fromUser = user?.phone?.trim();
+            if (fromUser) return fromUser;
+        }
+        const member = await this.vendorMembers.findByIdForVendor(vendorId, row.memberId);
+        const fromInvite = member?.invitedPhone?.trim();
+        return fromInvite || undefined;
+    }
+
+    private async notifyFieldAssignees(
+        vendorId: string,
+        orderId: string,
+        rows: FieldAssignmentWithMember[],
+    ) {
+        if (!rows.length) return;
+
+        let assignedOrder: PublicOrder;
+        try {
+            assignedOrder = await this.reloadOrder(orderId);
+        } catch (err) {
+            logger.error({ err, orderId }, "field assign notify could not load order");
+            return;
+        }
+
+        const orderRef = assignedOrder.reference;
+        const scheduledAt = formatBookingSchedule(assignedOrder.scheduledAt);
+        const address = assignedOrder.delivery.address;
+
         for (const row of rows) {
             if (!row.userId) continue;
+
+            const phone = await this.resolveWorkerNotifyPhone(vendorId, row);
+            if (!phone) {
+                logger.warn(
+                    { orderId, memberId: row.memberId, userId: row.userId },
+                    "field assign notify skipped SMS — no worker phone",
+                );
+            }
+
             try {
                 await this.notifications.notify({
                     event: "VENDOR_JOB_ASSIGNED",
                     userId: row.userId,
+                    recipient: { phone },
                     data: {
                         event: "VENDOR_JOB_ASSIGNED",
                         audience: "field",
                         orderId,
-                        orderRef: order.reference,
                         bookingId: orderId,
+                        orderRef,
+                        scheduledAt,
+                        address,
                     },
                     idempotencyKey: `vendor-job-assigned:${orderId}:${row.memberId}`,
                 });
             } catch (err) {
                 logger.error({ err, orderId, memberId: row.memberId }, "field assign notify failed");
+                continue;
+            }
+
+            if (!this.realtime) continue;
+            try {
+                await this.realtime.publish({
+                    userId: row.userId,
+                    event: VENDOR_JOB_ASSIGNED_EVENT,
+                    payload: { orderId },
+                });
+            } catch (err) {
+                logger.error(
+                    { err, orderId, userId: row.userId },
+                    "field assign realtime publish failed",
+                );
             }
         }
     }

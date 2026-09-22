@@ -186,12 +186,14 @@ export function AddressFormDialog({
   return (
     <>
       <Dialog open={open && !mapOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[min(92vh,640px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-md">
+          <DialogHeader className="shrink-0 px-6 pt-6 pb-2">
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription>{description}</DialogDescription>
           </DialogHeader>
-          <form className="flex flex-col gap-4" onSubmit={openReviewMap}>
+          <form
+            className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 pb-6"
+            onSubmit={openReviewMap}>
             <Field>
               <FieldLabel htmlFor="addr-label">Label</FieldLabel>
               <Input
@@ -200,6 +202,38 @@ export function AddressFormDialog({
                 value={form.label}
                 onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
               />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="addr-line">Search address</FieldLabel>
+              <PlacesAddressAutocomplete
+                key={open ? "addr-open" : "addr-closed"}
+                id="addr-line"
+                placeholder="Search area, street, building…"
+                aria-invalid={Boolean(fieldErrors.address)}
+                value={form.address}
+                onChange={(address) =>
+                  setForm((f) => ({
+                    ...f,
+                    address,
+                    latitude: null,
+                    longitude: null,
+                  }))
+                }
+                onPlaceResolved={({ address, pincode, latitude, longitude }) => {
+                  setForm((f) => ({
+                    ...f,
+                    address: address || f.address,
+                    pincode: pincode || f.pincode,
+                    latitude: latitude ?? f.latitude,
+                    longitude: longitude ?? f.longitude,
+                  }));
+                }}
+              />
+              {fieldErrors.address ? (
+                <p className="text-sm text-destructive">{fieldErrors.address}</p>
+              ) : (
+                <FieldDescription>Pick a suggestion or type your full address</FieldDescription>
+              )}
             </Field>
             <Field>
               <FieldLabel htmlFor="addr-pin">PIN code</FieldLabel>
@@ -235,37 +269,6 @@ export function AddressFormDialog({
                   {pinMessage}
                 </p>
               ) : null}
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="addr-line">Address</FieldLabel>
-              <PlacesAddressAutocomplete
-                id="addr-line"
-                placeholder="Search or type flat, street, area"
-                aria-invalid={Boolean(fieldErrors.address)}
-                value={form.address}
-                onChange={(address) =>
-                  setForm((f) => ({
-                    ...f,
-                    address,
-                    latitude: null,
-                    longitude: null,
-                  }))
-                }
-                onPlaceResolved={({ address, pincode, latitude, longitude }) => {
-                  setForm((f) => ({
-                    ...f,
-                    address: address || f.address,
-                    pincode: pincode || f.pincode,
-                    latitude: latitude ?? f.latitude,
-                    longitude: longitude ?? f.longitude,
-                  }));
-                }}
-              />
-              {fieldErrors.address ? (
-                <p className="text-sm text-destructive">{fieldErrors.address}</p>
-              ) : (
-                <FieldDescription>House / flat, street, locality</FieldDescription>
-              )}
             </Field>
             <Field>
               <FieldLabel htmlFor="addr-landmark">Landmark (optional)</FieldLabel>

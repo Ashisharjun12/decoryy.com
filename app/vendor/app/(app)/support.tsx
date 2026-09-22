@@ -31,8 +31,8 @@ export default function SupportChatScreen() {
         <PressableScale onPress={() => router.back()} className="mb-2">
           <Text className="text-foreground text-sm font-medium">Back</Text>
         </PressableScale>
-        <Text className="text-foreground text-xl font-semibold">Help & support</Text>
-        <Text className="text-muted-foreground mt-0.5 text-sm">Chat with Decoryy support</Text>
+        <Text className="text-foreground text-xl font-semibold">Support chat</Text>
+        <Text className="text-muted-foreground mt-0.5 text-sm">Message the Decoryy team</Text>
       </View>
 
       {isLoading ? (

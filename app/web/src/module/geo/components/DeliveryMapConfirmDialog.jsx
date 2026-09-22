@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LocateFixed } from "lucide-react";
 import { getDeviceCoords } from "@/lib/geolocation";
+import { reverseGeocodeLocation } from "@/lib/reverse-geocode";
 import { getMapPinIconUrl, useMapsSdkConfig } from "@/lib/ola-maps-env";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +22,7 @@ import { OlaPinMap } from "@/module/geo/components/OlaPinMap";
 const DEFAULT_ZOOM_GPS = 17;
 const DEFAULT_ZOOM_PIN = 15;
 const DEFAULT_ZOOM_FALLBACK = 5;
+const REVERSE_GEO_DEBOUNCE_MS = 550;
 
 function MapPinConfirmBody({
   mapKey,
@@ -34,6 +36,8 @@ function MapPinConfirmBody({
   onCancel,
   confirmLabel,
   saving,
+  onMapCenterChange,
+  liveCenterChange,
 }) {
   const centerRef = useRef(initialCenter);
 
@@ -59,8 +63,10 @@ function MapPinConfirmBody({
           sdkConfig={sdkConfig}
           center={initialCenter}
           zoom={initialZoom}
+          liveCenterChange={liveCenterChange}
           onCenterChange={(next) => {
             centerRef.current = next;
+            onMapCenterChange?.(next);
           }}
         />
         <div
@@ -86,7 +92,7 @@ function MapPinConfirmBody({
         </Button>
       </div>
       <p className="text-center text-xs text-muted-foreground">
-        Move the map so the pin sits on your delivery spot.
+        Move the map — the address above updates to match the pin.
       </p>
       <div className="flex gap-2">
         <Button type="button" variant="outline" className="flex-1" onClick={onCancel} disabled={saving}>
@@ -106,9 +112,11 @@ export function DeliveryMapConfirmDialog({
   initialLatitude,
   initialLongitude,
   addressSummary,
-  confirmLabel = "Confirm location",
+  confirmLabel = "Save location",
   saving = false,
   closeOnConfirm = true,
+  livePreview = false,
+  onLiveLocationChange,
   onConfirm,
 }) {
   const [ready, setReady] = useState(false);
@@ -117,6 +125,12 @@ export function DeliveryMapConfirmDialog({
   const [loading, setLoading] = useState(false);
   const [mapKey, setMapKey] = useState(0);
   const [locating, setLocating] = useState(false);
+  const [previewLine, setPreviewLine] = useState("");
+  const [previewPlaceName, setPreviewPlaceName] = useState("");
+  const [previewMeta, setPreviewMeta] = useState("");
+  const [geoLoading, setGeoLoading] = useState(false);
+  const reverseTimerRef = useRef(null);
+  const wasOpenRef = useRef(false);
   const pinUrl = getMapPinIconUrl();
   const { config: sdkConfig, loading: sdkLoading, error: sdkError } = useMapsSdkConfig();
 
@@ -142,9 +156,18 @@ export function DeliveryMapConfirmDialog({
 
   useEffect(() => {
     if (!open) {
+      wasOpenRef.current = false;
       setReady(false);
+      if (reverseTimerRef.current) window.clearTimeout(reverseTimerRef.current);
       return;
     }
+    const justOpened = !wasOpenRef.current;
+    wasOpenRef.current = true;
+    if (!justOpened) return;
+
+    setPreviewLine(addressSummary?.line ?? "");
+    setPreviewPlaceName("");
+    setPreviewMeta(addressSummary?.meta ?? "");
     setMapKey((k) => k + 1);
     if (initialLatitude != null && initialLongitude != null) {
       setMapCenter({ lat: initialLatitude, lng: initialLongitude });
@@ -153,7 +176,42 @@ export function DeliveryMapConfirmDialog({
       return;
     }
     void resolveInitialView();
-  }, [open, initialLatitude, initialLongitude, resolveInitialView]);
+  }, [open, initialLatitude, initialLongitude, resolveInitialView, addressSummary?.line, addressSummary?.meta]);
+
+  const scheduleReverseGeocode = useCallback(
+    (lat, lng) => {
+      if (!livePreview || !onLiveLocationChange) return;
+      if (reverseTimerRef.current) window.clearTimeout(reverseTimerRef.current);
+      reverseTimerRef.current = window.setTimeout(() => {
+        setGeoLoading(true);
+        void reverseGeocodeLocation(lat, lng)
+          .then((result) => {
+            if (result.placeName) setPreviewPlaceName(result.placeName);
+            else setPreviewPlaceName("");
+            if (result.address) setPreviewLine(result.address);
+            const metaParts = [result.cityName, result.pincode].filter(Boolean);
+            if (metaParts.length) setPreviewMeta(metaParts.join(" · "));
+            onLiveLocationChange({
+              latitude: lat,
+              longitude: lng,
+              address: result.address || "",
+              placeName: result.placeName,
+              pincode: result.pincode,
+              cityName: result.cityName,
+            });
+          })
+          .catch(() => {
+            onLiveLocationChange({ latitude: lat, longitude: lng });
+          })
+          .finally(() => setGeoLoading(false));
+      }, REVERSE_GEO_DEBOUNCE_MS);
+    },
+    [livePreview, onLiveLocationChange],
+  );
+
+  function handleMapCenterChange(next) {
+    scheduleReverseGeocode(next.lat, next.lng);
+  }
 
   function handleClose() {
     if (saving) return;
@@ -194,22 +252,30 @@ export function DeliveryMapConfirmDialog({
     );
   }
 
+  const showSummary = addressSummary || previewLine;
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
         <DialogHeader className="px-6 pt-6 pb-2">
-          <DialogTitle>Review & pin location</DialogTitle>
+          <DialogTitle>Adjust delivery pin</DialogTitle>
           <DialogDescription>
-            Check the address below, then move the map to your exact delivery spot.
+            Drag the map so the pin matches your door. Save when it looks right.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4 overflow-y-auto px-6 pb-6">
-          {addressSummary ? (
+          {showSummary ? (
             <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm">
-              <p className="font-semibold text-foreground">{addressSummary.label}</p>
-              <p className="mt-1 text-muted-foreground">{addressSummary.meta}</p>
-              <p className="mt-2 text-foreground">{addressSummary.line}</p>
-              {addressSummary.landmark ? (
+              <p className="font-semibold text-foreground">
+                {geoLoading
+                  ? "Finding this place…"
+                  : previewPlaceName || addressSummary?.label || "Delivery address"}
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                {geoLoading ? "Move the pin over your building or venue" : previewMeta || addressSummary?.meta}
+              </p>
+              <p className="mt-2 text-foreground">{previewLine || addressSummary?.line}</p>
+              {addressSummary?.landmark ? (
                 <p className="mt-1 text-muted-foreground">Near {addressSummary.landmark}</p>
               ) : null}
             </div>
@@ -226,6 +292,8 @@ export function DeliveryMapConfirmDialog({
               initialZoom={mapZoom}
               pinUrl={pinUrl}
               locating={locating}
+              liveCenterChange={livePreview}
+              onMapCenterChange={handleMapCenterChange}
               onUseCurrentLocation={() => void handleUseCurrentLocation()}
               confirmLabel={confirmLabel}
               saving={saving}

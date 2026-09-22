@@ -1,3 +1,4 @@
+import { buildBullJobId } from "@/infrastructure/queue/bull-job-id.js";
 import { getQueues } from "@/infrastructure/queue/bull.connection.js";
 import { logger } from "@/utils/logger.js";
 
@@ -25,7 +26,7 @@ export async function scheduleBookingReminders(
                 "reminder",
                 { orderId, offsetKey: offset.key },
                 {
-                    jobId: `reminder:${orderId}:${offset.key}`,
+                    jobId: buildBullJobId("reminder", orderId, offset.key),
                     delay,
                     removeOnComplete: true,
                     removeOnFail: true,
@@ -41,7 +42,7 @@ export async function cancelBookingReminders(orderId: string): Promise<void> {
     try {
         const queue = getQueues().assignmentReminder;
         for (const offset of REMINDER_OFFSETS) {
-            const job = await queue.getJob(`reminder:${orderId}:${offset.key}`);
+            const job = await queue.getJob(buildBullJobId("reminder", orderId, offset.key));
             if (job) {
                 await job.remove();
             }

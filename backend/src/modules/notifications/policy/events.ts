@@ -195,6 +195,13 @@ export const EVENT_POLICIES: Record<NotificationEvent, EventPolicy> = {
                 priority: "standard",
                 required: false,
             },
+            {
+                templateKey: "vendor_job_assigned",
+                channel: "sms",
+                type: "transactional",
+                priority: "standard",
+                required: false,
+            },
         ],
     },
     BOOKING_REMINDER: {

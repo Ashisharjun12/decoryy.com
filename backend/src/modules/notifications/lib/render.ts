@@ -17,7 +17,7 @@ export function interpolate(
 }
 
 export function bookingTrackUrl(orderId: string): string {
-    const origin = (_config.WEB_APP_ORIGIN || "http://localhost:5173").replace(/\/$/, "");
+    const origin = (_config.WEB_APP_ORIGIN || "http://localhost:5174").replace(/\/$/, "");
     return `${origin}/account/bookings/${orderId}`;
 }
 

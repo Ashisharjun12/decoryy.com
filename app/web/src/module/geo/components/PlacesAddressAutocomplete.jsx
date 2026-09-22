@@ -25,9 +25,15 @@ export function PlacesAddressAutocomplete({
   const [suggestions, setSuggestions] = useState([]);
   const debounceRef = useRef(null);
   const sessionRef = useRef(`${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const skipSearchRef = useRef(false);
 
   useEffect(() => {
     const trimmed = (value ?? "").trim();
+    if (skipSearchRef.current) {
+      setSuggestions([]);
+      setOpen(false);
+      return undefined;
+    }
     if (trimmed.length < 3) {
       setSuggestions([]);
       setOpen(false);
@@ -58,6 +64,7 @@ export function PlacesAddressAutocomplete({
   }, [value, locationBias]);
 
   async function handleSelect(item) {
+    skipSearchRef.current = true;
     setOpen(false);
     setSuggestions([]);
     onChange?.(item.description);
@@ -85,8 +92,13 @@ export function PlacesAddressAutocomplete({
         aria-invalid={ariaInvalid}
         placeholder={placeholder}
         value={value}
-        onChange={(e) => onChange?.(e.target.value)}
-        onFocus={() => suggestions.length > 0 && setOpen(true)}
+        onChange={(e) => {
+          skipSearchRef.current = false;
+          onChange?.(e.target.value);
+        }}
+        onFocus={() => {
+          if (!skipSearchRef.current && suggestions.length > 0) setOpen(true);
+        }}
         className={inputClassName(className, ariaInvalid)}
       />
       {loading ? (

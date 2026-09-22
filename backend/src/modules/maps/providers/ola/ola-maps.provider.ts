@@ -8,6 +8,7 @@ import type {
     MapsProvider,
     PlaceDetails,
     PlacePrediction,
+    ReverseGeocodeResult,
     RouteResult,
 } from "@/modules/maps/maps.types.js";
 import {
@@ -72,6 +73,61 @@ function extractIndiaPincode(components: unknown): string | null {
         if (match) return match[0];
     }
     return null;
+}
+
+function readCityName(components: unknown): string | null {
+    if (!Array.isArray(components)) return null;
+    const prefer = ["locality", "city", "town", "village", "state_district", "district"];
+    for (const type of prefer) {
+        for (const part of components) {
+            if (!part || typeof part !== "object") continue;
+            const row = part as Record<string, unknown>;
+            const types = row.types;
+            const matches =
+                (Array.isArray(types) &&
+                    types.some((t) => String(t).toLowerCase().includes(type))) ||
+                String(row.type ?? "").toLowerCase().includes(type);
+            if (!matches) continue;
+            const name = String(row.long_name ?? row.short_name ?? row.text ?? row.value ?? "").trim();
+            if (name) return name;
+        }
+    }
+    return null;
+}
+
+function parseReverseGeocodePayload(data: unknown): ReverseGeocodeResult {
+    const root = data as Record<string, unknown>;
+    const results =
+        root.results ??
+        (root.data as Record<string, unknown> | undefined)?.results ??
+        root.result;
+    const first = Array.isArray(results) ? results[0] : results ?? root;
+    const row = first && typeof first === "object" ? (first as Record<string, unknown>) : root;
+
+    const placeName = String(row.name ?? row.title ?? row.poi ?? "").trim() || null;
+    const formattedAddress = String(
+        row.formatted_address ??
+            row.formattedAddress ??
+            row.address ??
+            row.description ??
+            "",
+    ).trim();
+    const components = row.address_components ?? row.addressComponents ?? row.components;
+    const pincode = extractIndiaPincode(components);
+    const cityName = readCityName(components);
+
+    const line =
+        formattedAddress ||
+        placeName ||
+        String(row.display_name ?? "").trim() ||
+        "Selected location";
+
+    return {
+        placeName,
+        formattedAddress: line,
+        pincode,
+        cityName,
+    };
 }
 
 function readLatLng(obj: unknown): { latitude: number; longitude: number } | null {
@@ -350,6 +406,16 @@ export class OlaMapsProvider implements MapsProvider {
             longitude: coords.longitude,
             pincode: extractIndiaPincode(components),
         };
+    }
+
+    async reverseGeocode(location: LatLng): Promise<ReverseGeocodeResult> {
+        const qs = new URLSearchParams({
+            latlng: `${location.latitude},${location.longitude}`,
+        });
+        const data = await olaRequest<unknown>(
+            `${OLA_BASE}/places/v1/reverse-geocode?${qs.toString()}`,
+        );
+        return parseReverseGeocodePayload(data);
     }
 }
 

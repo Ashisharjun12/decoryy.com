@@ -60,7 +60,7 @@ import {
 import { mediaService } from "@/modules/upload/index.js";
 import { bookingChatService } from "@/modules/chat/index.js";
 import { RealtimeFactory } from "@/infrastructure/realtime/realtime.factory.js";
-import { initDispatchModule } from "@/modules/dispatch/index.js";
+import { registerDispatchModule } from "@/modules/dispatch/register-dispatch-module.js";
 import { VendorPresenceController } from "@/modules/dispatch/presence/vendor-presence.controller.js";
 import { VendorPresenceService } from "@/modules/dispatch/presence/vendor-presence.service.js";
 
@@ -110,26 +110,13 @@ const vendorJobService = new VendorJobService(
     orderRepository,
     notificationService,
     (orderId) => orderServiceForVendorJobs.getForAdmin(orderId),
+    userRepository,
     bookingChatService,
     RealtimeFactory.getProvider(),
 );
 const vendorJobController = new VendorJobController(vendorJobService);
 
-initDispatchModule({
-    orderRepo: orderRepository,
-    assignments: assignmentRepository,
-    vendorRepo: vendorRepository,
-    notifications: notificationService,
-    reloadOrder: async (orderId) => {
-        const order = await orderServiceForVendorJobs.getForAdmin(orderId);
-        return {
-            id: order.id,
-            reference: order.reference,
-            scheduledAt: order.scheduledAt,
-            delivery: { address: order.delivery.address },
-        };
-    },
-});
+registerDispatchModule();
 
 const vendorPresenceService = new VendorPresenceService(vendorRepository);
 const vendorPresenceController = new VendorPresenceController(vendorPresenceService);

@@ -24,6 +24,7 @@ import {
     renderTripStatusEmailHtml,
     tripEventToVariant,
 } from "@/modules/notifications/templates/email/trip-status.render.js";
+import { renderDispatchExhaustedEmailHtml } from "@/modules/notifications/templates/email/dispatch-exhausted.render.js";
 import type { NotificationChannel } from "@/modules/notifications/schema.js";
 import { normalizePhoneForSms } from "@/modules/identity/auth/phone.js";
 import { logger } from "@/utils/logger.js";
@@ -270,6 +271,15 @@ export class NotificationService implements INotificationService {
                 totalPaise: Number(input.data.totalPaise) || 0,
                 orderId: input.data.bookingId || "",
                 items: parseBookingEmailItems(input.data.itemsJson),
+            });
+        }
+        if (input.event === "DISPATCH_EXHAUSTED" && channelPolicy.channel === "email") {
+            body = await renderDispatchExhaustedEmailHtml({
+                intro: body,
+                orderRef: input.data.orderRef || input.data.orderId || "",
+                city: input.data.city ?? "",
+                address: input.data.address ?? "",
+                adminUrl: input.data.adminUrl ?? "",
             });
         }
         const tripVariant = tripEventToVariant(input.event);

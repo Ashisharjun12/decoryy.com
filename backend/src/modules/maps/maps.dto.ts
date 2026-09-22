@@ -17,3 +17,8 @@ export const placeIdParamsDto = z.object({
 export const placeDetailsBodyDto = z.object({
     sessionToken: z.string().trim().min(8).max(128).optional(),
 });
+
+export const reverseGeocodeQueryDto = z.object({
+    lat: z.coerce.number().min(-90).max(90),
+    lng: z.coerce.number().min(-180).max(180),
+});

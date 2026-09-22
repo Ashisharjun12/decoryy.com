@@ -126,7 +126,7 @@ export const _config = {
     SMTP_USER,
     SMTP_PASSWORD,
     WHATSAPP_PROVIDER,
-    WEB_APP_ORIGIN: WEB_APP_ORIGIN || "http://localhost:5173",
+    WEB_APP_ORIGIN: WEB_APP_ORIGIN || "http://localhost:5174",
     ADMIN_APP_ORIGIN: ADMIN_APP_ORIGIN || "http://localhost:5173",
     API_PUBLIC_URL,
     CASHFREE_ENV: CASHFREE_ENV || "sandbox",

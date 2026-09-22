@@ -1,4 +1,11 @@
-import type { LatLng, MapsProvider, PlaceDetails, PlacePrediction, RouteResult } from "@/modules/maps/maps.types.js";
+import type {
+    LatLng,
+    MapsProvider,
+    PlaceDetails,
+    PlacePrediction,
+    ReverseGeocodeResult,
+    RouteResult,
+} from "@/modules/maps/maps.types.js";
 import { OlaMapsProvider } from "@/modules/maps/providers/ola/ola-maps.provider.js";
 import type { MapsAutocompleteOptions } from "@/modules/maps/maps.types.js";
 import { buildOlaWebSdkConfig, type OlaWebSdkConfig } from "@/modules/maps/providers/ola/ola-maps.sdk-config.js";
@@ -23,6 +30,10 @@ export class MapsService {
 
     getPlaceDetails(placeId: string, sessionToken?: string): Promise<PlaceDetails> {
         return resolveProvider().getPlaceDetails(placeId, sessionToken);
+    }
+
+    reverseGeocode(location: LatLng): Promise<ReverseGeocodeResult> {
+        return resolveProvider().reverseGeocode(location);
     }
 
     getWebSdkConfig(): Promise<OlaWebSdkConfig> {

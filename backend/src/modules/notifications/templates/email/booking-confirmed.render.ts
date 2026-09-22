@@ -107,7 +107,7 @@ export async function renderBookingConfirmedHtml(input: {
     orderId: string;
     items: BookingEmailItem[];
 }): Promise<string> {
-    const origin = (_config.WEB_APP_ORIGIN || "http://localhost:5173").replace(/\/$/, "");
+    const origin = (_config.WEB_APP_ORIGIN || "http://localhost:5174").replace(/\/$/, "");
     return ejs.renderFile(TEMPLATE_PATH, {
         theme: EMAIL_THEME,
         intro: input.intro,

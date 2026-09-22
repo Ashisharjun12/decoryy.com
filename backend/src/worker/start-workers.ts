@@ -16,6 +16,7 @@ import { processLedgerPostOnCompleteJob } from "@/modules/payments/jobs/ledger-p
 import { processPaymentWebhookRetryJob } from "@/modules/payments/jobs/payment-webhook-retry.job.js";
 import { processAssignmentReminderJob } from "@/modules/assignment/jobs/assignment.job.js";
 import { processDispatchJob } from "@/modules/dispatch/jobs/dispatch.job.js";
+import { processDispatchReconcileJob } from "@/modules/dispatch/jobs/dispatch-reconcile.job.js";
 import { processPresenceSweepJob } from "@/modules/dispatch/jobs/presence-sweep.job.js";
 import { processSettlementSweepJob } from "@/modules/payments/jobs/settlement.job.js";
 import { logger } from "@/utils/logger.js";
@@ -93,6 +94,9 @@ export async function startNotificationWorkers(): Promise<void> {
     void processPresenceSweepJob().catch((err) => {
         logger.error({ err }, "initial presence sweep failed");
     });
+    void processDispatchReconcileJob().catch((err) => {
+        logger.error({ err }, "initial dispatch reconcile failed");
+    });
     sweepTimer = setInterval(() => {
         void scheduleSweep();
         void processSettlementSweepJob().catch((err) => {
@@ -100,6 +104,9 @@ export async function startNotificationWorkers(): Promise<void> {
         });
         void processPresenceSweepJob().catch((err) => {
             logger.error({ err }, "presence sweep failed");
+        });
+        void processDispatchReconcileJob().catch((err) => {
+            logger.error({ err }, "dispatch reconcile failed");
         });
     }, 60_000);
 

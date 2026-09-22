@@ -27,6 +27,13 @@ export class MapsController {
         res.status(200).json(new ApiResponse(200, data, "ok"));
     });
 
+    reverseGeocode = asyncHandler(async (req, res) => {
+        const lat = Number(req.query.lat);
+        const lng = Number(req.query.lng);
+        const data = await getMapsService().reverseGeocode({ latitude: lat, longitude: lng });
+        res.status(200).json(new ApiResponse(200, data, "ok"));
+    });
+
     placeDetails = asyncHandler(async (req, res) => {
         const placeId = Array.isArray(req.params.placeId)
             ? req.params.placeId[0]

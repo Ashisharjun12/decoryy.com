@@ -10,10 +10,13 @@ import { formatBookingSchedule } from "@/modules/notifications/templates/email/b
 import { settingService } from "@/modules/ops/index.js";
 import { DispatchOfferRepository } from "@/modules/dispatch/offers/dispatch-offer.repository.js";
 import { listDispatchCandidates } from "@/modules/dispatch/matching/dispatch-candidate.service.js";
+import { buildBullJobId } from "@/infrastructure/queue/bull-job-id.js";
 import { getQueues } from "@/infrastructure/queue/bull.connection.js";
-import { QUEUE_NAMES } from "@/infrastructure/queue/queues.js";
 import { vendors } from "@/modules/identity/vendors/vendor.schema.js";
 import { logger } from "@/utils/logger.js";
+import { VENDOR_JOB_ASSIGNED_EVENT } from "@/modules/assignment/lib/assignment.events.js";
+import { RealtimeFactory } from "@/infrastructure/realtime/realtime.factory.js";
+import { listAdminNotificationEmails } from "@/modules/identity/admin/admin-notification-emails.js";
 
 export class DispatchService {
     private readonly offers = new DispatchOfferRepository();
@@ -43,7 +46,16 @@ export class DispatchService {
             .set({ dispatchStatus: "searching", updatedAt: new Date() })
             .where(eq(orders.id, orderId));
 
-        await this.offerNext(orderId, 0);
+        try {
+            await this.offerNext(orderId, 0);
+        } catch (err) {
+            await this.failDispatch(orderId, "offerNext failed in startDispatch", err);
+        }
+    }
+
+    /** Public entry for reconciliation / ops when auto-dispatch cannot complete. */
+    async exhaustInstantDispatch(orderId: string): Promise<void> {
+        await this.markExhausted(orderId);
     }
 
     async offerNext(orderId: string, waveIndex: number): Promise<void> {
@@ -76,11 +88,18 @@ export class DispatchService {
 
         if (!candidates.length) {
             if (waveIndex + 1 < waves.length) {
-                await getQueues().dispatch.add(
-                    "expand",
-                    { orderId, waveIndex: waveIndex + 1 },
-                    { jobId: `dispatch:expand:${orderId}:${waveIndex + 1}`, delay: 500 },
-                );
+                try {
+                    await getQueues().dispatch.add(
+                        "expand",
+                        { orderId, waveIndex: waveIndex + 1 },
+                        {
+                            jobId: buildBullJobId("dispatch", "expand", orderId, waveIndex + 1),
+                            delay: 500,
+                        },
+                    );
+                } catch (err) {
+                    await this.failDispatch(orderId, "failed to enqueue dispatch expand", err);
+                }
                 return;
             }
             await this.markExhausted(orderId);
@@ -135,14 +154,18 @@ export class DispatchService {
         });
 
         if (scheduledOfferId) {
-            await getQueues().dispatch.add(
-                "expire",
-                { orderId, offerId: scheduledOfferId },
-                {
-                    jobId: `dispatch:expire:${scheduledOfferId}`,
-                    delay: dispatchPolicy.offerTtlSec * 1000,
-                },
-            );
+            try {
+                await getQueues().dispatch.add(
+                    "expire",
+                    { orderId, offerId: scheduledOfferId },
+                    {
+                        jobId: buildBullJobId("dispatch", "expire", scheduledOfferId),
+                        delay: dispatchPolicy.offerTtlSec * 1000,
+                    },
+                );
+            } catch (err) {
+                await this.failDispatch(orderId, "failed to enqueue dispatch expire", err);
+            }
         }
 
         const vendor = await this.vendorRepo.findById(pick.vendorId);
@@ -166,6 +189,16 @@ export class DispatchService {
             });
         } catch (err) {
             logger.error({ err, orderId }, "dispatch vendor notify failed");
+        }
+
+        try {
+            await RealtimeFactory.getProvider().publish({
+                userId: vendor.userId,
+                event: VENDOR_JOB_ASSIGNED_EVENT,
+                payload: { orderId },
+            });
+        } catch (err) {
+            logger.error({ err, orderId }, "dispatch vendor job offer realtime publish failed");
         }
     }
 
@@ -221,6 +254,11 @@ export class DispatchService {
             .where(eq(orders.id, orderId));
     }
 
+    private async failDispatch(orderId: string, reason: string, err: unknown): Promise<void> {
+        logger.error({ err, orderId, reason }, "instant dispatch failed");
+        await this.markExhausted(orderId);
+    }
+
     private async markExhausted(orderId: string): Promise<void> {
         const order = await this.orderRepo.findById(orderId);
         if (!order || order.fulfillmentType !== "instant") return;
@@ -238,24 +276,32 @@ export class DispatchService {
 
         if (!updated) return;
 
-        const adminEmail = _config.ADMIN_EMAIL?.trim();
-        if (!adminEmail) return;
+        const adminEmails = await listAdminNotificationEmails();
+        if (!adminEmails.length) {
+            logger.warn(
+                { orderId },
+                "instant dispatch exhausted but no admin notification email — set an admin user email or ADMIN_EMAIL",
+            );
+            return;
+        }
 
         try {
             const assignedOrder = await this.reloadOrder(orderId);
             const adminUrl = `${_config.ADMIN_APP_ORIGIN}/bookings/${orderId}`;
-            await this.notifications.notify({
-                event: "DISPATCH_EXHAUSTED",
-                recipient: { email: adminEmail },
-                data: {
-                    orderRef: assignedOrder.reference,
-                    city: order.cityName,
-                    address: assignedOrder.delivery.address,
-                    adminUrl,
-                    orderId,
-                },
-                idempotencyKey: `dispatch-exhausted:${orderId}`,
-            });
+            for (const adminEmail of adminEmails) {
+                await this.notifications.notify({
+                    event: "DISPATCH_EXHAUSTED",
+                    recipient: { email: adminEmail },
+                    data: {
+                        orderRef: assignedOrder.reference,
+                        city: order.cityName,
+                        address: assignedOrder.delivery.address,
+                        adminUrl,
+                        orderId,
+                    },
+                    idempotencyKey: `dispatch-exhausted:${orderId}:${adminEmail}`,
+                });
+            }
         } catch (err) {
             logger.error({ err, orderId }, "dispatch exhausted admin notify failed");
         }

@@ -1,4 +1,5 @@
 import type { Job } from "bullmq";
+import { buildBullJobId } from "@/infrastructure/queue/bull-job-id.js";
 import { getDispatchService } from "@/modules/dispatch/index.js";
 import { logger } from "@/utils/logger.js";
 
@@ -34,9 +35,13 @@ export async function processDispatchJob(job: Job): Promise<void> {
 
 export async function enqueueDispatchStart(orderId: string): Promise<void> {
     const { getQueues } = await import("@/infrastructure/queue/bull.connection.js");
-    await getQueues().dispatch.add(
-        "start",
-        { orderId },
-        { jobId: `dispatch:start:${orderId}`, removeOnComplete: true },
-    );
+    try {
+        await getQueues().dispatch.add(
+            "start",
+            { orderId },
+            { jobId: buildBullJobId("dispatch", "start", orderId), removeOnComplete: true },
+        );
+    } catch (err) {
+        logger.error({ err, orderId }, "failed to enqueue dispatch start");
+    }
 }

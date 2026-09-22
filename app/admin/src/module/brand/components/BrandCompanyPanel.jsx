@@ -79,7 +79,10 @@ export function BrandCompanyPanel() {
     <Card>
       <CardHeader>
         <CardTitle>Company</CardTitle>
-        <CardDescription>Name and footer description shown on the storefront.</CardDescription>
+        <CardDescription>
+          Company name, footer text, and contact details for the web storefront and partner app Help
+          &amp; support.
+        </CardDescription>
       </CardHeader>
       <CardContent className="flex max-w-lg flex-col gap-4">
         <div className="flex flex-col gap-2">

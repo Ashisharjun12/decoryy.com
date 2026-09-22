@@ -22,6 +22,13 @@ export type PlaceDetails = {
     pincode: string | null;
 };
 
+export type ReverseGeocodeResult = {
+    placeName: string | null;
+    formattedAddress: string;
+    pincode: string | null;
+    cityName: string | null;
+};
+
 export type MapsAutocompleteOptions = {
     sessionToken?: string;
     location?: LatLng;
@@ -31,4 +38,5 @@ export interface MapsProvider {
     computeRoute(origin: LatLng, destination: LatLng): Promise<RouteResult>;
     autocomplete(input: string, options?: MapsAutocompleteOptions): Promise<PlacePrediction[]>;
     getPlaceDetails(placeId: string, sessionToken?: string): Promise<PlaceDetails>;
+    reverseGeocode(location: LatLng): Promise<ReverseGeocodeResult>;
 }

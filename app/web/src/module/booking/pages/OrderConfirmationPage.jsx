@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { ChevronLeftIcon } from "lucide-react";
 import { getApiError } from "@/api/api";
 import { getOrder } from "@/api/orders.api";
+import { useAuthStore } from "@/store/auth.store";
 import { Button } from "@/components/ui/button";
 import { OrderConfirmationHero } from "@/module/booking/components/OrderConfirmationHero";
 import { OrderConfirmationReceipt } from "@/module/booking/components/OrderConfirmationReceipt";
@@ -29,11 +30,13 @@ function ConfirmationTopBar() {
 
 export function OrderConfirmationPage() {
   const { orderId } = useParams();
+  const user = useAuthStore((s) => s.user);
   const [order, setOrder] = useState(null);
   const [status, setStatus] = useState("loading");
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!user) return;
     if (!orderId) {
       setStatus("error");
       setError("Missing booking reference");
@@ -57,7 +60,7 @@ export function OrderConfirmationPage() {
     return () => {
       cancelled = true;
     };
-  }, [orderId]);
+  }, [orderId, user]);
 
   if (status === "loading") {
     return (

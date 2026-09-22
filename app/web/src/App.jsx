@@ -26,6 +26,7 @@ import { ProductPage } from "@/module/catalog/pages/ProductPage";
 import { ProductReviewsPage } from "@/module/catalog/pages/ProductReviewsPage";
 import { HomePage } from "@/module/home/pages/HomePage";
 import { ServiceCitiesPage } from "@/module/geo/pages/ServiceCitiesPage";
+import { CustomerAuthGate } from "@/module/auth/components/CustomerAuthGate";
 import { LoginRedirect } from "@/module/layout/pages/LoginRedirect";
 import { CmsPagePage } from "@/module/cms/pages/CmsPagePage";
 import { OffersPage } from "@/module/promotions/pages/OffersPage";
@@ -73,8 +74,30 @@ export default function App() {
           <Route path="/support" element={<Navigate to="/account/help" replace />} />
           <Route path="/bookings" element={<Navigate to="/account/bookings" replace />} />
           <Route path="/settings" element={<Navigate to="/account/settings" replace />} />
-          <Route path="/checkout" element={<CheckoutPage />} />
-          <Route path="/checkout/success/:orderId" element={<OrderConfirmationPage />} />
+          <Route
+            path="/checkout"
+            element={
+              <CustomerAuthGate
+                mode="prompt"
+                title="Sign in to checkout"
+                description="Use the login dialog to complete your booking."
+              >
+                <CheckoutPage />
+              </CustomerAuthGate>
+            }
+          />
+          <Route
+            path="/checkout/success/:orderId"
+            element={
+              <CustomerAuthGate
+                mode="prompt"
+                title="Sign in to view your booking"
+                description="Your confirmation is tied to your account. Sign in to see order details."
+              >
+                <OrderConfirmationPage />
+              </CustomerAuthGate>
+            }
+          />
           <Route path="/bag" element={<BagPage />} />
           <Route path="/offers" element={<OffersPage />} />
           <Route path="/pages/:slug" element={<CmsPagePage />} />

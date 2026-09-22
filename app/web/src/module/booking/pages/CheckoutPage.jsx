@@ -100,8 +100,6 @@ function isEmail(value) {
 export function CheckoutPage() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
-  const authStatus = useAuthStore((s) => s.status);
-  const setLoginOpen = useAuthStore((s) => s.setLoginOpen);
   const cart = useCartStore((s) => s.cart);
   const cartStatus = useCartStore((s) => s.status);
   const load = useCartStore((s) => s.load);
@@ -147,12 +145,6 @@ export function CheckoutPage() {
       cancelled = true;
     };
   }, []);
-
-  useEffect(() => {
-    if (authStatus === "ready" && !user) {
-      setLoginOpen(true);
-    }
-  }, [authStatus, user, setLoginOpen]);
 
   useEffect(() => {
     if (!user) return;
@@ -334,21 +326,6 @@ export function CheckoutPage() {
     } finally {
       setPlacing(false);
     }
-  }
-
-  if (!user) {
-    return (
-      <div className="flex flex-col">
-        <CheckoutTopBar />
-        <div className="mx-auto flex w-full max-w-lg flex-col items-start gap-4 px-6 py-12 lg:px-10">
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">Sign in to checkout</h1>
-          <p className="text-sm text-muted-foreground">Use the login dialog to continue your booking.</p>
-          <Button type="button" onClick={() => setLoginOpen(true)}>
-            Sign in
-          </Button>
-        </div>
-      </div>
-    );
   }
 
   if (!cartReady || (cartStatus === "loading" && !hasItems)) {

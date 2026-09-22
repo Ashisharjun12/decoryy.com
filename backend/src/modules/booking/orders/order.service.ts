@@ -33,6 +33,7 @@ import {
     inferCartFulfillment,
     instantScheduledAt,
 } from "@/modules/booking/lib/instant-fulfillment.js";
+import { DispatchOfferRepository } from "@/modules/dispatch/offers/dispatch-offer.repository.js";
 import { buildOrderTracking } from "@/modules/dispatch/tracking/tracking.service.js";
 import type { PublicOrderTracking } from "@/modules/dispatch/tracking/tracking.service.js";
 import { buildOrderTripRoute } from "@/modules/maps/order-route.service.js";
@@ -140,6 +141,17 @@ export type PublicAssignee = {
 
 export type { PublicServiceContact };
 
+export type PublicAdminDispatchOffer = {
+    id: string;
+    vendorName: string;
+    status: string;
+    offeredAt: string;
+    expiresAt: string;
+    respondedAt: string | null;
+    distanceMeters: number | null;
+    round: number;
+};
+
 export type PublicOrder = {
     id: string;
     userId: string;
@@ -150,6 +162,8 @@ export type PublicOrder = {
     pincode: string;
     fulfillmentType: "scheduled" | "instant";
     dispatchStatus: string;
+    dispatchExhaustedAt?: string | null;
+    dispatchOffers?: PublicAdminDispatchOffer[];
     scheduledAt: string;
     subtotalPaise: number;
     discountPaise: number;
@@ -787,9 +801,33 @@ export class OrderService implements IOrderService {
             ? await this.assignments.findAssigneeForAdminByOrderId(orderId)
             : null;
         const publicOrder = await this.enrichAddonImages(this.toPublic(loaded));
+
+        if (order.fulfillmentType !== "instant") {
+            return {
+                ...publicOrder,
+                assignee: assignee ?? null,
+            };
+        }
+
+        const offersRepo = new DispatchOfferRepository();
+        const offerRows = await offersRepo.listForOrderAdmin(orderId);
+
         return {
             ...publicOrder,
             assignee: assignee ?? null,
+            dispatchExhaustedAt: order.dispatchExhaustedAt
+                ? order.dispatchExhaustedAt.toISOString()
+                : null,
+            dispatchOffers: offerRows.map((row) => ({
+                id: row.id,
+                vendorName: row.vendorName,
+                status: row.status,
+                offeredAt: row.offeredAt.toISOString(),
+                expiresAt: row.expiresAt.toISOString(),
+                respondedAt: row.respondedAt ? row.respondedAt.toISOString() : null,
+                distanceMeters: row.distanceMeters,
+                round: row.round,
+            })),
         };
     }
 

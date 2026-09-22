@@ -1,10 +1,12 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/postgres-client.js";
 import {
     dispatchOffers,
     type DispatchOffer,
     type NewDispatchOffer,
 } from "@/modules/dispatch/offers/dispatch-offer.schema.js";
+import { users } from "@/modules/identity/users/user.schema.js";
+import { vendors } from "@/modules/identity/vendors/vendor.schema.js";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -81,5 +83,40 @@ export class DispatchOfferRepository {
             .update(dispatchOffers)
             .set({ status: "revoked", revokedAt: new Date(), respondedAt: new Date() })
             .where(and(eq(dispatchOffers.orderId, orderId), eq(dispatchOffers.status, "offered")));
+    }
+
+    async listForOrderAdmin(orderId: string): Promise<
+        {
+            id: string;
+            vendorName: string;
+            status: DispatchOffer["status"];
+            offeredAt: Date;
+            expiresAt: Date;
+            respondedAt: Date | null;
+            distanceMeters: number | null;
+            round: number;
+        }[]
+    > {
+        const rows = await db
+            .select({
+                id: dispatchOffers.id,
+                vendorName: users.name,
+                status: dispatchOffers.status,
+                offeredAt: dispatchOffers.offeredAt,
+                expiresAt: dispatchOffers.expiresAt,
+                respondedAt: dispatchOffers.respondedAt,
+                distanceMeters: dispatchOffers.distanceMeters,
+                round: dispatchOffers.round,
+            })
+            .from(dispatchOffers)
+            .innerJoin(vendors, eq(dispatchOffers.vendorId, vendors.id))
+            .innerJoin(users, eq(vendors.userId, users.id))
+            .where(eq(dispatchOffers.orderId, orderId))
+            .orderBy(asc(dispatchOffers.offeredAt));
+
+        return rows.map((row) => ({
+            ...row,
+            vendorName: row.vendorName?.trim() || "Vendor",
+        }));
     }
 }

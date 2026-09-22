@@ -2,7 +2,15 @@ import { useEffect, useRef } from "react";
 import { OlaMaps } from "olamaps-web-sdk";
 import { buildOlaMapInitOptions } from "@/module/geo/lib/ola-map-auth";
 
-export function OlaPinMap({ center, zoom, mapKey, sdkConfig, onCenterChange, className = "size-full" }) {
+export function OlaPinMap({
+  center,
+  zoom,
+  mapKey,
+  sdkConfig,
+  onCenterChange,
+  liveCenterChange = false,
+  className = "size-full",
+}) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
 
@@ -30,12 +38,23 @@ export function OlaPinMap({ center, zoom, mapKey, sdkConfig, onCenterChange, cla
           return;
         }
         mapRef.current = map;
-        const handleMove = () => {
+        const emitCenter = () => {
           const c = map.getCenter();
           onCenterChange?.({ lat: c.lat, lng: c.lng });
         };
-        map.on("moveend", handleMove);
-        handleMove();
+        let moveFrame = null;
+        const emitCenterThrottled = () => {
+          if (moveFrame != null) return;
+          moveFrame = requestAnimationFrame(() => {
+            moveFrame = null;
+            emitCenter();
+          });
+        };
+        map.on("moveend", emitCenter);
+        if (liveCenterChange) {
+          map.on("move", emitCenterThrottled);
+        }
+        emitCenter();
       });
 
     return () => {

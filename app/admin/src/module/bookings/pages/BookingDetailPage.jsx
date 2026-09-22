@@ -19,6 +19,7 @@ import { BookingStatusBadge } from "@/module/bookings/components/BookingStatusBa
 import { BookingInstantDispatchCard } from "@/module/bookings/components/BookingInstantDispatchCard"
 import {
   dispatchStatusLabel,
+  dispatchStatusVariant,
   fulfillmentTypeLabel,
 } from "@/module/bookings/lib/instant-dispatch-ui"
 
@@ -108,7 +109,9 @@ export function BookingDetailPage() {
               <Badge variant="outline">{fulfillmentTypeLabel(order.fulfillmentType)}</Badge>
             ) : null}
             {order.fulfillmentType === "instant" && order.dispatchStatus ? (
-              <Badge variant="secondary">{dispatchStatusLabel(order.dispatchStatus)}</Badge>
+              <Badge variant={dispatchStatusVariant(order.dispatchStatus)}>
+                {dispatchStatusLabel(order.dispatchStatus)}
+              </Badge>
             ) : null}
           </div>
         </div>

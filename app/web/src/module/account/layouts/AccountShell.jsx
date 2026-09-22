@@ -1,9 +1,8 @@
 import { useEffect } from "react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Spinner } from "@/components/ui/spinner";
+import { Outlet, useLocation } from "react-router-dom";
 import { getLenis } from "@/lib/lenis-instance";
 import { AccountNav } from "@/module/account/components/AccountNav";
-import { useAuthStore } from "@/store/auth.store";
+import { CustomerAuthGate } from "@/module/auth/components/CustomerAuthGate";
 import { cn } from "@/lib/utils";
 
 function isAccountChatRoute(pathname) {
@@ -14,19 +13,8 @@ function isAccountChatRoute(pathname) {
 }
 
 export function AccountShell() {
-  const navigate = useNavigate();
   const { pathname } = useLocation();
-  const user = useAuthStore((s) => s.user);
-  const status = useAuthStore((s) => s.status);
-  const setLoginOpen = useAuthStore((s) => s.setLoginOpen);
   const isChat = isAccountChatRoute(pathname);
-
-  useEffect(() => {
-    if (status === "ready" && !user) {
-      setLoginOpen(true);
-      navigate("/", { replace: true });
-    }
-  }, [status, user, navigate, setLoginOpen]);
 
   useEffect(() => {
     const lenis = getLenis();
@@ -36,15 +24,8 @@ export function AccountShell() {
     };
   }, []);
 
-  if (status !== "ready" || !user) {
-    return (
-      <div className="flex min-h-64 items-center justify-center">
-        <Spinner className="size-8" />
-      </div>
-    );
-  }
-
   return (
+    <CustomerAuthGate mode="redirect">
     <div className="flex h-[calc(100dvh-var(--site-header-height,4rem))] min-h-0 overflow-hidden">
       <aside className="hidden w-56 shrink-0 flex-col border-r border-border bg-background md:flex lg:w-64">
         <div
@@ -72,5 +53,6 @@ export function AccountShell() {
         </div>
       </div>
     </div>
+    </CustomerAuthGate>
   );
 }

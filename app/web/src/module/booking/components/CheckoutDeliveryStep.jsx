@@ -167,6 +167,8 @@ export function CheckoutDeliveryStep({
   onGeoConfirmed,
 }) {
   const [useManual, setUseManual] = useState(false);
+  const [pinMapOpen, setPinMapOpen] = useState(false);
+  const [selectedSavedAddressId, setSelectedSavedAddressId] = useState(null);
   const cart = useCartStore((s) => s.cart);
   const cities = useLocationStore((s) => s.cities);
   const headerCity = useLocationStore((s) => s.city);
@@ -175,14 +177,33 @@ export function CheckoutDeliveryStep({
     (headerCity?.id === cartCityId ? headerCity.name : null);
   const requireGeo = cart?.fulfillmentType === "instant";
   const deliveryOk = value.pinStatus === "ok" && value.address.trim().length > 5;
+  const setDeliveryGeo = useCartStore((s) => s.setDeliveryGeo);
+
+  function applySavedAddress(address) {
+    if (address.latitude != null && address.longitude != null) {
+      void setDeliveryGeo({
+        latitude: address.latitude,
+        longitude: address.longitude,
+      })
+        .then(() => onGeoConfirmed?.(true))
+        .catch(() => onGeoConfirmed?.(false));
+      return;
+    }
+    onGeoConfirmed?.(false);
+    if (requireGeo) {
+      setPinMapOpen(true);
+    }
+  }
 
   function startManualEntry() {
     setUseManual(true);
+    setSelectedSavedAddressId(null);
     onChange(clearDeliveryForManual(value));
   }
 
   function returnToSavedAddresses() {
     setUseManual(false);
+    setSelectedSavedAddressId(null);
     onChange(clearDeliveryForManual(value));
   }
 
@@ -203,6 +224,9 @@ export function CheckoutDeliveryStep({
         onReturnToSaved={returnToSavedAddresses}
         onExitManual={() => setUseManual(false)}
         onGeoConfirmed={onGeoConfirmed}
+        onRequestPinReview={() => setPinMapOpen(true)}
+        onSelectedAddressIdChange={setSelectedSavedAddressId}
+        onSavedAddressApplied={applySavedAddress}
       />
       {useManual ? (
         <ManualDeliveryFields
@@ -217,7 +241,34 @@ export function CheckoutDeliveryStep({
         deliveryOk={deliveryOk}
         geoConfirmed={geoConfirmed}
         onGeoConfirmed={onGeoConfirmed}
+        onDeliveryCoordsChange={(coords) =>
+          onChange({
+            ...value,
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+          })
+        }
+        onDeliveryLocationPreview={(patch) => {
+          const pinPatch =
+            !selectedSavedAddressId && patch.pincode?.replace(/\D/g, "").length === 6
+              ? { pincode: patch.pincode.replace(/\D/g, "").slice(0, 6) }
+              : {};
+          const addressPatch =
+            !selectedSavedAddressId && patch.address?.trim()
+              ? { address: patch.address.trim() }
+              : {};
+          onChange({
+            ...value,
+            latitude: patch.latitude,
+            longitude: patch.longitude,
+            ...addressPatch,
+            ...pinPatch,
+          });
+        }}
         requireGeo={requireGeo}
+        mapOpen={pinMapOpen}
+        onMapOpenChange={setPinMapOpen}
+        saveAddressId={selectedSavedAddressId}
       />
     </div>
   );

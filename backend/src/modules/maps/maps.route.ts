@@ -4,6 +4,7 @@ import {
     placeDetailsBodyDto,
     placeIdParamsDto,
     placesAutocompleteQueryDto,
+    reverseGeocodeQueryDto,
 } from "@/modules/maps/maps.dto.js";
 import { validate } from "@/shared/middlewares/validate.middleware.js";
 
@@ -23,5 +24,6 @@ export function createMapsPublicRouter() {
         validate(placeDetailsBodyDto),
         controller.placeDetails,
     );
+    router.get("/reverse", validate(reverseGeocodeQueryDto, "query"), controller.reverseGeocode);
     return router;
 }

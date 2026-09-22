@@ -14,7 +14,8 @@
     "db:reset-public": "tsx src/db/run-reset-public-schema.ts",
     "db:seed:templates": "tsx src/db/run-seed-notification-templates.ts",
     "db:seed:templates:sql": "tsx src/db/run-seed-notification-templates.ts --sql",
-    "db:studio": "node ./node_modules/drizzle-kit/bin.cjs studio"
+    "db:studio": "node ./node_modules/drizzle-kit/bin.cjs studio",
+    "test": "tsx --test src/infrastructure/queue/bull-job-id.test.ts"
   },
   "keywords": [],
   "author": "",

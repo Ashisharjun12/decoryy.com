@@ -10,7 +10,8 @@
 
 - [ ] Owner accepts job → assign **one** worker (API rejects 2+).
 - [ ] Pending invite worker → assign shows error.
-- [ ] Worker receives push/in-app `VENDOR_JOB_ASSIGNED` → opens job detail.
+- [ ] Worker receives push, in-app, and SMS `VENDOR_JOB_ASSIGNED` (SMS uses login phone, else invite phone) → opens job detail.
+- [ ] Worker app open on jobs: list refreshes via `vendor:job_assigned` socket (not only push).
 - [ ] Reassign → previous worker loses chat send; new worker receives assign notify.
 
 ## Chat

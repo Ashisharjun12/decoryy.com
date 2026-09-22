@@ -22,3 +22,9 @@ export function getPlaceDetails(placeId, sessionToken) {
   const body = sessionToken ? { sessionToken } : {};
   return api.post(`/maps/places/${encodeURIComponent(placeId)}`, body).then(unwrap);
 }
+
+export function reverseGeocode(latitude, longitude) {
+  return api
+    .get("/maps/reverse", { params: { lat: latitude, lng: longitude } })
+    .then(unwrap);
+}

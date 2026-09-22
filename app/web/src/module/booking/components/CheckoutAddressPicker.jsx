@@ -11,7 +11,6 @@ import {
   emptyAddressForm,
 } from "@/module/account/components/AddressFormDialog";
 import { useAddressMutations, useAddressesQuery } from "@/module/account/hooks/use-addresses-query";
-import { useCartStore } from "@/store/cart.store";
 
 function checkoutAddressInitial(delivery) {
   const pin = (delivery?.pincode ?? "").replace(/\D/g, "").slice(0, 6);
@@ -55,10 +54,12 @@ export function CheckoutAddressPicker({
   onReturnToSaved,
   onExitManual,
   onGeoConfirmed,
+  onRequestPinReview,
+  onSelectedAddressIdChange,
+  onSavedAddressApplied,
 }) {
   const { data: addresses = [], isLoading } = useAddressesQuery();
   const { create } = useAddressMutations();
-  const setDeliveryGeo = useCartStore((s) => s.setDeliveryGeo);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [addressFormInitial, setAddressFormInitial] = useState(emptyAddressForm);
   const [selectedId, setSelectedId] = useState(null);
@@ -70,23 +71,15 @@ export function CheckoutAddressPicker({
 
   const hasSaved = addresses.length > 0;
 
-  async function selectAddress(address) {
+  function selectAddress(address, { openMap = false } = {}) {
     setSelectedId(address.id);
+    onSelectedAddressIdChange?.(address.id);
     onExitManual?.();
     onChange({ ...value, ...applyAddressToDelivery(address, cartCityId) });
-    if (address.latitude != null && address.longitude != null) {
-      try {
-        await setDeliveryGeo({
-          latitude: address.latitude,
-          longitude: address.longitude,
-        });
-        onGeoConfirmed?.(true);
-      } catch (err) {
-        onGeoConfirmed?.(false);
-        toast.add({ title: getApiError(err), type: "error" });
-      }
-    } else {
+    onSavedAddressApplied?.(address);
+    if (openMap) {
       onGeoConfirmed?.(false);
+      onRequestPinReview?.();
     }
   }
 
@@ -98,7 +91,7 @@ export function CheckoutAddressPicker({
   useEffect(() => {
     if (!hasSaved || useManual || selectedId) return;
     const pick = addresses.find((row) => row.isDefault) ?? addresses[0];
-    if (pick) selectAddress(pick);
+    if (pick) selectAddress(pick, { openMap: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasSaved, useManual, addresses, selectedId]);
 
@@ -108,7 +101,7 @@ export function CheckoutAddressPicker({
       setDialogOpen(false);
       toast.add({ title: "Address saved", type: "success" });
       onReturnToSaved?.();
-      selectAddress(saved);
+      selectAddress(saved, { openMap: true });
     } catch (err) {
       toast.add({ title: getApiError(err), type: "error" });
     }
@@ -126,7 +119,7 @@ export function CheckoutAddressPicker({
             <div className="min-w-0">
               <p className="text-sm font-medium text-foreground">Saved addresses</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Tap an address to use it for this order.
+                Tap a saved address to use it for this order.
               </p>
             </div>
             <Button
