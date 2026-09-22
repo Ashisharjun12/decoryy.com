@@ -1,6 +1,8 @@
-CREATE TYPE "public"."user_role" AS ENUM('user', 'vendor', 'admin');--> statement-breakpoint
+CREATE TYPE "public"."user_role" AS ENUM('user', 'vendor', 'vendor_staff', 'admin');--> statement-breakpoint
 CREATE TYPE "public"."user_status" AS ENUM('active', 'blocked');--> statement-breakpoint
 CREATE TYPE "public"."vendor_onboarding_status" AS ENUM('PENDING', 'ACTIVE', 'REJECTED', 'BLOCKED');--> statement-breakpoint
+CREATE TYPE "public"."vendor_member_kind" AS ENUM('OWNER', 'WORKER');--> statement-breakpoint
+CREATE TYPE "public"."vendor_member_status" AS ENUM('invited', 'active', 'disabled');--> statement-breakpoint
 CREATE TYPE "public"."media_kind" AS ENUM('image', 'video', 'file');--> statement-breakpoint
 CREATE TYPE "public"."optimize_status" AS ENUM('none', 'queued', 'completed', 'failed');--> statement-breakpoint
 CREATE TYPE "public"."upload_status" AS ENUM('pending', 'completed', 'failed');--> statement-breakpoint
@@ -9,6 +11,7 @@ CREATE TYPE "public"."collection_status" AS ENUM('not_required', 'pending', 'col
 CREATE TYPE "public"."order_source" AS ENUM('web', 'admin');--> statement-breakpoint
 CREATE TYPE "public"."order_status" AS ENUM('DRAFT', 'PENDING_PAYMENT', 'CONFIRMED', 'ASSIGNED', 'EN_ROUTE', 'ON_SITE', 'COMPLETED', 'CANCELLED', 'DISPUTED');--> statement-breakpoint
 CREATE TYPE "public"."payment_method" AS ENUM('COD', 'ONLINE', 'PREPAID');--> statement-breakpoint
+CREATE TYPE "public"."refund_request_status" AS ENUM('requested', 'rejected', 'processing', 'completed');--> statement-breakpoint
 CREATE TYPE "public"."notification_channel" AS ENUM('sms', 'email', 'push', 'in_app', 'whatsapp');--> statement-breakpoint
 CREATE TYPE "public"."notification_priority" AS ENUM('critical', 'standard', 'promotional');--> statement-breakpoint
 CREATE TYPE "public"."notification_status" AS ENUM('PENDING', 'SCHEDULED', 'SENT', 'FAILED', 'SKIPPED');--> statement-breakpoint
@@ -18,10 +21,14 @@ CREATE TYPE "public"."payment_intent_status" AS ENUM('created', 'paid', 'failed'
 CREATE TYPE "public"."payment_provider" AS ENUM('razorpay', 'cashfree');--> statement-breakpoint
 CREATE TYPE "public"."ledger_account" AS ENUM('platform_cash', 'order_escrow', 'vendor_pending', 'vendor_payable', 'vendor_cod_due', 'platform_revenue');--> statement-breakpoint
 CREATE TYPE "public"."collection_session_status" AS ENUM('created', 'paid', 'expired', 'cancelled');--> statement-breakpoint
-CREATE TYPE "public"."payout_request_status" AS ENUM('pending', 'processing', 'paid', 'failed', 'cancelled');--> statement-breakpoint
 CREATE TYPE "public"."vendor_payout_method_type" AS ENUM('bank', 'upi');--> statement-breakpoint
+CREATE TYPE "public"."payout_request_status" AS ENUM('pending', 'processing', 'paid', 'failed', 'cancelled');--> statement-breakpoint
 CREATE TYPE "public"."assignment_source" AS ENUM('admin', 'system');--> statement-breakpoint
 CREATE TYPE "public"."assignment_vendor_response" AS ENUM('pending', 'accepted', 'declined');--> statement-breakpoint
+CREATE TYPE "public"."dispatch_offer_status" AS ENUM('offered', 'accepted', 'declined', 'expired', 'revoked');--> statement-breakpoint
+CREATE TYPE "public"."dispatch_status" AS ENUM('idle', 'searching', 'offering', 'accepted', 'exhausted', 'cancelled');--> statement-breakpoint
+CREATE TYPE "public"."fulfillment_type" AS ENUM('scheduled', 'instant');--> statement-breakpoint
+CREATE TYPE "public"."geo_point_source" AS ENUM('geocode_google', 'geocode_ola', 'place_pin', 'geocode_manual', 'pincode_centroid', 'device');--> statement-breakpoint
 CREATE TYPE "public"."conversation_context_type" AS ENUM('order', 'vendor', 'product', 'none');--> statement-breakpoint
 CREATE TYPE "public"."conversation_status" AS ENUM('open', 'pending', 'closed');--> statement-breakpoint
 CREATE TYPE "public"."conversation_type" AS ENUM('booking', 'vendor_support', 'customer_support', 'complaint');--> statement-breakpoint
@@ -36,6 +43,7 @@ CREATE TYPE "public"."review_status" AS ENUM('draft', 'published', 'hidden');-->
 CREATE TYPE "public"."cms_announcement_tone" AS ENUM('info', 'promo', 'warning');--> statement-breakpoint
 CREATE TYPE "public"."cms_placement" AS ENUM('announcement_bar', 'home_hero', 'home_mid', 'home_end');--> statement-breakpoint
 CREATE TYPE "public"."cms_status" AS ENUM('draft', 'published', 'hidden');--> statement-breakpoint
+CREATE TYPE "public"."cms_home_block_type" AS ENUM('category_row', 'product_rail');--> statement-breakpoint
 CREATE TABLE "users" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"phone" text,
@@ -47,12 +55,41 @@ CREATE TABLE "users" (
 	"role" "user_role" DEFAULT 'user' NOT NULL,
 	"status" "user_status" DEFAULT 'active' NOT NULL,
 	"phone_verified_at" timestamp with time zone,
+	"must_change_password" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "users_phone_unique" UNIQUE("phone"),
 	CONSTRAINT "users_email_unique" UNIQUE("email"),
 	CONSTRAINT "users_google_id_unique" UNIQUE("google_id"),
 	CONSTRAINT "users_has_identity" CHECK ("users"."phone" is not null or "users"."email" is not null or "users"."google_id" is not null)
+);
+--> statement-breakpoint
+CREATE TABLE "admin_email_change_requests" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" uuid NOT NULL,
+	"new_email" text NOT NULL,
+	"token_hash" text NOT NULL,
+	"expires_at" timestamp with time zone NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"used_at" timestamp with time zone,
+	"new_password_hash" text
+);
+--> statement-breakpoint
+CREATE TABLE "customer_addresses" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" uuid NOT NULL,
+	"label" text NOT NULL,
+	"address_line" text NOT NULL,
+	"landmark" text,
+	"pincode" text NOT NULL,
+	"city_id" uuid,
+	"city_name" text NOT NULL,
+	"is_default" boolean DEFAULT false NOT NULL,
+	"latitude" double precision,
+	"longitude" double precision,
+	"geo_source" "geo_point_source",
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "vendors" (
@@ -66,9 +103,35 @@ CREATE TABLE "vendors" (
 	"onboarding_status" "vendor_onboarding_status" DEFAULT 'PENDING' NOT NULL,
 	"is_on_duty" boolean DEFAULT false NOT NULL,
 	"duty_changed_at" timestamp with time zone,
+	"base_latitude" double precision,
+	"base_longitude" double precision,
+	"base_geo_source" "geo_point_source",
+	"service_radius_km" numeric(6, 2) DEFAULT '15' NOT NULL,
+	"last_offered_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "vendors_user_id_unique" UNIQUE("user_id")
+);
+--> statement-breakpoint
+CREATE TABLE "vendor_members" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"vendor_id" uuid NOT NULL,
+	"user_id" uuid,
+	"invited_phone" text NOT NULL,
+	"display_name" text NOT NULL,
+	"kind" "vendor_member_kind" DEFAULT 'WORKER' NOT NULL,
+	"status" "vendor_member_status" DEFAULT 'invited' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "order_field_assignments" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"order_id" uuid NOT NULL,
+	"vendor_id" uuid NOT NULL,
+	"member_id" uuid NOT NULL,
+	"assigned_by" uuid NOT NULL,
+	"assigned_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "sessions" (
@@ -171,6 +234,10 @@ CREATE TABLE "products" (
 	"is_active" boolean DEFAULT true NOT NULL,
 	"scheduled_enabled" boolean DEFAULT true NOT NULL,
 	"instant_enabled" boolean DEFAULT false NOT NULL,
+	"instant_show_badge" boolean DEFAULT true NOT NULL,
+	"instant_badge_label" text,
+	"instant_pdp_note" text,
+	"instant_eta_minutes" integer,
 	"payment_cod" boolean DEFAULT true NOT NULL,
 	"payment_online" boolean DEFAULT false NOT NULL,
 	"price_paise" integer,
@@ -262,6 +329,7 @@ CREATE TABLE "catalog_sections" (
 	"name" text NOT NULL,
 	"slug" text NOT NULL,
 	"sort_index" integer DEFAULT 0 NOT NULL,
+	"badge_color" text DEFAULT 'amber' NOT NULL,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -293,6 +361,9 @@ CREATE TABLE "carts" (
 	"guest_key" text,
 	"city_id" uuid,
 	"pincode" text,
+	"fulfillment_type" "fulfillment_type",
+	"delivery_latitude" double precision,
+	"delivery_longitude" double precision,
 	"scheduled_at" timestamp with time zone,
 	"applied_coupon_id" uuid,
 	"applied_coupon_code" text,
@@ -336,8 +407,16 @@ CREATE TABLE "orders" (
 	"source" "order_source" DEFAULT 'web' NOT NULL,
 	"created_by_admin_id" uuid,
 	"admin_notes" text,
+	"is_custom_package" boolean DEFAULT false NOT NULL,
 	"city_id" uuid NOT NULL,
 	"pincode" text NOT NULL,
+	"fulfillment_type" "fulfillment_type" DEFAULT 'scheduled' NOT NULL,
+	"dispatch_status" "dispatch_status" DEFAULT 'idle' NOT NULL,
+	"dispatch_exhausted_at" timestamp with time zone,
+	"delivery_latitude" double precision,
+	"delivery_longitude" double precision,
+	"delivery_geo_source" "geo_point_source",
+	"delivery_geo_at" timestamp with time zone,
 	"scheduled_at" timestamp with time zone NOT NULL,
 	"subtotal_paise" integer NOT NULL,
 	"discount_paise" integer DEFAULT 0 NOT NULL,
@@ -360,10 +439,38 @@ CREATE TABLE "orders" (
 	CONSTRAINT "orders_user_idempotency" UNIQUE("user_id","idempotency_key")
 );
 --> statement-breakpoint
+CREATE TABLE "refund_requests" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"order_id" uuid NOT NULL,
+	"user_id" uuid NOT NULL,
+	"amount_paise" integer NOT NULL,
+	"reason" text NOT NULL,
+	"status" "refund_request_status" DEFAULT 'requested' NOT NULL,
+	"payment_method" "payment_method" NOT NULL,
+	"admin_note" text,
+	"reviewed_by" uuid,
+	"gateway_refund_id" text,
+	"requested_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"completed_at" timestamp with time zone,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "platform_settings" (
 	"key" text PRIMARY KEY NOT NULL,
 	"value" jsonb NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "audit_logs" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"actor_id" uuid NOT NULL,
+	"action" text NOT NULL,
+	"entity_type" text NOT NULL,
+	"entity_id" text NOT NULL,
+	"summary" text NOT NULL,
+	"before" jsonb,
+	"after" jsonb,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "notification_deliveries" (
@@ -553,6 +660,20 @@ CREATE TABLE "assignments" (
 	CONSTRAINT "assignments_order_id_unique" UNIQUE("order_id")
 );
 --> statement-breakpoint
+CREATE TABLE "dispatch_offers" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"order_id" uuid NOT NULL,
+	"vendor_id" uuid NOT NULL,
+	"round" integer DEFAULT 1 NOT NULL,
+	"distance_meters" integer,
+	"status" "dispatch_offer_status" DEFAULT 'offered' NOT NULL,
+	"offered_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"expires_at" timestamp with time zone NOT NULL,
+	"responded_at" timestamp with time zone,
+	"revoked_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "conversation_participants" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"conversation_id" uuid NOT NULL,
@@ -686,6 +807,7 @@ CREATE TABLE "cms_banners" (
 	"subtitle" text,
 	"tag" text,
 	"image_upload_id" uuid,
+	"mobile_image_upload_id" uuid,
 	"alt" text,
 	"cta_label" text,
 	"href" text,
@@ -715,9 +837,103 @@ CREATE TABLE "cms_testimonials" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "cms_home_block_categories" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"block_id" uuid NOT NULL,
+	"category_id" uuid NOT NULL,
+	"sort_index" integer DEFAULT 0 NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "cms_home_block_categories_block_category" UNIQUE("block_id","category_id")
+);
+--> statement-breakpoint
+CREATE TABLE "cms_home_layout_blocks" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"type" "cms_home_block_type" NOT NULL,
+	"city_id" uuid,
+	"status" "cms_status" DEFAULT 'draft' NOT NULL,
+	"sort_index" integer DEFAULT 0 NOT NULL,
+	"platforms" text[] DEFAULT ARRAY['web','mobile']::text[] NOT NULL,
+	"starts_at" timestamp with time zone,
+	"ends_at" timestamp with time zone,
+	"title" text,
+	"subtitle" text,
+	"show_title" boolean DEFAULT true NOT NULL,
+	"show_subtitle" boolean DEFAULT true NOT NULL,
+	"section_id" uuid,
+	"config" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "cms_home_faq_items" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"question" text NOT NULL,
+	"answer" text NOT NULL,
+	"status" "cms_status" DEFAULT 'draft' NOT NULL,
+	"sort_index" integer DEFAULT 0 NOT NULL,
+	"platforms" text[] DEFAULT ARRAY['web','mobile']::text[] NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "cms_social_links" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"label" text NOT NULL,
+	"href" text NOT NULL,
+	"icon_preset" text,
+	"icon_upload_id" uuid,
+	"status" "cms_status" DEFAULT 'draft' NOT NULL,
+	"sort_index" integer DEFAULT 0 NOT NULL,
+	"platforms" text[] DEFAULT ARRAY['web','mobile']::text[] NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "cms_footer_column_links" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"column_id" uuid NOT NULL,
+	"label" text NOT NULL,
+	"link_type" text DEFAULT 'custom' NOT NULL,
+	"page_id" uuid,
+	"href" text DEFAULT '' NOT NULL,
+	"sort_index" integer DEFAULT 0 NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "cms_footer_columns" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"title" text NOT NULL,
+	"status" "cms_status" DEFAULT 'draft' NOT NULL,
+	"sort_index" integer DEFAULT 0 NOT NULL,
+	"platforms" text[] DEFAULT ARRAY['web','mobile']::text[] NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "cms_pages" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"slug" text NOT NULL,
+	"title" text NOT NULL,
+	"body" text DEFAULT '' NOT NULL,
+	"status" "cms_status" DEFAULT 'draft' NOT NULL,
+	"sort_index" integer DEFAULT 0 NOT NULL,
+	"platforms" text[] DEFAULT ARRAY['web','mobile']::text[] NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+ALTER TABLE "admin_email_change_requests" ADD CONSTRAINT "admin_email_change_requests_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "customer_addresses" ADD CONSTRAINT "customer_addresses_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "customer_addresses" ADD CONSTRAINT "customer_addresses_city_id_cities_id_fk" FOREIGN KEY ("city_id") REFERENCES "public"."cities"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "vendors" ADD CONSTRAINT "vendors_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "vendors" ADD CONSTRAINT "vendors_city_id_cities_id_fk" FOREIGN KEY ("city_id") REFERENCES "public"."cities"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "vendors" ADD CONSTRAINT "vendors_shop_image_upload_id_uploads_id_fk" FOREIGN KEY ("shop_image_upload_id") REFERENCES "public"."uploads"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "vendor_members" ADD CONSTRAINT "vendor_members_vendor_id_vendors_id_fk" FOREIGN KEY ("vendor_id") REFERENCES "public"."vendors"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "vendor_members" ADD CONSTRAINT "vendor_members_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "order_field_assignments" ADD CONSTRAINT "order_field_assignments_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "order_field_assignments" ADD CONSTRAINT "order_field_assignments_vendor_id_vendors_id_fk" FOREIGN KEY ("vendor_id") REFERENCES "public"."vendors"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "order_field_assignments" ADD CONSTRAINT "order_field_assignments_member_id_vendor_members_id_fk" FOREIGN KEY ("member_id") REFERENCES "public"."vendor_members"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "order_field_assignments" ADD CONSTRAINT "order_field_assignments_assigned_by_users_id_fk" FOREIGN KEY ("assigned_by") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sessions" ADD CONSTRAINT "sessions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "cities" ADD CONSTRAINT "cities_image_upload_id_uploads_id_fk" FOREIGN KEY ("image_upload_id") REFERENCES "public"."uploads"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "pincodes" ADD CONSTRAINT "pincodes_city_id_cities_id_fk" FOREIGN KEY ("city_id") REFERENCES "public"."cities"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
@@ -757,6 +973,10 @@ ALTER TABLE "orders" ADD CONSTRAINT "orders_user_id_users_id_fk" FOREIGN KEY ("u
 ALTER TABLE "orders" ADD CONSTRAINT "orders_created_by_admin_id_users_id_fk" FOREIGN KEY ("created_by_admin_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_city_id_cities_id_fk" FOREIGN KEY ("city_id") REFERENCES "public"."cities"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_coupon_id_coupons_id_fk" FOREIGN KEY ("coupon_id") REFERENCES "public"."coupons"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "refund_requests" ADD CONSTRAINT "refund_requests_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "refund_requests" ADD CONSTRAINT "refund_requests_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "refund_requests" ADD CONSTRAINT "refund_requests_reviewed_by_users_id_fk" FOREIGN KEY ("reviewed_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_actor_id_users_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notification_deliveries" ADD CONSTRAINT "notification_deliveries_notification_id_notifications_id_fk" FOREIGN KEY ("notification_id") REFERENCES "public"."notifications"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notification_inbox" ADD CONSTRAINT "notification_inbox_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notification_template_versions" ADD CONSTRAINT "notification_template_versions_template_id_notification_templates_id_fk" FOREIGN KEY ("template_id") REFERENCES "public"."notification_templates"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -777,6 +997,8 @@ ALTER TABLE "payout_requests" ADD CONSTRAINT "payout_requests_processed_by_admin
 ALTER TABLE "assignments" ADD CONSTRAINT "assignments_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "assignments" ADD CONSTRAINT "assignments_vendor_id_vendors_id_fk" FOREIGN KEY ("vendor_id") REFERENCES "public"."vendors"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "assignments" ADD CONSTRAINT "assignments_assigned_by_users_id_fk" FOREIGN KEY ("assigned_by") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "dispatch_offers" ADD CONSTRAINT "dispatch_offers_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "dispatch_offers" ADD CONSTRAINT "dispatch_offers_vendor_id_vendors_id_fk" FOREIGN KEY ("vendor_id") REFERENCES "public"."vendors"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "conversation_participants" ADD CONSTRAINT "conversation_participants_conversation_id_conversations_id_fk" FOREIGN KEY ("conversation_id") REFERENCES "public"."conversations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "conversation_participants" ADD CONSTRAINT "conversation_participants_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "conversations" ADD CONSTRAINT "conversations_closed_by_users_id_fk" FOREIGN KEY ("closed_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -798,12 +1020,30 @@ ALTER TABLE "video_reviews" ADD CONSTRAINT "video_reviews_upload_id_uploads_id_f
 ALTER TABLE "video_reviews" ADD CONSTRAINT "video_reviews_created_by_admin_id_users_id_fk" FOREIGN KEY ("created_by_admin_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "cms_banners" ADD CONSTRAINT "cms_banners_city_id_cities_id_fk" FOREIGN KEY ("city_id") REFERENCES "public"."cities"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "cms_banners" ADD CONSTRAINT "cms_banners_image_upload_id_uploads_id_fk" FOREIGN KEY ("image_upload_id") REFERENCES "public"."uploads"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "cms_banners" ADD CONSTRAINT "cms_banners_mobile_image_upload_id_uploads_id_fk" FOREIGN KEY ("mobile_image_upload_id") REFERENCES "public"."uploads"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "cms_testimonials" ADD CONSTRAINT "cms_testimonials_avatar_upload_id_uploads_id_fk" FOREIGN KEY ("avatar_upload_id") REFERENCES "public"."uploads"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "cms_testimonials" ADD CONSTRAINT "cms_testimonials_city_id_cities_id_fk" FOREIGN KEY ("city_id") REFERENCES "public"."cities"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "cms_home_block_categories" ADD CONSTRAINT "cms_home_block_categories_block_id_cms_home_layout_blocks_id_fk" FOREIGN KEY ("block_id") REFERENCES "public"."cms_home_layout_blocks"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "cms_home_block_categories" ADD CONSTRAINT "cms_home_block_categories_category_id_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "public"."categories"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "cms_home_layout_blocks" ADD CONSTRAINT "cms_home_layout_blocks_city_id_cities_id_fk" FOREIGN KEY ("city_id") REFERENCES "public"."cities"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "cms_home_layout_blocks" ADD CONSTRAINT "cms_home_layout_blocks_section_id_catalog_sections_id_fk" FOREIGN KEY ("section_id") REFERENCES "public"."catalog_sections"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "cms_social_links" ADD CONSTRAINT "cms_social_links_icon_upload_id_uploads_id_fk" FOREIGN KEY ("icon_upload_id") REFERENCES "public"."uploads"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "cms_footer_column_links" ADD CONSTRAINT "cms_footer_column_links_column_id_cms_footer_columns_id_fk" FOREIGN KEY ("column_id") REFERENCES "public"."cms_footer_columns"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "cms_footer_column_links" ADD CONSTRAINT "cms_footer_column_links_page_id_cms_pages_id_fk" FOREIGN KEY ("page_id") REFERENCES "public"."cms_pages"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "admin_email_change_requests_user_id_idx" ON "admin_email_change_requests" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "admin_email_change_requests_token_hash_idx" ON "admin_email_change_requests" USING btree ("token_hash");--> statement-breakpoint
+CREATE UNIQUE INDEX "vendor_members_vendor_user_uidx" ON "vendor_members" USING btree ("vendor_id","user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "vendor_members_vendor_phone_uidx" ON "vendor_members" USING btree ("vendor_id","invited_phone");--> statement-breakpoint
+CREATE UNIQUE INDEX "order_field_assignments_order_member_uidx" ON "order_field_assignments" USING btree ("order_id","member_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "media_folders_root_slug" ON "media_folders" USING btree ("slug") WHERE "media_folders"."parent_id" is null;--> statement-breakpoint
 CREATE UNIQUE INDEX "media_folders_parent_slug" ON "media_folders" USING btree ("parent_id","slug") WHERE "media_folders"."parent_id" is not null;--> statement-breakpoint
 CREATE UNIQUE INDEX "addon_colors_name_lower_idx" ON "addon_colors" USING btree (lower("name"));--> statement-breakpoint
 CREATE UNIQUE INDEX "catalog_section_products_global_uniq" ON "catalog_section_products" USING btree ("section_id","product_id") WHERE "catalog_section_products"."city_id" is null;--> statement-breakpoint
 CREATE UNIQUE INDEX "catalog_section_products_city_uniq" ON "catalog_section_products" USING btree ("section_id","product_id","city_id") WHERE "catalog_section_products"."city_id" is not null;--> statement-breakpoint
 CREATE UNIQUE INDEX "notification_templates_key_channel_locale" ON "notification_templates" USING btree ("key","channel","locale");--> statement-breakpoint
-CREATE UNIQUE INDEX "user_push_devices_expo_push_token_unique" ON "user_push_devices" USING btree ("expo_push_token");
+CREATE UNIQUE INDEX "user_push_devices_expo_push_token_unique" ON "user_push_devices" USING btree ("expo_push_token");--> statement-breakpoint
+CREATE INDEX "cms_home_faq_items_status_sort_idx" ON "cms_home_faq_items" USING btree ("status","sort_index");--> statement-breakpoint
+CREATE INDEX "cms_social_links_status_sort_idx" ON "cms_social_links" USING btree ("status","sort_index");--> statement-breakpoint
+CREATE INDEX "cms_footer_columns_status_sort_idx" ON "cms_footer_columns" USING btree ("status","sort_index");--> statement-breakpoint
+CREATE UNIQUE INDEX "cms_pages_slug_unique" ON "cms_pages" USING btree ("slug");--> statement-breakpoint
+CREATE INDEX "cms_pages_status_sort_idx" ON "cms_pages" USING btree ("status","sort_index");
