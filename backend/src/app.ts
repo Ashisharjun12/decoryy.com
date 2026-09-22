@@ -47,8 +47,8 @@ class App {
                 return;
             }
             const allowed = [
-                _config.WEB_APP_ORIGIN,
-                _config.ADMIN_APP_ORIGIN,
+                ..._config.WEB_APP_ORIGINS,
+                ..._config.ADMIN_APP_ORIGINS,
                 process.env.EXPO_PUBLIC_ORIGIN,
             ].filter(Boolean) as string[];
             if (
@@ -81,7 +81,7 @@ class App {
 
   private setupRoutes() {
     this.app.get("/health", (_req, res) => {
-      res.status(200).json({ message: "Decoryy is Live" });
+      res.status(200).json({ message: "Decorbuddys is Live" });
     });
 
     this.app.use("/api/v1/auth", authRouter);

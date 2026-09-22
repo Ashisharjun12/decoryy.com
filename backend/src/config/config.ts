@@ -71,6 +71,19 @@ const {
 
 const MSG91 = loadMsg91EnvConfig(process.env)
 
+/** Comma-separated origins; first entry is used for payment/email/SMS links. */
+function parseAppOrigins(value: string | undefined, fallback: string): string[] {
+    const raw = value?.trim() || fallback
+    const list = raw
+        .split(",")
+        .map((s) => s.trim().replace(/\/$/, ""))
+        .filter(Boolean)
+    return list.length > 0 ? [...new Set(list)] : [fallback]
+}
+
+const webAppOrigins = parseAppOrigins(WEB_APP_ORIGIN, "http://localhost:5174")
+const adminAppOrigins = parseAppOrigins(ADMIN_APP_ORIGIN, "http://localhost:5173")
+
 export const _config = {
     PORT,
     LLM_MODEL,
@@ -126,8 +139,10 @@ export const _config = {
     SMTP_USER,
     SMTP_PASSWORD,
     WHATSAPP_PROVIDER,
-    WEB_APP_ORIGIN: WEB_APP_ORIGIN || "http://localhost:5174",
-    ADMIN_APP_ORIGIN: ADMIN_APP_ORIGIN || "http://localhost:5173",
+    WEB_APP_ORIGIN: webAppOrigins[0],
+    WEB_APP_ORIGINS: webAppOrigins,
+    ADMIN_APP_ORIGIN: adminAppOrigins[0],
+    ADMIN_APP_ORIGINS: adminAppOrigins,
     API_PUBLIC_URL,
     CASHFREE_ENV: CASHFREE_ENV || "sandbox",
     AI_CATALOG_RATE_LIMIT_PER_HOUR,
