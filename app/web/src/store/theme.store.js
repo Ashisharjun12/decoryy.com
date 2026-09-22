@@ -3,8 +3,8 @@ import { create } from "zustand";
 export const THEME_STORAGE_KEY = "decory-web-theme";
 
 function readStoredTheme() {
-  if (typeof window === "undefined") return "dark";
-  return window.localStorage.getItem(THEME_STORAGE_KEY) || "dark";
+  if (typeof window === "undefined") return "light";
+  return window.localStorage.getItem(THEME_STORAGE_KEY) || "light";
 }
 
 export function applyThemeClass(theme) {

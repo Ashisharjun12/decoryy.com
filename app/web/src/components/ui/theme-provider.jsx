@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { applyThemeClass, useThemeStore } from "@/store/theme.store"
 
 function getSystemTheme() {
-  if (typeof window === "undefined") return "dark"
+  if (typeof window === "undefined") return "light"
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
 }
 
