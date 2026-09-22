@@ -8,7 +8,7 @@ function BrandLockup() {
   return (
     <div className="flex items-center gap-3">
       <DecoryLogo className="size-12" />
-      <p className="font-heading text-2xl font-medium tracking-tight">Decory</p>
+      <p className="font-heading text-2xl font-medium tracking-tight">Decorbuddys</p>
     </div>
   )
 }
