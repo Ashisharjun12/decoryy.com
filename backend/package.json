@@ -7,7 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "worker": "tsx src/worker/index.ts",
     "worker:dev": "tsx watch src/worker/index.ts",
-    "start": "node dist/src/server.js --trace-warnings",
+    "start": "tsx src/server.ts",
     "build": "tsc",
     "db:generate": "node ./node_modules/drizzle-kit/bin.cjs generate",
     "db:migrate": "tsx src/db/run-migrate.ts",
