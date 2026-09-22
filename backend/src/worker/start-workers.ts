@@ -9,6 +9,7 @@ import {
     processInAppDeliverJob,
     processPushDeliverJob,
     processSmsDeliverJob,
+    processWhatsAppDeliverJob,
 } from "@/modules/notifications/jobs/deliver.job.js";
 import { processRelayJob } from "@/modules/notifications/jobs/relay.job.js";
 import { processOptimizeJob } from "@/modules/upload/media/optimize.job.js";
@@ -62,6 +63,7 @@ export async function startNotificationWorkers(): Promise<void> {
         new Worker(QUEUE_NAMES.notifyEmail, processEmailDeliverJob, { connection, concurrency: 3 }),
         new Worker(QUEUE_NAMES.notifyPush, processPushDeliverJob, { connection, concurrency: 3 }),
         new Worker(QUEUE_NAMES.notifyInApp, processInAppDeliverJob, { connection, concurrency: 5 }),
+        new Worker(QUEUE_NAMES.notifyWhatsapp, processWhatsAppDeliverJob, { connection, concurrency: 5 }),
         new Worker(QUEUE_NAMES.imageOptimize, processOptimizeJob, { connection, concurrency: 2 }),
         new Worker(QUEUE_NAMES.paymentsWebhookRetry, processPaymentWebhookRetryJob, {
             connection,
@@ -118,6 +120,7 @@ export async function startNotificationWorkers(): Promise<void> {
                 QUEUE_NAMES.notifyEmail,
                 QUEUE_NAMES.notifyPush,
                 QUEUE_NAMES.notifyInApp,
+                QUEUE_NAMES.notifyWhatsapp,
                 QUEUE_NAMES.imageOptimize,
                 QUEUE_NAMES.paymentsWebhookRetry,
                 QUEUE_NAMES.ledgerPostOnComplete,

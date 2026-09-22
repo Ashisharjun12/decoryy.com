@@ -11,7 +11,8 @@ const CHANNELS = [
   {
     key: "sms",
     title: "SMS",
-    description: "OTP and short transactional texts. Login fails closed if this is off.",
+    description:
+      "DLT transactional SMS via MSG91 v5 when on. Requires approved templates (Message service tab).",
   },
   {
     key: "email",
@@ -31,7 +32,8 @@ const CHANNELS = [
   {
     key: "whatsapp",
     title: "WhatsApp",
-    description: "Reserved for later. Delivery is a noop provider until Meta is added.",
+    description:
+      "Transactional WhatsApp via MSG91 One API Flow (WHATSAPP_PROVIDER=msg91). Phone login needs SMS or WhatsApp on.",
   },
 ]
 

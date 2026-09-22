@@ -92,6 +92,8 @@ Fill at minimum:
 - Redis URLs above
 - `API_PUBLIC_URL`, `WEB_APP_ORIGIN`, `ADMIN_APP_ORIGIN` (`.com` hosts)
 - `JWT_SECRET`, `OTP_PEPPER`, payment/SMS/R2 keys
+- **SMS (India):** `SMS_PROVIDER=msg91`, MSG91 auth key, sender ID, DLT template IDs — follow **[docs/sms.md](docs/sms.md)**. Worker must run or OTP/booking SMS will not send.
+- **WhatsApp (phase 1):** `WHATSAPP_PROVIDER=msg91`, `MSG91_FLOW_*` per event — **[docs/message-service.md](docs/message-service.md)**. Recommended: admin **sms off**, **whatsapp on** until DLT SMS is approved.
 
 Build and migrate:
 

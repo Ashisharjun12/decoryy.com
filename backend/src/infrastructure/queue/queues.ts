@@ -10,6 +10,7 @@ export const QUEUE_NAMES = {
     notifyEmail: "notify.email",
     notifyPush: "notify.push",
     notifyInApp: "notify.in_app",
+    notifyWhatsapp: "notify.whatsapp",
     assignmentReminder: "assignment.reminder",
     paymentsWebhookRetry: "payments.webhook-retry",
     ledgerPostOnComplete: "ledger.post-on-complete",

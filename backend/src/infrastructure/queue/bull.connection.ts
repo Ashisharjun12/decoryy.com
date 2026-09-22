@@ -7,6 +7,7 @@ export type AppQueues = {
     notifyEmail: Queue;
     notifyPush: Queue;
     notifyInApp: Queue;
+    notifyWhatsapp: Queue;
     assignmentReminder: Queue;
     paymentsWebhookRetry: Queue;
     ledgerPostOnComplete: Queue;
@@ -27,6 +28,7 @@ export function getQueues(): AppQueues {
         notifyEmail: new Queue(QUEUE_NAMES.notifyEmail, { connection }),
         notifyPush: new Queue(QUEUE_NAMES.notifyPush, { connection }),
         notifyInApp: new Queue(QUEUE_NAMES.notifyInApp, { connection }),
+        notifyWhatsapp: new Queue(QUEUE_NAMES.notifyWhatsapp, { connection }),
         assignmentReminder: new Queue(QUEUE_NAMES.assignmentReminder, { connection }),
         paymentsWebhookRetry: new Queue(QUEUE_NAMES.paymentsWebhookRetry, { connection }),
         ledgerPostOnComplete: new Queue(QUEUE_NAMES.ledgerPostOnComplete, { connection }),

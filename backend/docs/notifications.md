@@ -28,7 +28,7 @@ All SMS `to` addresses are passed through `normalizePhoneForSms()` in `notificat
 
 Track links in SMS use `WEB_APP_ORIGIN` + `/account/bookings/{orderId}`.
 
-**India production:** register matching DLT templates with Twilio/MSG91 before live SMS. Dev uses `SMS_PROVIDER=dev` (worker logs only, no send).
+**India production:** register matching DLT templates with MSG91 before live SMS. See **[sms.md](./sms.md)**. **WhatsApp-first launch:** **[message-service.md](./message-service.md)** — `WHATSAPP_PROVIDER=msg91`, admin sms off / whatsapp on. Dev uses `SMS_PROVIDER=dev` (worker logs only, no send).
 
 ## Tables
 
@@ -42,20 +42,21 @@ Track links in SMS use `WEB_APP_ORIGIN` + `/account/bookings/{orderId}`.
 | `notifications_outbox` | TX-safe handoff to BullMQ |
 | `notification_inbox` | in-app rows |
 
-Seed: `login_otp` (sms), `booking_confirmed` (email + sms), `booking_assigned` (email + sms), `vendor_new_job` (push + in_app + sms), `chat_message` (push + in_app), `payout_paid` / `payout_failed` (email + sms + push + in_app).
+Seed: `login_otp` (sms + whatsapp), `booking_confirmed` (email + sms + whatsapp), … — run `pnpm db:seed:templates` for whatsapp rows on existing DBs.
 
 Deploy: `pnpm db:migrate` then `pnpm db:seed:templates` (idempotent). Source of truth: `src/db/seeds/notification-templates.seed.ts`. Generate SQL: `pnpm db:seed:templates:sql`.
 
 ## Policy
 
-[`policy/events.ts`](../src/modules/notifications/policy/events.ts): channel routing per event. `LOGIN_OTP` → sms, required. Booking events → sms optional (skipped if phone missing).
+[`policy/events.ts`](../src/modules/notifications/policy/events.ts): channel routing per event. `LOGIN_OTP` → sms + whatsapp; `assertCanSend` requires at least one phone channel enabled. Booking events → sms/whatsapp optional (skipped if phone missing).
 
 ## Queues
 
 | Queue | Worker |
 |---|---|
 | `notify.relay` | claim outbox, enqueue channel job; sweep every 5s |
-| `sms` | Twilio/dev |
+| `sms` | dev / **msg91** (DLT) |
+| `notify.whatsapp` | noop / **msg91 Flow** |
 | `notify.email` | SMTP (`SMTP_USER` is From) |
 | `notify.push` | Expo |
 | `notify.in_app` | insert inbox |
@@ -75,11 +76,14 @@ modules/notifications/
   jobs/relay.job.ts, deliver.job.ts
 ```
 
-Infrastructure: `sms/`, `email/` (smtp only), `push/`, `whatsapp/` (noop).
+Infrastructure: `sms/`, `email/` (smtp only), `push/`, `whatsapp/` (noop or msg91 Flow).
+
+Admin catalog: `GET /admin/settings/message-service/catalog` — see Message service settings tab.
 
 ## Env
 
-- `SMS_PROVIDER=dev|twilio`
+- `SMS_PROVIDER=dev|msg91` — India production SMS: **msg91** + DLT; full setup in **[sms.md](./sms.md)**
+- `WHATSAPP_PROVIDER=noop|msg91` — WhatsApp via MSG91 Flow; **[message-service.md](./message-service.md)**
 - `WEB_APP_ORIGIN` — customer booking track URLs in SMS/email (e.g. `http://localhost:5174` dev)
 
 ## Manual test

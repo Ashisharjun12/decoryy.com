@@ -38,7 +38,7 @@ Rules:
 ## Env
 
 ```text
-SMS_PROVIDER=dev|twilio
+SMS_PROVIDER=dev|msg91
 EMAIL_PROVIDER=smtp
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587

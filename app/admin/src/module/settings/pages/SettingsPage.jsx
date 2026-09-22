@@ -10,8 +10,9 @@ import { NotificationChannelsPanel } from "@/module/settings/components/Notifica
 import { NotificationTemplatesPanel } from "@/module/settings/components/NotificationTemplatesPanel"
 import { AuditLogPage } from "@/module/settings/pages/AuditLogPage"
 import { AdminAccountPanel } from "@/module/settings/components/AdminAccountPanel"
+import { MessageServicePage } from "@/module/settings/pages/MessageServicePage"
 
-const TABS = ["account", "notifications", "booking", "ai", "audit"]
+const TABS = ["account", "notifications", "message-service", "booking", "ai", "audit"]
 
 function normalizeTab(value) {
   return TABS.includes(value) ? value : "account"
@@ -43,7 +44,7 @@ export function SettingsPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           {setupRequired
             ? "Verify your login email and choose a new password before using the admin panel."
-            : "Admin account, notifications, booking and instant dispatch, AI controls, and audit trail."}
+            : "Admin account, notifications, MSG91 message service, booking and instant dispatch, AI controls, and audit trail."}
         </p>
       </div>
 
@@ -52,6 +53,7 @@ export function SettingsPage() {
           <TabsList variant="line">
             <TabsTrigger value="account">Account</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
+            <TabsTrigger value="message-service">Message service</TabsTrigger>
             <TabsTrigger value="booking">Booking</TabsTrigger>
             <TabsTrigger value="ai">AI</TabsTrigger>
             <TabsTrigger value="audit">Audit log</TabsTrigger>
@@ -65,6 +67,10 @@ export function SettingsPage() {
         <TabsContent value="notifications" className="flex flex-col gap-6 pt-4">
           <NotificationChannelsPanel />
           <NotificationTemplatesPanel />
+        </TabsContent>
+
+        <TabsContent value="message-service" className="pt-4">
+          {tab === "message-service" ? <MessageServicePage /> : null}
         </TabsContent>
 
         <TabsContent value="booking" className="flex flex-col gap-6 pt-4">

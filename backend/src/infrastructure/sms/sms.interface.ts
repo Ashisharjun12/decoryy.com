@@ -7,6 +7,10 @@ export type SmsJobPayload = {
 export type SmsMessage = {
     to: string;
     body: string;
+    meta?: {
+        event?: string;
+        eventData?: Record<string, string>;
+    };
 };
 
 export interface ISmsProvider {

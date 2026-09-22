@@ -79,3 +79,7 @@ export function getInstantMapsPolicy() {
 export function patchInstantMapsPolicy(payload) {
   return api.patch("/admin/settings/instant-maps", payload).then(unwrap)
 }
+
+export function getMessageServiceCatalog() {
+  return api.get("/admin/settings/message-service/catalog").then(unwrap)
+}

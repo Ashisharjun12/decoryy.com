@@ -17,7 +17,7 @@ You need all four:
 | Redis    | `REDIS_URL`             | OTP, rate limit, vendor pending, BullMQ |
 
 
-API `200` on OTP request means the job was **enqueued**, not that Twilio delivered.
+API `200` on OTP request means the job was **enqueued**, not that the SMS/WhatsApp provider delivered yet.
 
 Default API: `http://localhost:3000` (`PORT` in `.env`). Identity base: `http://localhost:3000/api/v1`.
 
@@ -82,8 +82,7 @@ flowchart TB
 
   subgraph worker [Worker process]
     SmsJob[sms job]
-    SmsFactory[SmsFactory]
-    Twilio[Twilio or dev]
+    SmsFactory[SmsFactory dev or msg91]
   end
 
   Web -->|"Bearer access + httpOnly refresh cookie"| Routes
@@ -93,7 +92,7 @@ flowchart TB
   AuthSvc --> VendorSvc --> PG
   AuthSvc --> SessionSvc --> PG
   AuthSvc -->|"notify LOGIN_OTP"| NotifySvc --> Redis
-  Redis --> SmsJob --> SmsFactory --> Twilio
+  Redis --> SmsJob --> SmsFactory
 ```
 
 
@@ -153,7 +152,7 @@ On **logout**: revoke that refresh row. Access JWT still verifies until it expir
 
 `purpose` is `"login"` or `"vendor_register"`. Public `POST /auth/otp/request` is **login only** (no `purpose` field). Only `POST /vendor/register` writes `vendor_register`. If `vendor:pending:{phone}` already exists, a later login OTP request **keeps** `vendor_register` so it cannot create a customer.
 
-SMS is **not** sent in the API process. Auth calls `notificationService.assertCanSend("LOGIN_OTP")` then `notify()`. If SMS is disabled, the API returns **503** `sms notifications disabled`. The worker uses `SmsFactory` (`SMS_PROVIDER=dev|twilio`) after the outbox relay.
+SMS is **not** sent in the API process. Auth calls `notificationService.assertCanSend("LOGIN_OTP")` then `notify()`. If both SMS and WhatsApp are disabled, the API returns **503**. The worker uses `SmsFactory` (`SMS_PROVIDER=dev|msg91`) and `WhatsAppFactory` (`WHATSAPP_PROVIDER=noop|msg91`) after the outbox relay.
 
 OTP is returned in JSON **only** when `NODE_ENV === "development"`. Production never echoes OTP, even if `SMS_PROVIDER=dev`.
 
@@ -197,7 +196,7 @@ Current hybrid already scales horizontally. Do not put a Redis `sid` in front of
 2. **Postgres** — source of truth for `users`, `vendors`, hashed refresh rows. `sessions.token_hash` is unique. Each row has `family_id`. Use a connection pool. Multiple devices = multiple session rows (one refresh per device). Scale reads later with a replica if `/me` volume needs it.
 3. **Redis must be shared** — OTP, phone + IP rate limits, vendor pending, and BullMQ all live here. In-memory OTP would break as soon as you have two API processes. One Redis (or clustered Redis) for all API + worker replicas.
 4. **Worker is the SMS bottleneck** — run workers separately (`pnpm worker:dev`). Scale worker replicas on the `sms` queue. API 200 ≠ SMS delivered. If the worker is down, OTP is still stored; the client cannot log in until SMS (or the dev `otp` field) is available.
-5. **Twilio** — trial only delivers to verified numbers. India production needs DLT sender IDs and typically a Messaging Service (`TWILIO_MESSAGING_SERVICE_SID`).
+5. **MSG91 / WhatsApp** — India production: `SMS_PROVIDER=msg91` + DLT templates, or WhatsApp-first via `WHATSAPP_PROVIDER=msg91` and `MSG91_FLOW_*`. See **[sms.md](./sms.md)** and **[message-service.md](./message-service.md)**.
 6. **When Redis sessions would help** — only if product requires **logout** to fail Bearer routes immediately (access JWT still works ~15m). Block already re-checks Postgres. A denylist would add a Redis hop on every authenticated request. Prefer short access TTL + optional denylist later over Redis `sid` cookies.
 
 ---
@@ -229,9 +228,9 @@ Current hybrid already scales horizontally. Do not put a Redis `sid` in front of
 
 - Logout revokes **refresh only**. Access JWT still works until ~15 minutes unless we add a denylist later.
 - Duplicate `/me`: `GET /auth/me` and `GET /user/me` (same handler). Prefer one in clients.
-- Worker down: OTP is stored; request still returns 200; SMS is not sent until the worker runs.
+- Worker down: OTP is stored; request still returns 200; SMS/WhatsApp is not sent until the worker runs.
 - Cookie `sameSite: lax`; `secure` only in production. CORS origin is Vite localhost only (`http://localhost:5173`).
-- Twilio trial / India DLT as above.
+- India SMS (DLT) / WhatsApp (MSG91 Flow) as above.
 
 After adding `sessions.family_id`, run `pnpm db:generate` then `pnpm db:migrate` from `backend/`.
 
@@ -859,4 +858,4 @@ Identical handler and payloads to `GET /auth/me`. Prefer one in clients; both ex
 9. Vendor: register → verify → `user.vendor` present.
 10. After pulling `family_id`: `pnpm db:generate` then `pnpm db:migrate` from `backend/`.
 
-Do not commit `.env`. Do not paste Twilio tokens into collections.
+Do not commit `.env`. Do not paste provider API keys into collections.

@@ -26,6 +26,8 @@ function deliverQueue(queueName: string): AppQueues[keyof AppQueues] | null {
             return queues.notifyPush;
         case QUEUE_NAMES.notifyInApp:
             return queues.notifyInApp;
+        case QUEUE_NAMES.notifyWhatsapp:
+            return queues.notifyWhatsapp;
         default:
             return null;
     }

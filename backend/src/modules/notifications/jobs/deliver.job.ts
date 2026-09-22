@@ -3,6 +3,7 @@ import { EmailFactory } from "@/infrastructure/email/email.factory.js";
 import { PushFactory } from "@/infrastructure/push/push.factory.js";
 import { ExpoPushProvider } from "@/infrastructure/push/expo.provider.js";
 import { SmsFactory } from "@/infrastructure/sms/sms.factory.js";
+import { WhatsAppFactory } from "@/infrastructure/whatsapp/whatsapp.factory.js";
 import { isChannelEnabled } from "@/modules/ops/index.js";
 import { pushDeviceService } from "../container.js";
 import { notificationRepository } from "../container.js";
@@ -66,8 +67,37 @@ export async function processSmsDeliverJob(job: Job<DeliverJobData>): Promise<vo
         await finish(job.data, "FAILED", "sms", "missing to/body");
         return;
     }
-    await SmsFactory.getProvider().send({ to, body });
+    await SmsFactory.getProvider().send({
+        to,
+        body,
+        meta: {
+            event: job.data.event,
+            eventData: job.data.eventData,
+        },
+    });
     await finish(job.data, "SENT", "sms");
+}
+
+export async function processWhatsAppDeliverJob(job: Job<DeliverJobData>): Promise<void> {
+    if (!(await isChannelEnabled("whatsapp"))) {
+        await finish(job.data, "SKIPPED", "whatsapp", "whatsapp notifications disabled");
+        return;
+    }
+    const to = job.data.to;
+    if (!to) {
+        await finish(job.data, "FAILED", "whatsapp", "missing to");
+        return;
+    }
+    await WhatsAppFactory.getProvider().send({
+        to,
+        template: job.data.event ?? "transactional",
+        data: job.data.eventData ?? {},
+        meta: {
+            event: job.data.event,
+            eventData: job.data.eventData,
+        },
+    });
+    await finish(job.data, "SENT", "whatsapp");
 }
 
 export async function processEmailDeliverJob(job: Job<DeliverJobData>): Promise<void> {

@@ -547,6 +547,32 @@ export const NOTIFICATION_TEMPLATE_SEEDS: NotificationTemplateSeed[] = [
     },
 ];
 
+const WHATSAPP_MIRROR_KEYS = new Set([
+    "login_otp",
+    "booking_confirmed",
+    "booking_assigned",
+    "vendor_en_route",
+    "vendor_on_site",
+    "delivery_code",
+    "booking_completed",
+    "vendor_new_job",
+    "vendor_job_assigned",
+    "booking_reminder",
+    "payout_paid",
+    "payout_failed",
+]);
+
+export const NOTIFICATION_TEMPLATE_SEEDS_WITH_WHATSAPP: NotificationTemplateSeed[] = [
+    ...NOTIFICATION_TEMPLATE_SEEDS,
+    ...NOTIFICATION_TEMPLATE_SEEDS.filter(
+        (seed) => seed.channel === "sms" && WHATSAPP_MIRROR_KEYS.has(seed.key),
+    ).map((seed) => ({
+        ...seed,
+        channel: "whatsapp" as NotificationChannel,
+        name: seed.name.replace(/ SMS$/, " WhatsApp").replace(/^Login OTP$/, "Login OTP WhatsApp"),
+    })),
+];
+
 export type SeedResult = {
     created: number;
     skipped: number;
@@ -563,7 +589,9 @@ function sqlJsonArray(values: string[]): string {
 }
 
 /** Render idempotent SQL from the same seed data (for migrations or manual runs). */
-export function renderNotificationTemplatesSql(seeds = NOTIFICATION_TEMPLATE_SEEDS): string {
+export function renderNotificationTemplatesSql(
+    seeds = NOTIFICATION_TEMPLATE_SEEDS_WITH_WHATSAPP,
+): string {
     const blocks = seeds.map((seed) => {
         const comment = `-- ${seed.key} / ${seed.channel}`;
         return `
@@ -602,7 +630,7 @@ END $$;
 /** Upsert default templates into Postgres. Skips templates that already have a version. */
 export async function seedNotificationTemplates(
     db: NodePgDatabase<Record<string, never>>,
-    seeds = NOTIFICATION_TEMPLATE_SEEDS,
+    seeds = NOTIFICATION_TEMPLATE_SEEDS_WITH_WHATSAPP,
 ): Promise<SeedResult> {
     let created = 0;
     let skipped = 0;

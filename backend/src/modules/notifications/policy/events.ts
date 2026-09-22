@@ -34,17 +34,32 @@ export type EventPolicy = {
     channels: EventChannelPolicy[];
 };
 
+function phoneChannels(
+    templateKey: string,
+    type: NotificationTemplateType,
+    priority: NotificationPriority,
+): EventChannelPolicy[] {
+    return [
+        {
+            templateKey,
+            channel: "sms",
+            type,
+            priority,
+            required: false,
+        },
+        {
+            templateKey,
+            channel: "whatsapp",
+            type,
+            priority,
+            required: false,
+        },
+    ];
+}
+
 export const EVENT_POLICIES: Record<NotificationEvent, EventPolicy> = {
     LOGIN_OTP: {
-        channels: [
-            {
-                templateKey: "login_otp",
-                channel: "sms",
-                type: "transactional",
-                priority: "critical",
-                required: true,
-            },
-        ],
+        channels: phoneChannels("login_otp", "transactional", "critical"),
     },
     BOOKING_CONFIRMED: {
         channels: [
@@ -55,13 +70,7 @@ export const EVENT_POLICIES: Record<NotificationEvent, EventPolicy> = {
                 priority: "standard",
                 required: false,
             },
-            {
-                templateKey: "booking_confirmed",
-                channel: "sms",
-                type: "transactional",
-                priority: "standard",
-                required: false,
-            },
+            ...phoneChannels("booking_confirmed", "transactional", "standard"),
         ],
     },
     BOOKING_ASSIGNED: {
@@ -73,13 +82,7 @@ export const EVENT_POLICIES: Record<NotificationEvent, EventPolicy> = {
                 priority: "standard",
                 required: false,
             },
-            {
-                templateKey: "booking_assigned",
-                channel: "sms",
-                type: "transactional",
-                priority: "standard",
-                required: false,
-            },
+            ...phoneChannels("booking_assigned", "transactional", "standard"),
         ],
     },
     VENDOR_EN_ROUTE: {
@@ -91,13 +94,7 @@ export const EVENT_POLICIES: Record<NotificationEvent, EventPolicy> = {
                 priority: "standard",
                 required: false,
             },
-            {
-                templateKey: "vendor_en_route",
-                channel: "sms",
-                type: "transactional",
-                priority: "standard",
-                required: false,
-            },
+            ...phoneChannels("vendor_en_route", "transactional", "standard"),
         ],
     },
     VENDOR_ON_SITE: {
@@ -109,13 +106,7 @@ export const EVENT_POLICIES: Record<NotificationEvent, EventPolicy> = {
                 priority: "standard",
                 required: false,
             },
-            {
-                templateKey: "vendor_on_site",
-                channel: "sms",
-                type: "transactional",
-                priority: "standard",
-                required: false,
-            },
+            ...phoneChannels("vendor_on_site", "transactional", "standard"),
         ],
     },
     DELIVERY_CODE: {
@@ -127,13 +118,7 @@ export const EVENT_POLICIES: Record<NotificationEvent, EventPolicy> = {
                 priority: "critical",
                 required: false,
             },
-            {
-                templateKey: "delivery_code",
-                channel: "sms",
-                type: "transactional",
-                priority: "critical",
-                required: false,
-            },
+            ...phoneChannels("delivery_code", "transactional", "critical"),
         ],
     },
     BOOKING_COMPLETED: {
@@ -145,13 +130,7 @@ export const EVENT_POLICIES: Record<NotificationEvent, EventPolicy> = {
                 priority: "standard",
                 required: false,
             },
-            {
-                templateKey: "booking_completed",
-                channel: "sms",
-                type: "transactional",
-                priority: "standard",
-                required: false,
-            },
+            ...phoneChannels("booking_completed", "transactional", "standard"),
         ],
     },
     VENDOR_NEW_JOB: {
@@ -170,13 +149,7 @@ export const EVENT_POLICIES: Record<NotificationEvent, EventPolicy> = {
                 priority: "standard",
                 required: false,
             },
-            {
-                templateKey: "vendor_new_job",
-                channel: "sms",
-                type: "transactional",
-                priority: "standard",
-                required: false,
-            },
+            ...phoneChannels("vendor_new_job", "transactional", "standard"),
         ],
     },
     VENDOR_JOB_ASSIGNED: {
@@ -195,24 +168,12 @@ export const EVENT_POLICIES: Record<NotificationEvent, EventPolicy> = {
                 priority: "standard",
                 required: false,
             },
-            {
-                templateKey: "vendor_job_assigned",
-                channel: "sms",
-                type: "transactional",
-                priority: "standard",
-                required: false,
-            },
+            ...phoneChannels("vendor_job_assigned", "transactional", "standard"),
         ],
     },
     BOOKING_REMINDER: {
         channels: [
-            {
-                templateKey: "booking_reminder",
-                channel: "sms",
-                type: "transactional",
-                priority: "standard",
-                required: false,
-            },
+            ...phoneChannels("booking_reminder", "transactional", "standard"),
             {
                 templateKey: "booking_reminder",
                 channel: "push",
@@ -256,13 +217,7 @@ export const EVENT_POLICIES: Record<NotificationEvent, EventPolicy> = {
                 priority: "standard",
                 required: false,
             },
-            {
-                templateKey: "payout_paid",
-                channel: "sms",
-                type: "transactional",
-                priority: "standard",
-                required: false,
-            },
+            ...phoneChannels("payout_paid", "transactional", "standard"),
             {
                 templateKey: "payout_paid",
                 channel: "push",
@@ -299,13 +254,7 @@ export const EVENT_POLICIES: Record<NotificationEvent, EventPolicy> = {
                 priority: "standard",
                 required: false,
             },
-            {
-                templateKey: "payout_failed",
-                channel: "sms",
-                type: "transactional",
-                priority: "standard",
-                required: false,
-            },
+            ...phoneChannels("payout_failed", "transactional", "standard"),
             {
                 templateKey: "payout_failed",
                 channel: "push",

@@ -55,6 +55,7 @@ export function createSettingsAdminRouter(controller: SettingController) {
         validate(patchInstantMarketplaceDto),
         controller.patchInstantMarketplace,
     );
+    router.get("/message-service/catalog", controller.getMessageServiceCatalog);
     router.use("/ai", aiSettingsRouter);
     return router;
 }

@@ -60,7 +60,7 @@ function resolveTemplateData(
     channel: NotificationChannel,
 ): Record<string, string> {
     const data = { ...input.data };
-    if (channel !== "sms") return data;
+    if (channel !== "sms" && channel !== "whatsapp") return data;
 
     const tripEvents = new Set([
         "BOOKING_CONFIRMED",
@@ -94,6 +94,8 @@ function queueFor(channel: NotificationChannel): string | null {
             return QUEUE_NAMES.notifyPush;
         case "in_app":
             return QUEUE_NAMES.notifyInApp;
+        case "whatsapp":
+            return QUEUE_NAMES.notifyWhatsapp;
         default:
             return null;
     }
@@ -107,6 +109,18 @@ export class NotificationService implements INotificationService {
     ) {}
 
     async assertCanSend(event: NotificationEvent): Promise<void> {
+        if (event === "LOGIN_OTP") {
+            const sms = await isChannelEnabled("sms");
+            const whatsapp = await isChannelEnabled("whatsapp");
+            if (!sms && !whatsapp) {
+                throw new ApiError(
+                    503,
+                    "phone notifications disabled (enable SMS or WhatsApp in admin settings)",
+                );
+            }
+            return;
+        }
+
         const policy = EVENT_POLICIES[event];
         for (const channel of policy.channels) {
             if (!channel.required) continue;
@@ -206,7 +220,7 @@ export class NotificationService implements INotificationService {
         }
 
         const to =
-            channelPolicy.channel === "sms"
+            channelPolicy.channel === "sms" || channelPolicy.channel === "whatsapp"
                 ? normalizePhoneForSms(input.recipient?.phone ?? "") ?? undefined
                 : channelPolicy.channel === "email"
                   ? input.recipient?.email
@@ -256,7 +270,10 @@ export class NotificationService implements INotificationService {
             templateData,
             templateRow.version.variables,
         );
-        if (input.event === "LOGIN_OTP" && channelPolicy.channel === "sms") {
+        if (
+            input.event === "LOGIN_OTP" &&
+            (channelPolicy.channel === "sms" || channelPolicy.channel === "whatsapp")
+        ) {
             body = formatLoginOtpSms(input.data.otp, input.data.androidAppHash);
         }
         if (input.event === "BOOKING_CONFIRMED" && channelPolicy.channel === "email") {

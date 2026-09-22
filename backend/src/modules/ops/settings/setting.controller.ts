@@ -1,3 +1,4 @@
+import { getMessageServiceCatalog } from "@/modules/ops/settings/message-service-catalog.js";
 import { ApiResponse } from "@/shared/errors/apiResponse.js";
 import { asyncHandler } from "@/shared/middlewares/asyncHandler.js";
 import type { ISettingService } from "@/modules/ops/settings/setting.service.js";
@@ -78,5 +79,9 @@ export class SettingController {
     patchInstantMarketplace = asyncHandler(async (req, res) => {
         const data = await this.settings.patchInstantMarketplacePolicy(req.body, req.actor!.id);
         res.status(200).json(new ApiResponse(200, data, "instant marketplace policy updated"));
+    });
+
+    getMessageServiceCatalog = asyncHandler(async (_req, res) => {
+        res.status(200).json(new ApiResponse(200, { items: getMessageServiceCatalog() }, "ok"));
     });
 }
