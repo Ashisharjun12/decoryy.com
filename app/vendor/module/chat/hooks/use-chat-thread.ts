@@ -150,9 +150,14 @@ export function useSupportChatThread() {
         body,
         createdAt: new Date().toISOString(),
       });
-      const msg = await chatApi.sendMessage(conversationId, { body, clientMessageId });
-      useChatStore.getState().resolvePendingMessage(conversationId, clientMessageId);
-      return msg;
+      try {
+        const msg = await chatApi.sendMessage(conversationId, { body, clientMessageId });
+        useChatStore.getState().resolvePendingMessage(conversationId, clientMessageId);
+        return msg;
+      } catch (err) {
+        useChatStore.getState().resolvePendingMessage(conversationId, clientMessageId);
+        throw err;
+      }
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['chat', 'messages', conversationId] });
@@ -181,10 +186,18 @@ export function useSupportChatThread() {
     return [...server, ...pendingViews];
   }, [messagesQuery.data, pendingMessages, conversationId, userId]);
 
+  useEffect(() => {
+    const last = mergedMessages[mergedMessages.length - 1];
+    if (last && conversationId) {
+      void chatApi.markRead(conversationId, last.id).catch(() => {});
+    }
+  }, [mergedMessages, conversationId]);
+
   return {
     conversation: conversationQuery.data,
     messages: mergedMessages,
     isLoading: conversationQuery.isLoading || messagesQuery.isLoading,
+    error: conversationQuery.error ?? messagesQuery.error,
     sendMessage: sendMutation.mutateAsync,
     isSending: sendMutation.isPending,
   };

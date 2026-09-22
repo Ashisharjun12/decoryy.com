@@ -57,7 +57,10 @@ function AppTabs() {
   const pathname = usePathname();
   const onSetupScreen =
     pathname.includes('enable-notifications') || pathname.includes('enable-location');
-  const hideTabBar = /bookings\/[^/]+/.test(pathname);
+  const hideTabBar =
+    /bookings\/[^/]+/.test(pathname) ||
+    pathname.includes('support') ||
+    pathname.includes('help-support');
 
   if (isLoading) {
     return (
