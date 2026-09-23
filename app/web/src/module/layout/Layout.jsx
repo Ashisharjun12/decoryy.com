@@ -13,6 +13,7 @@ import { ScrollToTopButton } from "@/module/layout/components/ScrollToTopButton"
 import { ScrollToTopOnNavigate } from "@/module/layout/components/ScrollToTopOnNavigate";
 import { MobileBottomNav } from "@/module/layout/components/MobileBottomNav";
 import { MobileCategorySheet } from "@/module/layout/components/MobileCategorySheet";
+import { RouteSeo } from "@/module/layout/components/RouteSeo";
 
 export function Layout() {
   const { pathname } = useLocation();
@@ -26,6 +27,7 @@ export function Layout() {
       <TooltipProvider>
         <SiteShellProvider>
         <Toaster>
+          <RouteSeo />
           <ScrollToTopOnNavigate />
           <div className="flex min-h-[100dvh] flex-col bg-background text-foreground">
             <AnnouncementBar />

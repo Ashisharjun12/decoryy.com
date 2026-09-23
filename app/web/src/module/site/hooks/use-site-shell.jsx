@@ -5,7 +5,7 @@ import { queryKeys } from "@/lib/query-keys";
 
 const EMPTY_SHELL = {
   brand: {
-    companyName: "Decoryy",
+    companyName: "Decorbuddys",
     footerDescription:
       "City-priced decoration setups — balloons, backdrops, and lights, dressed for the room you have.",
     logoLightUrl: null,

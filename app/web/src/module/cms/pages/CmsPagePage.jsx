@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
+import { SeoHead } from "@/components/SeoHead";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { getCmsPage } from "@/api/cms.api";
@@ -11,6 +11,7 @@ import { useSiteShell } from "@/module/site/hooks/use-site-shell";
 
 export function CmsPagePage() {
   const { slug } = useParams();
+  const { pathname } = useLocation();
   const { brand } = useSiteShell();
 
   const query = useQuery({
@@ -21,12 +22,6 @@ export function CmsPagePage() {
   });
 
   const page = query.data;
-
-  useEffect(() => {
-    if (!page?.title) return;
-    const company = brand.companyName || "Decoryy";
-    document.title = `${page.title} · ${company}`;
-  }, [page?.title, brand.companyName]);
 
   if (query.isLoading) {
     return (
@@ -55,6 +50,13 @@ export function CmsPagePage() {
     : null;
 
   return (
+    <>
+      <SeoHead
+        title={page.title}
+        pathname={pathname}
+        siteName={brand.companyName || undefined}
+        ogImage={brand.logoLightUrl || brand.logoDarkUrl || undefined}
+      />
     <article className="mx-auto max-w-3xl px-4 py-10 md:px-8 md:py-14">
       <header className="mb-8 border-b border-border pb-6">
         <h1 className="font-heading text-3xl font-extrabold tracking-tight md:text-4xl">
@@ -66,5 +68,6 @@ export function CmsPagePage() {
       </header>
       <MarkdownContent>{page.body}</MarkdownContent>
     </article>
+    </>
   );
 }

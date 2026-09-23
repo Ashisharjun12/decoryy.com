@@ -1,5 +1,7 @@
 import { useMemo } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
+import { SeoHead } from "@/components/SeoHead";
+import { useSiteShell } from "@/module/site/hooks/use-site-shell";
 import { categoryPath } from "@/lib/catalog-path";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,6 +18,8 @@ import { useCatalogStore } from "@/store/catalog.store";
 
 export function CategoryPage() {
   const { parentSlug, childSlug } = useParams();
+  const { pathname } = useLocation();
+  const { brand } = useSiteShell();
   const catalogStatus = useCatalogStore((s) => s.status);
   const rawCategories = useCatalogStore((s) => s.categories);
 
@@ -40,9 +44,21 @@ export function CategoryPage() {
   );
 
   const productSectionTitle = "All packages";
+  const categorySeoTitle = valid ? pageTitle : "Category not found";
+  const categorySeo = (
+    <SeoHead
+      title={categorySeoTitle}
+      description={`Browse ${categorySeoTitle} decoration packages and book for your city.`}
+      pathname={pathname}
+      siteName={brand.companyName || undefined}
+      ogImage={brand.logoLightUrl || brand.logoDarkUrl || undefined}
+    />
+  );
 
   if (!loading && !valid) {
     return (
+      <>
+        {categorySeo}
       <div className="mx-auto w-full max-w-[1240px] px-4 py-12 md:px-8">
         <p className="text-sm text-muted-foreground">
           <Link to="/" className="hover:text-foreground">Home</Link>
@@ -59,10 +75,13 @@ export function CategoryPage() {
           Browse all decorations
         </Button>
       </div>
+      </>
     );
   }
 
   return (
+    <>
+      {categorySeo}
     <div className="mx-auto w-full max-w-[1240px] px-4 py-8 md:px-8 md:py-12">
       <div className="mb-8">
         <p className="text-sm text-muted-foreground">
@@ -132,5 +151,6 @@ export function CategoryPage() {
         </div>
       ) : null}
     </div>
+    </>
   );
 }
