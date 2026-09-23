@@ -21,6 +21,7 @@ export type CreateAddonInput = {
     isActive?: boolean;
     pricePaise?: number | null;
     compareAtPaise?: number | null;
+    maxQuantity?: number;
 };
 
 export type PatchAddonInput = {
@@ -32,6 +33,7 @@ export type PatchAddonInput = {
     isActive?: boolean;
     pricePaise?: number | null;
     compareAtPaise?: number | null;
+    maxQuantity?: number;
 };
 
 export type CreateAddonColorInput = {
@@ -120,6 +122,7 @@ export class AddonService implements IAddonService {
                 isActive: input.isActive ?? true,
                 pricePaise: defaults.pricePaise,
                 compareAtPaise: defaults.compareAtPaise,
+                maxQuantity: input.maxQuantity ?? 1,
             });
         } catch (err) {
             if (isUniqueViolation(err)) {
@@ -153,6 +156,7 @@ export class AddonService implements IAddonService {
             data.colorId = await this.assertColor(input.colorId);
         }
         if (input.isActive !== undefined) data.isActive = input.isActive;
+        if (input.maxQuantity !== undefined) data.maxQuantity = input.maxQuantity;
         if (input.pricePaise !== undefined || input.compareAtPaise !== undefined) {
             const defaults = normalizeDefaultPaisePair(
                 input.pricePaise !== undefined ? input.pricePaise : existing.pricePaise,

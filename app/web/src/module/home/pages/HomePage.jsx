@@ -16,7 +16,7 @@ export function HomePage() {
   const useCmsLayout = layoutBlocks.length > 0;
 
   return (
-    <div className="pb-4">
+    <div className="pb-2 md:pb-4">
       <HomeMobileHero slides={hero} />
       <div className="mx-auto hidden max-w-[1240px] px-4 pt-6 md:block md:px-8">
         <BannerSlider slides={hero} />

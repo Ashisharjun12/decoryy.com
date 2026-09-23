@@ -2,7 +2,14 @@ import { randomUUID } from "node:crypto";
 import type { CookieOptions, Request, Response } from "express";
 import { _config } from "@/config/config.js";
 import { ApiError } from "@/shared/errors/apiError.js";
-import { getProductForCity, priceQuote } from "@/modules/catalog/index.js";
+import {
+    getProductForCity,
+    normalizeAddonSelections,
+    priceQuote,
+    selectionsFromCartAddonRows,
+    type AddonSelection,
+} from "@/modules/catalog/index.js";
+import { mergeAddonSelections } from "@/modules/catalog/pricing/addon-selection.js";
 import { AddonRepository } from "@/modules/catalog/addons/addon.repository.js";
 import { ProductRepository } from "@/modules/catalog/products/product.repository.js";
 import {
@@ -26,6 +33,7 @@ export type CartActor = { id: string } | undefined;
 export type AddCartItemInput = {
     productId: string;
     addonIds?: string[];
+    addons?: AddonSelection[];
     quantity?: number;
     cityId?: string;
     pincode?: string;
@@ -42,6 +50,7 @@ export type PublicCartAddon = {
     id: string;
     name: string;
     pricePaise: number;
+    quantity: number;
     imageUrl: string | null;
 };
 
@@ -162,8 +171,8 @@ export class CartService implements ICartService {
             pincode: input.pincode,
         });
         const quantity = input.quantity ?? 1;
-        const addonIds = input.addonIds ?? [];
-        await priceQuote(input.productId, cityId, addonIds);
+        const addonSelections = normalizeAddonSelections(input.addonIds, input.addons);
+        await priceQuote(input.productId, cityId, addonSelections);
         const product = await getProductForCity(input.productId, cityId);
         let fulfillmentType = cart.fulfillmentType;
         if (input.fulfillmentType) {
@@ -177,7 +186,7 @@ export class CartService implements ICartService {
         }
 
         const item = await this.carts.upsertItem(cart.id, input.productId, quantity);
-        await this.carts.replaceItemAddons(item.id, addonIds);
+        await this.carts.replaceItemAddons(item.id, addonSelections);
         await this.clearCoupon(cart.id);
 
         const patch: Parameters<ICartRepository["update"]>[1] = {};
@@ -257,9 +266,9 @@ export class CartService implements ICartService {
         if (!loaded) throw ApiError.notFound("cart not found");
 
         for (const item of loaded.items) {
-            const addonIds = item.addons.map((row) => row.addonId);
+            const addonSelections = selectionsFromCartAddonRows(item.addons);
             try {
-                await priceQuote(item.productId, cityId, addonIds);
+                await priceQuote(item.productId, cityId, addonSelections);
             } catch {
                 await this.carts.deleteItem(item.id);
             }
@@ -360,16 +369,18 @@ export class CartService implements ICartService {
 
         for (const item of guestLoaded.items) {
             const existing = await this.carts.findItem(userCart.id, item.productId);
-            const addonIds = item.addons.map((row) => row.addonId);
             if (existing) {
                 const qty = Math.max(existing.quantity, item.quantity);
                 await this.carts.updateItemQuantity(existing.id, qty);
                 const existingAddons = await this.carts.listItemAddons(existing.id);
-                const merged = [...new Set([...existingAddons.map((a) => a.addonId), ...addonIds])];
+                const merged = mergeAddonSelections(existingAddons, item.addons);
                 await this.carts.replaceItemAddons(existing.id, merged);
             } else {
                 const created = await this.carts.upsertItem(userCart.id, item.productId, item.quantity);
-                await this.carts.replaceItemAddons(created.id, addonIds);
+                await this.carts.replaceItemAddons(
+                    created.id,
+                    selectionsFromCartAddonRows(item.addons),
+                );
             }
         }
 
@@ -485,7 +496,7 @@ export class CartService implements ICartService {
         let itemCount = 0;
 
         for (const item of loaded.items) {
-            const addonIds = item.addons.map((row) => row.addonId);
+            const addonSelections = selectionsFromCartAddonRows(item.addons);
             if (!loaded.cityId) {
                 const row = await this.products.findById(item.productId);
                 items.push({
@@ -499,24 +510,26 @@ export class CartService implements ICartService {
                     lineTotalPaise: 0,
                     paymentCod: row?.paymentCod ?? true,
                     paymentOnline: row?.paymentOnline ?? false,
-                    addons: await this.addonLabels(addonIds, {}),
+                    addons: await this.addonLabels(addonSelections, {}),
                 });
                 itemCount += item.quantity;
                 continue;
             }
 
             try {
-                const quote = await priceQuote(item.productId, loaded.cityId, addonIds);
+                const quote = await priceQuote(item.productId, loaded.cityId, addonSelections);
                 const product = await getProductForCity(item.productId, loaded.cityId);
                 const imageUrl =
                     product.images?.find((img) => img.kind === "image")?.url ??
                     product.images?.[0]?.url ??
                     null;
 
-                const priceByAddon: Record<string, number> = {};
-                for (const addonId of addonIds) {
-                    const single = await priceQuote(item.productId, loaded.cityId, [addonId]);
-                    priceByAddon[addonId] = single.addonsPaise;
+                const unitPriceByAddon: Record<string, number> = {};
+                for (const { addonId } of addonSelections) {
+                    const single = await priceQuote(item.productId, loaded.cityId, [
+                        { addonId, quantity: 1 },
+                    ]);
+                    unitPriceByAddon[addonId] = single.addonsPaise;
                 }
 
                 const lineTotalPaise = quote.totalPaise * item.quantity;
@@ -538,7 +551,7 @@ export class CartService implements ICartService {
                     lineTotalPaise,
                     paymentCod: product.paymentCod,
                     paymentOnline: product.paymentOnline,
-                    addons: await this.addonLabels(addonIds, priceByAddon),
+                    addons: await this.addonLabels(addonSelections, unitPriceByAddon),
                 });
             } catch {
                 await this.carts.deleteItem(item.id);
@@ -619,16 +632,18 @@ export class CartService implements ICartService {
     }
 
     private async addonLabels(
-        addonIds: string[],
-        priceByAddon: Record<string, number>,
+        selections: AddonSelection[],
+        unitPriceByAddon: Record<string, number>,
     ): Promise<PublicCartAddon[]> {
         const rows: PublicCartAddon[] = [];
-        for (const addonId of addonIds) {
+        for (const { addonId, quantity } of selections) {
             const addon = await this.addons.findById(addonId);
+            const unit = unitPriceByAddon[addonId] ?? 0;
             rows.push({
                 id: addonId,
                 name: addon?.name ?? "Add-on",
-                pricePaise: priceByAddon[addonId] ?? 0,
+                pricePaise: unit * quantity,
+                quantity,
                 imageUrl: null,
             });
         }

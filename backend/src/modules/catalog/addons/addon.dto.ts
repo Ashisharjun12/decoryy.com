@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const defaultPriceFields = {
-    pricePaise: z.number().int().positive().nullable().optional(),
+    pricePaise: z.number().int().nonnegative().nullable().optional(),
     compareAtPaise: z.number().int().positive().nullable().optional(),
 };
 
@@ -18,6 +18,7 @@ export const createAddonDto = z
         imageUploadId: z.string().uuid().nullable().optional(),
         colorId: z.string().uuid().nullable().optional(),
         isActive: z.boolean().optional(),
+        maxQuantity: z.number().int().min(1).max(20).optional(),
         ...defaultPriceFields,
     })
     .refine(defaultPriceOk, {
@@ -33,6 +34,7 @@ export const patchAddonDto = z
         imageUploadId: z.string().uuid().nullable().optional(),
         colorId: z.string().uuid().nullable().optional(),
         isActive: z.boolean().optional(),
+        maxQuantity: z.number().int().min(1).max(20).optional(),
         ...defaultPriceFields,
     })
     .refine(defaultPriceOk, {
@@ -79,7 +81,7 @@ export const adminAddonListQueryDto = z.object({
 export const addonCityPriceDto = z
     .object({
         cityId: z.string().uuid(),
-        pricePaise: z.number().int().positive(),
+        pricePaise: z.number().int().nonnegative(),
         compareAtPaise: z.number().int().positive().nullable().optional(),
     })
     .refine((value) => value.compareAtPaise == null || value.compareAtPaise >= value.pricePaise, {

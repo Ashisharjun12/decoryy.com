@@ -12,7 +12,18 @@ import {
 } from "@/modules/catalog/addons/addon.schema.js";
 
 export type AddonPatch = Partial<
-    Pick<Addon, "name" | "slug" | "description" | "imageUploadId" | "colorId" | "isActive" | "pricePaise" | "compareAtPaise">
+    Pick<
+        Addon,
+        | "name"
+        | "slug"
+        | "description"
+        | "imageUploadId"
+        | "colorId"
+        | "isActive"
+        | "pricePaise"
+        | "compareAtPaise"
+        | "maxQuantity"
+    >
 >;
 
 export type AddonColorPatch = Partial<Pick<AddonColor, "name" | "slug" | "hex">>;

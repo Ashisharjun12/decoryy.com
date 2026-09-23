@@ -30,6 +30,7 @@ import { SearchProductRow } from "@/module/layout/components/SearchProductRow";
 import { SearchProductRowSkeleton } from "@/module/layout/components/SearchProductRowSkeleton";
 import { useCatalogStore } from "@/store/catalog.store";
 import { isBackendCityId, useLocationStore } from "@/store/location.store";
+import { useSearchDialogStore } from "@/store/search-dialog.store";
 
 const MODAL_CATEGORY_LIMIT = 4;
 const MODAL_CATEGORY_SEARCH_LIMIT = 5;
@@ -63,7 +64,8 @@ function HighlightMatch({ text, query }) {
 }
 
 export function SearchCommand({ variant = "bar", className }) {
-  const [open, setOpen] = useState(false);
+  const open = useSearchDialogStore((s) => s.open);
+  const setOpen = useSearchDialogStore((s) => s.setOpen);
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
   const rawCategories = useCatalogStore((s) => s.categories);

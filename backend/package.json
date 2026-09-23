@@ -11,6 +11,7 @@
     "build": "tsc",
     "db:generate": "node ./node_modules/drizzle-kit/bin.cjs generate",
     "db:migrate": "tsx src/db/run-migrate.ts",
+    "db:baseline": "tsx src/db/run-baseline-migrations.ts",
     "db:reset-public": "tsx src/db/run-reset-public-schema.ts",
     "db:seed:templates": "tsx src/db/run-seed-notification-templates.ts",
     "db:seed:templates:sql": "tsx src/db/run-seed-notification-templates.ts --sql",

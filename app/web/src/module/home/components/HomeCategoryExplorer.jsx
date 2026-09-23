@@ -65,6 +65,7 @@ export function HomeCategoryExplorer({
             ) : null}
             {showTitle ? (
               <HomeSectionHeading
+                className="min-w-0 flex-1"
                 title={title}
                 subtitle={showSubtitle ? subtitle : null}
                 compact

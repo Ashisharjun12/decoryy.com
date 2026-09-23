@@ -11,7 +11,7 @@ export function HomeSectionHeading({
     <div className={cn("min-w-0", className)}>
       <h2
         className={cn(
-          "font-heading font-extrabold tracking-tight",
+          "font-heading font-extrabold tracking-tight text-balance break-words whitespace-normal",
           compact
             ? "text-[1.0625rem] leading-snug sm:text-lg md:text-xl"
             : "text-[clamp(1.25rem,2.4vw,1.75rem)]",

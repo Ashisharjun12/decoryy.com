@@ -22,6 +22,7 @@ import { CheckoutPage } from "@/module/booking/pages/CheckoutPage";
 import { OrderConfirmationPage } from "@/module/booking/pages/OrderConfirmationPage";
 import { CategoryPage } from "@/module/catalog/pages/CategoryPage";
 import { DecorationsPage } from "@/module/catalog/pages/DecorationsPage";
+import { ExplorePage } from "@/module/catalog/pages/ExplorePage";
 import { ProductPage } from "@/module/catalog/pages/ProductPage";
 import { ProductReviewsPage } from "@/module/catalog/pages/ProductReviewsPage";
 import { HomePage } from "@/module/home/pages/HomePage";
@@ -51,6 +52,7 @@ export default function App() {
           <Route index element={<HomePage />} />
           <Route path="/cities" element={<ServiceCitiesPage />} />
           <Route path="/decorations" element={<DecorationsPage />} />
+          <Route path="/explore" element={<ExplorePage />} />
           <Route path="/c/:parentSlug" element={<CategoryPage />} />
           <Route path="/c/:parentSlug/:childSlug" element={<CategoryPage />} />
           <Route path="/p/:id/reviews" element={<ProductReviewsPage />} />

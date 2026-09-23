@@ -196,7 +196,7 @@ export type PublicOrder = {
 type OrderLineInput = {
     productId: string;
     quantity: number;
-    addonIds: string[];
+    addons: { addonId: string; quantity: number }[];
 };
 
 export type CreateOrderResult = {
@@ -458,7 +458,10 @@ export class OrderService implements IOrderService {
             loaded.items.map((item) => ({
                 productId: item.productId,
                 quantity: item.quantity,
-                addonIds: item.addons.map((row) => row.addonId),
+                addons: item.addons.map((row) => ({
+                    addonId: row.addonId,
+                    quantity: row.quantity,
+                })),
             })),
         );
 
@@ -613,9 +616,14 @@ export class OrderService implements IOrderService {
             items = [built.item];
             subtotalPaise = built.subtotalPaise;
         } else {
+            const catalogLines: OrderLineInput[] = input.items.map((line) => ({
+                productId: line.productId,
+                quantity: line.quantity,
+                addons: (line.addonIds ?? []).map((addonId) => ({ addonId, quantity: 1 })),
+            }));
             const priced = await this.buildLineSnapshotsFromItems(
                 input.delivery.cityId,
-                input.items,
+                catalogLines,
             );
             items = priced.items;
             subtotalPaise = priced.subtotalPaise;
@@ -914,10 +922,10 @@ export class OrderService implements IOrderService {
         let subtotalPaise = 0;
 
         for (const line of lines) {
-            const addonIds = line.addonIds;
+            const addonSelections = line.addons;
             let quote;
             try {
-                quote = await priceQuote(line.productId, cityId, addonIds);
+                quote = await priceQuote(line.productId, cityId, addonSelections);
             } catch {
                 throw ApiError.badRequest(`unable to price product ${line.productId}`);
             }
@@ -928,11 +936,13 @@ export class OrderService implements IOrderService {
                 product.images?.[0]?.url ??
                 null;
 
-            const priceByAddon: Record<string, number> = {};
-            for (const addonId of addonIds) {
+            const unitPriceByAddon: Record<string, number> = {};
+            for (const { addonId } of addonSelections) {
                 try {
-                    const single = await priceQuote(line.productId, cityId, [addonId]);
-                    priceByAddon[addonId] = single.addonsPaise;
+                    const single = await priceQuote(line.productId, cityId, [
+                        { addonId, quantity: 1 },
+                    ]);
+                    unitPriceByAddon[addonId] = single.addonsPaise;
                 } catch {
                     throw ApiError.badRequest(`unable to price add-on for product ${line.productId}`);
                 }
@@ -942,13 +952,14 @@ export class OrderService implements IOrderService {
             subtotalPaise += lineTotalPaise;
 
             const addonSnapshots = await Promise.all(
-                addonIds.map(async (addonId) => {
+                addonSelections.map(async ({ addonId, quantity }) => {
                     const addon = await this.addons.findById(addonId);
+                    const unit = unitPriceByAddon[addonId] ?? 0;
                     return {
                         addonId,
                         addonName: addon?.name ?? "Add-on",
-                        pricePaise: priceByAddon[addonId] ?? 0,
-                        quantity: 1,
+                        pricePaise: unit * quantity,
+                        quantity,
                     };
                 }),
             );

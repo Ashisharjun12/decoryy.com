@@ -93,8 +93,18 @@ export function getProductForCity(productId: string, cityId: string) {
     return productService.getForCity(productId, cityId);
 }
 
-export function priceQuote(productId: string, cityId: string, addonIds: string[]) {
-    return cityPriceService.quote(productId, cityId, addonIds);
+export function priceQuote(
+    productId: string,
+    cityId: string,
+    selections: import("@/modules/catalog/pricing/addon-selection.js").AddonSelection[],
+) {
+    return cityPriceService.quote(productId, cityId, selections);
 }
+
+export type { AddonSelection } from "@/modules/catalog/pricing/addon-selection.js";
+export {
+    normalizeAddonSelections,
+    selectionsFromCartAddonRows,
+} from "@/modules/catalog/pricing/addon-selection.js";
 
 export { categories, products, productImages, addons, addonColors, productAddons, cityPrices, addonCityPrices, catalogSections, catalogSectionCityOverrides, catalogSectionProducts };

@@ -44,6 +44,7 @@ export function CatalogProductGrid({
   const sort = parseCatalogSort(searchParams.get("sort") ?? CATALOG_SORT_DEFAULT);
   const minPriceRupees = parsePriceParam(searchParams.get("minPrice"));
   const maxPriceRupees = parsePriceParam(searchParams.get("maxPrice"));
+  const instantOnly = searchParams.get("instant") === "1";
 
   const hasLocation =
     Boolean(pincode?.code) || (Boolean(city?.id) && isBackendCityId(city.id));
@@ -145,11 +146,14 @@ export function CatalogProductGrid({
     })
       .then((data) => {
         if (cancelled) return;
-        const rows = (data?.items ?? [])
+        let rows = (data?.items ?? [])
           .map(normalizeProduct)
           .filter(Boolean);
+        if (instantOnly) {
+          rows = rows.filter((product) => product.instant?.enabled);
+        }
         setItems(rows);
-        setTotal(Number(data?.total ?? 0));
+        setTotal(instantOnly ? rows.length : Number(data?.total ?? 0));
         if (data?.facets?.price) {
           setPriceFacet({
             minPaise: Number(data.facets.price.minPaise ?? 0),
@@ -169,7 +173,7 @@ export function CatalogProductGrid({
     return () => {
       cancelled = true;
     };
-  }, [hasLocation, pincode?.code, city?.id, listingKey, filterKey, sort, minPriceRupees, maxPriceRupees, page, limit]);
+  }, [hasLocation, pincode?.code, city?.id, listingKey, filterKey, sort, minPriceRupees, maxPriceRupees, page, limit, instantOnly]);
 
   const showListingControls = hasLocation && status !== "need-location";
   const listingBusy = status === "loading";

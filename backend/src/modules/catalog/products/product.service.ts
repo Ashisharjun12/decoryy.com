@@ -11,7 +11,11 @@ import type { ICategoryRepository } from "@/modules/catalog/categories/category.
 import type { IAddonRepository } from "@/modules/catalog/addons/addon.repository.js";
 import type { Category } from "@/modules/catalog/categories/category.schema.js";
 import type { ICityPriceRepository } from "@/modules/catalog/pricing/city-price.repository.js";
-import { normalizeDefaultPaisePair, resolvedSellPaise } from "@/modules/catalog/pricing/paise-pair.js";
+import {
+    normalizeDefaultPaisePair,
+    resolvedCompareAtPaise,
+    resolvedSellPaise,
+} from "@/modules/catalog/pricing/paise-pair.js";
 import type { IProductRepository } from "@/modules/catalog/products/product.repository.js";
 import type { Product, ProductFaq } from "@/modules/catalog/products/product.schema.js";
 import type { CityPrice } from "@/modules/catalog/pricing/city-price.schema.js";
@@ -63,6 +67,7 @@ export type PublicAddonForCity = {
     color: { id: string; name: string; slug: string; hex: string } | null;
     pricePaise: number | null;
     compareAtPaise: number | null;
+    maxQuantity: number;
 };
 
 export type ProductPublicDetail = ProductForCity & {
@@ -658,17 +663,11 @@ export class ProductService implements IProductService {
             if (!addon || !addon.isActive) continue;
             const override = await this.prices.getAddonPrice(addonId, cityId);
             const pricePaise = resolvedSellPaise(override?.pricePaise, addon.pricePaise);
-            let compareAtPaise =
+            const compareAtRaw =
                 override?.compareAtPaise != null
                     ? override.compareAtPaise
                     : addon.compareAtPaise ?? null;
-            if (
-                pricePaise == null ||
-                compareAtPaise == null ||
-                compareAtPaise <= pricePaise
-            ) {
-                compareAtPaise = null;
-            }
+            const compareAtPaise = resolvedCompareAtPaise(pricePaise, compareAtRaw);
             items.push({
                 id: addon.id,
                 name: addon.name,
@@ -677,6 +676,7 @@ export class ProductService implements IProductService {
                 color: await this.toAddonColor(addon.colorId),
                 pricePaise,
                 compareAtPaise,
+                maxQuantity: addon.maxQuantity ?? 1,
             });
         }
         return items;

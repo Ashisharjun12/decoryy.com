@@ -9,6 +9,10 @@ import {
     invalidateAllProductDetails,
     invalidateProductDetail,
 } from "@/modules/catalog/cache/catalog-cache.invalidation.js";
+import {
+    type AddonSelection,
+    MAX_ADDON_LINE_QTY,
+} from "@/modules/catalog/pricing/addon-selection.js";
 
 export type PriceQuote = {
     productId: string;
@@ -32,7 +36,7 @@ export interface ICityPriceService {
     listAddonPrices(addonId: string): Promise<AddonCityPrice[]>;
     setAddonPrice(addonId: string, input: CityPriceInput): Promise<AddonCityPrice>;
     deleteAddonPrice(addonId: string, cityId: string): Promise<void>;
-    quote(productId: string, cityId: string, addonIds: string[]): Promise<PriceQuote>;
+    quote(productId: string, cityId: string, selections: AddonSelection[]): Promise<PriceQuote>;
 }
 
 export class CityPriceService implements ICityPriceService {
@@ -128,7 +132,7 @@ export class CityPriceService implements ICityPriceService {
         await invalidateAllProductDetails();
     }
 
-    async quote(productId: string, cityId: string, addonIds: string[]): Promise<PriceQuote> {
+    async quote(productId: string, cityId: string, selections: AddonSelection[]): Promise<PriceQuote> {
         const product = await this.products.findById(productId);
         if (!product) {
             throw ApiError.notFound("product not found");
@@ -138,9 +142,12 @@ export class CityPriceService implements ICityPriceService {
         if (productPaise == null) {
             throw ApiError.badRequest("product is not priced for this city");
         }
-        const uniqueAddonIds = [...new Set(addonIds)];
         let addonsPaise = 0;
-        for (const addonId of uniqueAddonIds) {
+        const addonIds: string[] = [];
+        for (const { addonId, quantity } of selections) {
+            if (quantity < 1 || quantity > MAX_ADDON_LINE_QTY) {
+                throw ApiError.badRequest("invalid addon quantity");
+            }
             const mapped = await this.addons.isMapped(productId, addonId);
             if (!mapped) {
                 throw ApiError.badRequest("addon is not mapped to this product");
@@ -149,17 +156,22 @@ export class CityPriceService implements ICityPriceService {
             if (!addon) {
                 throw ApiError.notFound("addon not found");
             }
+            const maxQuantity = addon.maxQuantity ?? 1;
+            if (quantity > maxQuantity) {
+                throw ApiError.badRequest(`addon "${addon.name}" allows at most ${maxQuantity}`);
+            }
             const addonPrice = await this.prices.getAddonPrice(addonId, cityId);
             const addonPaise = resolvedSellPaise(addonPrice?.pricePaise, addon.pricePaise);
             if (addonPaise == null) {
                 throw ApiError.badRequest("addon is not priced for this city");
             }
-            addonsPaise += addonPaise;
+            addonIds.push(addonId);
+            addonsPaise += addonPaise * quantity;
         }
         return {
             productId,
             cityId,
-            addonIds: uniqueAddonIds,
+            addonIds,
             productPaise,
             addonsPaise,
             totalPaise: productPaise + addonsPaise,

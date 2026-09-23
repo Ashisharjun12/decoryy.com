@@ -11,12 +11,15 @@ import { AnnouncementBar } from "@/module/cms/components/AnnouncementBar";
 import { SiteHeader } from "@/module/layout/components/SiteHeader";
 import { ScrollToTopButton } from "@/module/layout/components/ScrollToTopButton";
 import { ScrollToTopOnNavigate } from "@/module/layout/components/ScrollToTopOnNavigate";
+import { MobileBottomNav } from "@/module/layout/components/MobileBottomNav";
+import { MobileCategorySheet } from "@/module/layout/components/MobileCategorySheet";
 
 export function Layout() {
   const { pathname } = useLocation();
   const isAccountArea = pathname.startsWith("/account");
   const isCheckoutArea = pathname.startsWith("/checkout");
   const showFooter = !isAccountArea && !isCheckoutArea;
+  const showMobileBottomNav = !isCheckoutArea;
 
   return (
     <LenisProvider>
@@ -28,10 +31,18 @@ export function Layout() {
             <AnnouncementBar />
             <SiteHeader />
             <LocationPrompt />
-            <main className={isAccountArea ? "flex min-h-0 flex-1 flex-col" : "flex-1"}>
+            <main
+              className={
+                isAccountArea
+                  ? "flex min-h-0 flex-1 flex-col max-md:pb-[calc(var(--mobile-bottom-nav-offset,0px)+0.25rem)]"
+                  : "flex-1 max-md:pb-[calc(var(--mobile-bottom-nav-offset,0px)+0.25rem)]"
+              }
+            >
               <Outlet />
             </main>
             {showFooter ? <SiteFooter /> : null}
+            <MobileBottomNav visible={showMobileBottomNav} />
+            <MobileCategorySheet />
             <LoginDialog />
             <CartDrawer />
             {showFooter ? <ScrollToTopButton /> : null}

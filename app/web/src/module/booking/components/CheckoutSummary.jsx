@@ -72,6 +72,7 @@ export function CheckoutSummary({ cart, paymentMethod }) {
                     <div className="flex min-w-0 flex-1 items-start justify-between gap-2">
                       <p className="whitespace-pre-line text-xs leading-snug text-muted-foreground">
                         {checkoutLineTitle(addon.name)}
+                        {addon.quantity > 1 ? ` × ${addon.quantity}` : ""}
                       </p>
                       <LinePrice pricePaise={addon.pricePaise} className="text-xs" />
                     </div>

@@ -57,7 +57,10 @@ import {
 import { HomeScrollControls } from "@/module/home/components/HomeScrollControls";
 import { HomeSectionHeading } from "@/module/home/components/HomeSectionHeading";
 import { normalizeProduct } from "@/module/home/lib/home-catalog";
-import { PRODUCT_RAIL_ITEM_CLASS } from "@/module/home/lib/product-rail-layout";
+import {
+  PRODUCT_RAIL_ITEM_CLASS,
+  PRODUCT_RAIL_MIN_ITEMS_FOR_CONTROLS,
+} from "@/module/home/lib/product-rail-layout";
 
 const SIMILAR_PAGE_SIZE = 20;
 
@@ -413,16 +416,20 @@ function ProductGallery({ images, title }) {
   return (
     <div className="flex min-w-0 flex-col gap-3">
       <div
-        className="relative min-w-0 overflow-hidden rounded-2xl border border-border/80 bg-muted shadow-sm"
+        className={cn(
+          "relative min-w-0 overflow-hidden bg-muted",
+          "max-md:rounded-none max-md:border-0 max-md:shadow-none",
+          "md:rounded-2xl md:border md:border-border/80 md:shadow-sm",
+        )}
       >
         {src ? (
           <img
             src={src}
             alt={title}
-            className="aspect-[5/4] w-full max-w-full object-cover"
+            className="aspect-[5/4] w-full max-w-full object-cover max-md:aspect-[4/3]"
           />
         ) : (
-          <DecoryImageFallback className="aspect-[5/4] min-h-48" />
+          <DecoryImageFallback className="aspect-[5/4] min-h-48 max-md:aspect-[4/3]" />
         )}
         {images.length > 1 ? (
           <>
@@ -783,19 +790,30 @@ function ProductRelatedRail({ product }) {
 
   if (!loading && items.length === 0) return null;
 
+  const showScrollControls =
+    !loading && items.length >= PRODUCT_RAIL_MIN_ITEMS_FOR_CONTROLS;
+
   return (
     <section
       className="mt-12 border-t border-border/60 pt-10 md:mt-16 md:pt-12"
       aria-label="Similar packages"
     >
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+      <div
+        className={cn(
+          "mb-3 gap-x-2 gap-y-1",
+          showScrollControls
+            ? "grid grid-cols-[minmax(0,1fr)_auto] items-start"
+            : "flex flex-col",
+        )}
+      >
         <HomeSectionHeading
           title="Similar packages"
           subtitle="Explore more décor in this category"
           compact
         />
-        {!loading ? (
+        {showScrollControls ? (
           <HomeScrollControls
+            className="shrink-0 pt-0.5"
             canPrev={canPrev}
             canNext={canNext}
             onPrev={() => carouselApi?.scrollPrev()}
@@ -885,14 +903,18 @@ export function ProductPdp({ product, onChangeLocation }) {
     />
   );
 
-  async function completeBooking(addonIds) {
+  async function completeBooking(addonSelections) {
     if (!product?.id) return;
     setBooking(true);
     try {
+      const addons =
+        addonSelections?.length
+          ? addonSelections
+          : undefined;
       await addItem(
         {
           productId: product.id,
-          addonIds,
+          addons,
           quantity: 1,
           pincode: pincode?.code || undefined,
           cityId: pincode?.code ? undefined : city?.id,
@@ -944,7 +966,7 @@ export function ProductPdp({ product, onChangeLocation }) {
           {isLgUp ? reviewsPreview : null}
         </div>
 
-        <div className="flex min-w-0 flex-col gap-4 pb-2">
+        <div className="flex min-w-0 flex-col gap-4 px-4 pb-2 md:px-0">
         <ProductBreadcrumb title={title} categoryId={product?.categoryId} />
 
         <div className="flex min-w-0 flex-col gap-2">
@@ -1106,7 +1128,9 @@ export function ProductPdp({ product, onChangeLocation }) {
         </div>
       </div>
 
-      <ProductRelatedRail product={product} />
+      <div className="px-4 md:px-0">
+        <ProductRelatedRail product={product} />
+      </div>
     </div>
   );
 }
@@ -1121,7 +1145,7 @@ export function ProductPdpSkeleton() {
       <span className="sr-only">Loading product</span>
       <div className="min-w-0 lg:sticky lg:top-20">
         <div className="flex min-w-0 flex-col gap-3">
-          <Skeleton className="aspect-[5/4] w-full rounded-2xl" />
+          <Skeleton className="aspect-[4/3] w-full rounded-none md:aspect-[5/4] md:rounded-2xl" />
           <div className="flex gap-2">
             <Skeleton className="size-16 shrink-0 rounded-2xl" />
             <Skeleton className="size-16 shrink-0 rounded-2xl" />
@@ -1131,7 +1155,7 @@ export function ProductPdpSkeleton() {
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-col gap-4">
+      <div className="flex min-w-0 flex-col gap-4 px-4 md:px-0">
         <Skeleton className="h-4 w-[72%] rounded-md" />
         <div className="flex min-w-0 flex-col gap-2">
           <Skeleton className="h-8 w-[85%] rounded-md" />

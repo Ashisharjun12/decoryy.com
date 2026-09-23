@@ -10,10 +10,10 @@ export function HomeScrollControls({
   className,
 }) {
   const buttonClass =
-    "size-9 rounded-full border-0 bg-amber-400 text-amber-950 shadow-sm hover:bg-amber-500 disabled:opacity-40";
+    "size-7 rounded-full border-0 bg-amber-400 text-amber-950 shadow-sm hover:bg-amber-500 disabled:opacity-40 sm:size-8";
 
   return (
-    <div className={cn("flex items-center gap-2", className)}>
+    <div className={cn("flex items-center gap-1.5", className)}>
       <Button
         type="button"
         variant="default"
@@ -23,7 +23,7 @@ export function HomeScrollControls({
         onClick={onPrev}
         aria-label="Scroll left"
       >
-        <ChevronLeftIcon className="size-4 stroke-[2.5]" />
+        <ChevronLeftIcon className="size-3.5 stroke-[2.5] sm:size-4" />
       </Button>
       <Button
         type="button"
@@ -34,7 +34,7 @@ export function HomeScrollControls({
         onClick={onNext}
         aria-label="Scroll right"
       >
-        <ChevronRightIcon className="size-4 stroke-[2.5]" />
+        <ChevronRightIcon className="size-3.5 stroke-[2.5] sm:size-4" />
       </Button>
     </div>
   );

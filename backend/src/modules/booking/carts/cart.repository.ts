@@ -44,7 +44,10 @@ export interface ICartRepository {
     upsertItem(cartId: string, productId: string, quantity: number): Promise<CartItem>;
     updateItemQuantity(itemId: string, quantity: number): Promise<CartItem | undefined>;
     deleteItem(itemId: string): Promise<boolean>;
-    replaceItemAddons(cartItemId: string, addonIds: string[]): Promise<void>;
+    replaceItemAddons(
+        cartItemId: string,
+        selections: { addonId: string; quantity: number }[],
+    ): Promise<void>;
     listItemAddons(cartItemId: string): Promise<CartItemAddon[]>;
 }
 
@@ -146,15 +149,17 @@ export class CartRepository implements ICartRepository {
         return rows.length > 0;
     }
 
-    async replaceItemAddons(cartItemId: string, addonIds: string[]): Promise<void> {
+    async replaceItemAddons(
+        cartItemId: string,
+        selections: { addonId: string; quantity: number }[],
+    ): Promise<void> {
         await db.delete(cartItemAddons).where(eq(cartItemAddons.cartItemId, cartItemId));
-        const unique = [...new Set(addonIds)];
-        if (!unique.length) return;
+        if (!selections.length) return;
         await db.insert(cartItemAddons).values(
-            unique.map((addonId) => ({
+            selections.map(({ addonId, quantity }) => ({
                 cartItemId,
                 addonId,
-                quantity: 1,
+                quantity,
             })),
         );
     }

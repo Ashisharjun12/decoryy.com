@@ -30,6 +30,7 @@ export function DecorationsPage() {
   const occasionSlug = searchParams.get("occasion")?.trim() || "";
   const minPrice = searchParams.get("minPrice");
   const maxPrice = searchParams.get("maxPrice");
+  const instantOnly = searchParams.get("instant") === "1";
 
   const city = useLocationStore((s) => s.city);
   const catalogStatus = useCatalogStore((s) => s.status);
@@ -50,9 +51,11 @@ export function DecorationsPage() {
   const effectiveCategoryIds =
     occasionSlug && !unknownOccasion && categoryIds.length ? categoryIds : undefined;
 
-  const pageTitle = occasionParent
-    ? `${occasionParent.name} setups`
-    : "All decorations";
+  const pageTitle = instantOnly
+    ? "Instant setups"
+    : occasionParent
+      ? `${occasionParent.name} setups`
+      : "All decorations";
 
   const budgetSummary = budgetLabelFromUrl(minPrice, maxPrice);
 

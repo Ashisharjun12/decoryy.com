@@ -74,6 +74,7 @@ export function AddonFormPage() {
       slug: "",
       description: "",
       isActive: true,
+      maxQuantity: 1,
     },
   })
 
@@ -120,6 +121,7 @@ export function AddonFormPage() {
           slug: addon.slug ?? "",
           description: addon.description ?? "",
           isActive: addon.isActive !== false,
+          maxQuantity: addon.maxQuantity ?? 1,
         })
         setColorIds(addon.color?.id ? [addon.color.id] : [])
         if (addon.image) setImage(toGalleryItem(addon.image))
@@ -221,6 +223,7 @@ export function AddonFormPage() {
       description: values.description.trim() || null,
       imageUploadId: image?.uploadId || null,
       isActive: values.isActive,
+      maxQuantity: values.maxQuantity,
       pricePaise: defaults.pricePaise,
       compareAtPaise: defaults.compareAtPaise,
     }
@@ -365,6 +368,28 @@ export function AddonFormPage() {
                           aria-invalid={fieldState.invalid}
                         />
                       </InputGroup>
+                      {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
+                    </Field>
+                  )}
+                />
+                <Controller
+                  name="maxQuantity"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="addon-max-qty">Max quantity per order</FieldLabel>
+                      <Input
+                        {...field}
+                        id="addon-max-qty"
+                        type="number"
+                        min={1}
+                        max={20}
+                        inputMode="numeric"
+                        aria-invalid={fieldState.invalid}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        1 = toggle only on the website. Above 1 shows − / + in the customize modal.
+                      </p>
                       {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
                     </Field>
                   )}

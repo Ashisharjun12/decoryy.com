@@ -11,7 +11,10 @@ import {
 } from "@/module/home/components/HomeProductCard";
 import { HomeScrollControls } from "@/module/home/components/HomeScrollControls";
 import { HomeSectionHeading } from "@/module/home/components/HomeSectionHeading";
-import { PRODUCT_RAIL_ITEM_CLASS } from "@/module/home/lib/product-rail-layout";
+import {
+  PRODUCT_RAIL_ITEM_CLASS,
+  PRODUCT_RAIL_MIN_ITEMS_FOR_CONTROLS,
+} from "@/module/home/lib/product-rail-layout";
 
 export function HomeProductRail({
   section,
@@ -22,6 +25,9 @@ export function HomeProductRail({
   showSubtitle = true,
 }) {
   const railTitle = titleOverride ?? section.name;
+  const itemCount = section.items?.length ?? 0;
+  const showScrollControls =
+    !loading && itemCount >= PRODUCT_RAIL_MIN_ITEMS_FOR_CONTROLS;
   const [api, setApi] = useState(null);
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(false);
@@ -44,7 +50,14 @@ export function HomeProductRail({
 
   return (
     <section aria-label={railTitle}>
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+      <div
+        className={cn(
+          "mb-3 gap-x-2 gap-y-1",
+          showScrollControls
+            ? "grid grid-cols-[minmax(0,1fr)_auto] items-start"
+            : "flex flex-col",
+        )}
+      >
         {showTitle || (showSubtitle && subtitle) ? (
           <HomeSectionHeading
             title={showTitle ? railTitle : " "}
@@ -55,12 +68,15 @@ export function HomeProductRail({
         ) : (
           <span />
         )}
-        <HomeScrollControls
-          canPrev={canPrev}
-          canNext={canNext}
-          onPrev={() => api?.scrollPrev()}
-          onNext={() => api?.scrollNext()}
-        />
+        {showScrollControls ? (
+          <HomeScrollControls
+            className="shrink-0 pt-0.5"
+            canPrev={canPrev}
+            canNext={canNext}
+            onPrev={() => api?.scrollPrev()}
+            onNext={() => api?.scrollNext()}
+          />
+        ) : null}
       </div>
 
       {loading ? (

@@ -112,6 +112,7 @@ export const addonFormSchema = z.object({
     .refine((v) => v.length === 0 || v.length >= 2, "Slug must be at least 2 characters"),
   description: z.string(),
   isActive: z.boolean(),
+  maxQuantity: z.coerce.number().int().min(1, "Min 1").max(20, "Max 20"),
 });
 
 const sectionBadgeColorSchema = z

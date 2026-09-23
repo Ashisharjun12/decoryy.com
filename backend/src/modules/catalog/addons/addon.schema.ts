@@ -26,6 +26,7 @@ export const addons = pgTable("addons", {
     isActive: boolean("is_active").notNull().default(true),
     pricePaise: integer("price_paise"),
     compareAtPaise: integer("compare_at_paise"),
+    maxQuantity: integer("max_quantity").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });

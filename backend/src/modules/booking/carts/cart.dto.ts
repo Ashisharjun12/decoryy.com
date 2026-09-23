@@ -1,14 +1,25 @@
 import { z } from "zod";
 
-export const addCartItemDto = z.object({
+const cartAddonSelectionDto = z.object({
+    addonId: z.string().uuid(),
+    quantity: z.number().int().positive().max(20),
+});
+
+export const addCartItemDto = z
+    .object({
     productId: z.string().uuid(),
     addonIds: z.array(z.string().uuid()).optional(),
+    addons: z.array(cartAddonSelectionDto).optional(),
     quantity: z.number().int().positive().max(20).optional(),
     cityId: z.string().uuid().optional(),
     pincode: z.string().min(6).max(6).optional(),
     scheduledAt: z.string().datetime().optional().nullable(),
     fulfillmentType: z.enum(["scheduled", "instant"]).optional(),
-});
+})
+    .refine((value) => !(value.addonIds?.length && value.addons?.length), {
+        message: "use addonIds or addons, not both",
+        path: ["addons"],
+    });
 
 export const patchCartItemDto = z.object({
     quantity: z.number().int().positive().max(20),
