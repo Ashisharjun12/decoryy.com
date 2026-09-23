@@ -8,9 +8,9 @@ import { WEB_URL } from "@/lib/env";
 export const SITE_NAME = "Decorbuddys";
 
 export const DEFAULT_DESCRIPTION =
-  "City-priced decoration setups — balloons, backdrops, and lights, dressed for the room you have. Book online for birthdays, anniversaries, and more.";
+  "Affordable decoration in your city—local prices for balloons, backdrops, and lights. Book online; instant decoration available where we serve.";
 
-export const HOME_TITLE = "Book decoration for home celebrations";
+export const HOME_TITLE = "Affordable decoration in your city";
 
 const META_DESCRIPTION_MAX = 160;
 

@@ -7,7 +7,7 @@ const EMPTY_SHELL = {
   brand: {
     companyName: "Decorbuddys",
     footerDescription:
-      "City-priced decoration setups — balloons, backdrops, and lights, dressed for the room you have.",
+      "Affordable decoration in your city—balloons, backdrops, and lights. Book online; instant setups where available.",
     logoLightUrl: null,
     logoDarkUrl: null,
     contactPhone: null,

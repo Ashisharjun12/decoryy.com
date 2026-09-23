@@ -4,4 +4,4 @@ Disallow: /account/
 Disallow: /bag
 Disallow: /login
 Disallow: /checkout
-Sitemap: https://decorbuddys.com/sitemap.xml
+Sitemap: https://www.deccorbuddys.com/sitemap.xml
