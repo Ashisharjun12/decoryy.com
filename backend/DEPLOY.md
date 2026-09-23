@@ -98,9 +98,16 @@ Fill at minimum:
 Build and migrate:
 
 ```bash
-npm ci
-npm run build
-npm run db:migrate
+pnpm install --frozen-lockfile
+pnpm run build
+pnpm run db:migrate
+```
+
+If migrate fails because the database already has tables but Drizzle tries to re-run `0000` (`user_role already exists`):
+
+```bash
+pnpm run db:baseline
+pnpm run db:migrate
 ```
 
 ---
@@ -164,7 +171,7 @@ sudo systemctl reload caddy
 ### Web (`app/web`)
 
 - Root directory: `app/web`
-- Build: `npm ci && npm run build`
+- Build: `pnpm install --frozen-lockfile && pnpm run build`
 - Output: `dist`
 - Production env: `VITE_API_URL=https://api.decorbuddys.com/api/v1`
 - Custom domain: `decorbuddys.com` (and/or `www`)
@@ -172,7 +179,7 @@ sudo systemctl reload caddy
 ### Admin (`app/admin`)
 
 - Root: `app/admin`
-- Build: `npm ci && npm run build` → `dist`
+- Build: `pnpm install --frozen-lockfile && pnpm run build` → `dist`
 - Env: `VITE_API_URL=https://api.decorbuddys.com/api/v1`, `VITE_WEB_URL=https://decorbuddys.com`
 - Custom domain: `admin.decorbuddys.com`
 
@@ -194,7 +201,7 @@ Register payment webhooks to `https://api.decorbuddys.com/api/v1/webhooks/...`.
 
 ```bash
 cd /opt/decory && git pull
-cd backend && npm ci && npm run build && npm run db:migrate
+cd backend && pnpm install --frozen-lockfile && pnpm run build && pnpm run db:migrate
 cd .. && docker compose up -d
 pm2 restart all
 ```

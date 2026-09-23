@@ -72,6 +72,7 @@ Useful DB commands (from `backend/`):
 | Command | Purpose |
 |---------|---------|
 | `pnpm run db:migrate` | Run migrations |
+| `pnpm run db:baseline` | Mark `0000` applied when DB already exists (then migrate again) |
 | `pnpm run db:generate` | Generate migration after schema changes |
 | `pnpm run db:studio` | Drizzle Studio |
 | `pnpm run db:seed:templates` | Seed notification templates |
@@ -149,6 +150,22 @@ Expo docs: [Expo SDK 54](https://docs.expo.dev/versions/v54.0.0/).
 
 ---
 
+## 7b. Customer mobile app (`app/user`)
+
+Uses **npm** (not pnpm) in this folder.
+
+```bash
+cd app/user
+npm install
+npm start
+```
+
+If install fails with `TAR_ENTRY_ERROR` on Windows (common under **OneDrive**), pause OneDrive sync, delete `node_modules`, then run `npm install` again. Prefer cloning the repo outside synced Desktop folders when possible.
+
+`babel-preset-expo` is a direct dependency (required by `babel.config.js`). After dependency changes: `npx expo start -c`.
+
+---
+
 ## 8. Website (`app/website`) — optional
 
 ```bash
@@ -194,3 +211,122 @@ Open **separate terminals**:
 | Vendor | Expo env / `lib/env.ts` | API base URL reachable from device |
 
 Never commit real secrets; keep `.env` out of git.
+
+---
+
+## 12. Backend production (VPS + PM2)
+
+Full VPS guide (Caddy, Cloudflare, Pages): **[backend/DEPLOY.md](backend/DEPLOY.md)**.
+
+**Typical split:**
+
+| Where | What |
+|-------|------|
+| VPS | API, BullMQ **worker**, Valkey (Docker), Caddy → `api.yourdomain.com` |
+| Cloudflare Pages (or similar) | Customer **web** (`app/web`), **admin** (`app/admin`) |
+
+Postgres is usually **hosted** (e.g. Supabase) via `POSTGRES_DATABASE_URL` in `backend/.env` — not on the VPS.
+
+### 12.1 Server stack
+
+Install on Ubuntu (summary): **Node.js 20+**, **Docker**, **PM2**, **Caddy** (HTTPS reverse proxy to `localhost:3000`). See [DEPLOY.md §1](backend/DEPLOY.md).
+
+### 12.2 Deploy code and Valkey
+
+```bash
+sudo mkdir -p /opt/decory && sudo chown $USER:$USER /opt/decory
+git clone <your-repo-url> /opt/decory
+cd /opt/decory
+docker compose up -d    # valkey-queue :6379, valkey-cache :6380
+```
+
+In **`backend/.env`** on the server:
+
+```env
+NODE_ENV=production
+PORT=3000
+POSTGRES_DATABASE_URL=...          # pooler URL
+REDIS_URL=redis://127.0.0.1:6379/0
+REDIS_CACHE_URL=redis://127.0.0.1:6380/0
+API_PUBLIC_URL=https://api.yourdomain.com
+WEB_APP_ORIGIN=https://yourdomain.com
+ADMIN_APP_ORIGIN=https://admin.yourdomain.com
+JWT_SECRET=...
+# SMS, payments, R2, etc. — see backend/.env.example or .env.prod
+```
+
+### 12.3 Build, migrate, baseline (if needed)
+
+```bash
+cd /opt/decory/backend
+pnpm install --frozen-lockfile
+pnpm run build
+pnpm run db:migrate
+```
+
+If migrate fails with **`user_role already exists`** (DB existed before Drizzle journal was synced):
+
+```bash
+pnpm run db:baseline   # marks initial migration as applied (drizzle.__drizzle_migrations)
+pnpm run db:migrate
+```
+
+### 12.4 PM2 — API + worker (required in production)
+
+PM2 config: **`backend/ecosystem.config.cjs`**
+
+| Process | Role |
+|---------|------|
+| `decory-api` | HTTP API (`src/server.ts` via tsx) |
+| `decory-worker` | Queues: OTP/SMS, email, push, media optimize, webhooks, etc. |
+
+```bash
+cd /opt/decory/backend
+pm2 start ecosystem.config.cjs
+pm2 save
+pm2 startup
+# run the sudo command PM2 prints once, then: pm2 save again
+```
+
+**Day-to-day:**
+
+```bash
+pm2 status
+pm2 logs decory-api
+pm2 logs decory-worker
+pm2 restart decory-api
+pm2 restart decory-worker
+pm2 restart all
+```
+
+Production **must** run **both** processes. Without `decory-worker`, OTP, notifications, and async jobs will not run.
+
+### 12.5 Reverse proxy (Caddy example)
+
+Point `api.yourdomain.com` at the API port (default **3000**). Example Caddyfile snippet is in [DEPLOY.md §5](backend/DEPLOY.md).
+
+Verify:
+
+```bash
+curl -s https://api.yourdomain.com/health
+pm2 status
+docker compose ps
+```
+
+### 12.6 Release / update on the server
+
+```bash
+cd /opt/decory && git pull
+cd backend && pnpm install --frozen-lockfile && pnpm run build && pnpm run db:migrate
+cd .. && docker compose up -d
+pm2 restart all
+```
+
+### 12.7 Frontends (not on PM2)
+
+Build and host **web** and **admin** separately (e.g. Cloudflare Pages). Set:
+
+- `VITE_API_URL=https://api.yourdomain.com/api/v1`
+- Admin: `VITE_WEB_URL=https://yourdomain.com`
+
+Details: [DEPLOY.md §6](backend/DEPLOY.md).
