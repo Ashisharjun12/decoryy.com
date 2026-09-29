@@ -36,6 +36,10 @@ import {
 } from "@/modules/assignment/field-assignments/order-field-assignment.repository.js";
 import { auditService } from "@/modules/ops/audit/audit.service.js";
 import { VendorMemberRepository } from "@/modules/identity/vendor-members/vendor-member.repository.js";
+import {
+    isOrderCustomerConflictWithVendor,
+    SELF_DEALING_CODE,
+} from "@/modules/identity/consumer/self-dealing.js";
 import { getQueues } from "@/infrastructure/queue/bull.connection.js";
 import { orderFinancialService } from "@/modules/payments/order-financials/order-financial.service.js";
 import { ledgerService } from "@/modules/payments/ledger/ledger.service.js";
@@ -445,6 +449,22 @@ export class VendorJobService implements IVendorJobService {
         const assignment = await this.assignments.findActiveByOrderId(orderId);
         if (!assignment || assignment.vendorId !== vendorId || assignment.vendorResponse !== "pending") {
             throw ApiError.conflict("assignment is not pending for this vendor");
+        }
+
+        const orderRecord = await this.orders.findById(orderId);
+        if (!orderRecord) {
+            throw ApiError.notFound("order not found");
+        }
+        const memberRepo = new VendorMemberRepository();
+        if (
+            await isOrderCustomerConflictWithVendor(orderRecord.userId, vendorId, {
+                vendors: this.vendors,
+                members: memberRepo,
+            })
+        ) {
+            const err = ApiError.conflict("customer cannot accept their own booking");
+            err.code = SELF_DEALING_CODE;
+            throw err;
         }
 
         await db.transaction(async (tx) => {

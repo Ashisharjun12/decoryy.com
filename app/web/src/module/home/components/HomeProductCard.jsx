@@ -14,10 +14,21 @@ import {
   ProductCardInstantEta,
 } from "@/module/catalog/components/ProductCardInstant";
 
+/** Two-line product name — matches catalog card weight/size (see HomeProductCard default). */
+const PRODUCT_CARD_TITLE_CLASS =
+  "line-clamp-2 min-h-[2.75em] font-heading text-[13px] font-bold leading-snug tracking-tight text-foreground";
+
 function formatRating(value) {
   if (value == null || Number.isNaN(Number(value))) return null;
   const n = Number(value);
   return n % 1 === 0 ? String(n) : n.toFixed(1);
+}
+
+function resolveReviewCount(reviewCount) {
+  if (reviewCount == null) return null;
+  const n = Number(reviewCount);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n;
 }
 
 function ProductCardRatingReviews({
@@ -27,9 +38,9 @@ function ProductCardRatingReviews({
   className,
   noTopMargin = false,
 }) {
-  if (ratingLabel == null && reviewCount == null) return null;
-  const count =
-    reviewCount != null ? Number(reviewCount).toLocaleString() : null;
+  const positiveCount = resolveReviewCount(reviewCount);
+  if (ratingLabel == null && positiveCount == null) return null;
+  const countLabel = positiveCount != null ? positiveCount.toLocaleString() : null;
   const reviewSize = size === "rail" ? "text-[11px]" : "text-xs";
 
   return (
@@ -50,9 +61,9 @@ function ProductCardRatingReviews({
           {ratingLabel}
         </span>
       ) : null}
-      {count != null ? (
-        <span className={cn("truncate text-muted-foreground", reviewSize)}>
-          {count} reviews
+      {countLabel != null ? (
+        <span className={cn("shrink-0 whitespace-nowrap text-muted-foreground", reviewSize)}>
+          {countLabel} {positiveCount === 1 ? "review" : "reviews"}
         </span>
       ) : null}
     </div>
@@ -64,20 +75,27 @@ function ProductCardReviewsAndEta({
   reviewCount,
   instant,
   size = "rail",
+  reserveSpace = false,
 }) {
   const showEta = Boolean(instant?.enabled && instant.etaMinutes != null);
-  const hasReviews = ratingLabel != null || reviewCount != null;
-  if (!hasReviews && !showEta) return null;
+  const hasReviews = ratingLabel != null || resolveReviewCount(reviewCount) != null;
+  if (!hasReviews && !showEta && !reserveSpace) return null;
 
   return (
-    <div className="mt-1.5 flex min-h-5 items-center justify-between gap-2">
-      <div className="min-w-0 flex-1">
+    <div
+      className={cn(
+        "flex items-center justify-between gap-2",
+        reserveSpace ? "h-5" : "mt-1.5 min-h-5",
+      )}
+    >
+      <div className="flex min-w-0 flex-1 items-center overflow-hidden">
         {hasReviews ? (
           <ProductCardRatingReviews
             size={size}
             ratingLabel={ratingLabel}
             reviewCount={reviewCount}
             noTopMargin
+            className="min-w-0"
           />
         ) : null}
       </div>
@@ -93,52 +111,52 @@ function ProductCardPriceBlock({ pricePaise, compareAtPaise, size = "default" })
   const hasCompare = compareAtPaise != null && compareAtPaise > pricePaise;
   const priceClass =
     size === "rail"
-      ? "text-[15px] font-extrabold tracking-tight sm:text-[17px]"
+      ? "text-sm font-extrabold tracking-tight sm:text-[15px]"
       : "text-base font-extrabold tracking-tight sm:text-lg";
   const mrpClass =
     size === "rail"
-      ? "text-[11px] sm:text-xs"
+      ? "text-[10px] sm:text-[11px]"
       : "text-xs sm:text-[13px]";
   const offClass =
-    size === "rail" ? "text-[11px] px-1.5 py-0.5" : "text-xs px-2 py-0.5";
+    size === "rail" ? "text-[10px] px-1 py-0.5 sm:text-[11px]" : "text-xs px-2 py-0.5";
+
+  const priceWrapClass =
+    size === "rail" ? "pt-1.5" : "mt-auto pt-2";
 
   return (
-    <div className="mt-auto pt-2">
-      <div className="flex items-end justify-between gap-2">
-        <div className="min-w-0">
-          {hasCompare ? (
-            <span className="sr-only">
-              Sale price {formatPaise(pricePaise)}, was {formatPaise(compareAtPaise)}
-            </span>
-          ) : null}
-          <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-            <span
-              className={cn("tabular-nums text-foreground", priceClass)}
-              aria-hidden={hasCompare ? true : undefined}
-            >
-              {formatPaise(pricePaise)}
-            </span>
-            {hasCompare ? (
-              <span
-                className={cn(
-                  "font-medium text-muted-foreground line-through tabular-nums",
-                  mrpClass,
-                )}
-                aria-hidden
-              >
-                {formatPaise(compareAtPaise)}
-              </span>
-            ) : null}
-          </div>
-        </div>
+    <div className={cn(priceWrapClass, size === "rail" && "min-h-6")}>
+      {hasCompare ? (
+        <span className="sr-only">
+          Sale price {formatPaise(pricePaise)}, was {formatPaise(compareAtPaise)}
+        </span>
+      ) : null}
+      <div className="flex min-h-6 min-w-0 flex-nowrap items-center gap-1">
+        <span
+          className={cn("shrink-0 tabular-nums text-foreground", priceClass)}
+          aria-hidden={hasCompare ? true : undefined}
+        >
+          {formatPaise(pricePaise)}
+        </span>
+        {hasCompare ? (
+          <span
+            className={cn(
+              "shrink-0 font-medium text-muted-foreground line-through tabular-nums",
+              mrpClass,
+            )}
+            aria-hidden
+          >
+            {formatPaise(compareAtPaise)}
+          </span>
+        ) : null}
         {percentOff > 0 ? (
           <span
             className={cn(
               "shrink-0 rounded-md bg-emerald-50 font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
+              size === "rail" ? "ml-0.5" : "ml-auto",
               offClass,
             )}
           >
-            {percentOff}% OFF
+            {size === "rail" ? `${percentOff}%` : `${percentOff}% OFF`}
           </span>
         ) : null}
       </div>
@@ -169,16 +187,19 @@ function CompactProductCardContent({ product }) {
         )}
       </div>
       <div className="flex flex-1 flex-col px-3 pb-3 pt-2.5">
-        <h3 className="line-clamp-2 min-h-[2.5em] text-[13px] leading-snug font-semibold tracking-tight text-foreground">
+        <h3 className={PRODUCT_CARD_TITLE_CLASS} title={product.name}>
           {product.name}
         </h3>
 
-        <ProductCardReviewsAndEta
-          size="default"
-          ratingLabel={ratingLabel}
-          reviewCount={product.reviewCount}
-          instant={product.instant}
-        />
+        <div className="mt-1.5 h-5 shrink-0">
+          <ProductCardReviewsAndEta
+            size="default"
+            ratingLabel={ratingLabel}
+            reviewCount={product.reviewCount}
+            instant={product.instant}
+            reserveSpace
+          />
+        </div>
 
         <ProductCardPriceBlock
           pricePaise={product.pricePaise}
@@ -290,9 +311,9 @@ function RailProductCardContent({ product, badgeLabel, badgeColor }) {
   return (
     <Link
       to={productPath(product)}
-      className="group flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm transition-[box-shadow,border-color] duration-200 hover:border-border hover:shadow-md"
+      className="group flex h-full min-w-0 flex-col rounded-2xl border border-border/80 bg-card shadow-sm transition-[box-shadow,border-color] duration-200 hover:border-border hover:shadow-md"
     >
-      <div className="relative aspect-[5/4] w-full shrink-0 overflow-hidden rounded-t-2xl bg-muted">
+      <div className="relative aspect-square w-full shrink-0 overflow-hidden rounded-t-2xl bg-muted">
         <SectionProductBadge label={badgeLabel} color={badgeColor} />
         <ProductCardInstantBadge instant={product.instant} />
         {src && !broken ? (
@@ -306,17 +327,20 @@ function RailProductCardContent({ product, badgeLabel, badgeColor }) {
           <DecoryImageFallback />
         )}
       </div>
-      <div className="flex flex-1 flex-col px-2.5 pb-3 pt-2.5 sm:px-3">
-        <h3 className="line-clamp-2 min-h-[2.35em] text-xs font-semibold leading-snug tracking-tight text-foreground sm:text-[13px]">
+      <div className="flex shrink-0 flex-col px-2 pb-2.5 pt-2 sm:px-2.5">
+        <h3 className={PRODUCT_CARD_TITLE_CLASS} title={product.name}>
           {product.name}
         </h3>
 
-        <ProductCardReviewsAndEta
-          size="rail"
-          ratingLabel={ratingLabel}
-          reviewCount={product.reviewCount}
-          instant={product.instant}
-        />
+        <div className="mt-1.5 h-5 shrink-0">
+          <ProductCardReviewsAndEta
+            size="rail"
+            ratingLabel={ratingLabel}
+            reviewCount={product.reviewCount}
+            instant={product.instant}
+            reserveSpace
+          />
+        </div>
 
         <ProductCardPriceBlock
           size="rail"
@@ -330,7 +354,7 @@ function RailProductCardContent({ product, badgeLabel, badgeColor }) {
 
 export function HomeProductCardRail({ product, badgeLabel, badgeColor }) {
   return (
-    <div className="min-w-0">
+    <div className="h-full min-w-0">
       <RailProductCardContent
         product={product}
         badgeLabel={badgeLabel}
@@ -342,16 +366,15 @@ export function HomeProductCardRail({ product, badgeLabel, badgeColor }) {
 
 export function HomeProductCardRailSkeleton() {
   return (
-    <div className="min-w-0 overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
-      <Skeleton className="aspect-[5/4] w-full rounded-none" />
-      <div className="flex flex-col px-2.5 pb-3 pt-2.5 sm:px-3">
-        <Skeleton className="h-3.5 w-[88%] rounded-md" />
-        <Skeleton className="mt-1.5 h-3.5 w-[62%] rounded-md" />
-        <div className="mt-1.5 flex items-center gap-1.5">
+    <div className="h-full min-w-0 overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
+      <Skeleton className="aspect-square w-full rounded-none" />
+      <div className="flex flex-col px-2 pb-2.5 pt-2 sm:px-2.5">
+        <Skeleton className="min-h-[2.75em] w-[88%] rounded-md" />
+        <div className="mt-1.5 flex h-5 items-center gap-1.5">
           <Skeleton className="h-5 w-10 rounded-md" />
           <Skeleton className="h-3 w-16 rounded-md" />
         </div>
-        <div className="mt-2 flex items-center justify-between">
+        <div className="flex min-h-6 items-center justify-between pt-1.5">
           <Skeleton className="h-5 w-[4.5rem] rounded-md" />
           <Skeleton className="h-5 w-12 rounded-md" />
         </div>

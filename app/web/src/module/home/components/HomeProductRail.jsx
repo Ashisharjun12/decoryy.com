@@ -80,7 +80,7 @@ export function HomeProductRail({
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 items-stretch gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
           {Array.from({ length: 4 }).map((_, index) => (
             <HomeProductCardRailSkeleton key={index} />
           ))}
@@ -95,7 +95,7 @@ export function HomeProductRail({
             {section.items.map((product) => (
               <CarouselItem
                 key={product.id}
-                className={cn(PRODUCT_RAIL_ITEM_CLASS, "pl-2.5")}
+                className={cn(PRODUCT_RAIL_ITEM_CLASS, "h-auto pl-2.5")}
               >
                 <HomeProductCardRail
                   product={product}

@@ -1,9 +1,9 @@
 import { z } from "zod";
+import { cmsHomePlatformSchema, cmsPlatformsSchema } from "@/modules/cms/cms-platforms.js";
 
 const cmsStatusSchema = z.enum(["draft", "published", "hidden"]);
 const cmsPlacementSchema = z.enum(["announcement_bar", "home_hero", "home_mid", "home_end"]);
 const cmsToneSchema = z.enum(["info", "promo", "warning"]);
-const platformsSchema = z.array(z.enum(["web", "mobile"])).min(1).default(["web", "mobile"]);
 
 export const cmsIdParamsDto = z.object({
     id: z.string().uuid(),
@@ -15,6 +15,7 @@ export const listCmsBannersQueryDto = z.object({
     placement: cmsPlacementSchema.optional(),
     excludePlacement: cmsPlacementSchema.optional(),
     status: cmsStatusSchema.optional(),
+    platform: cmsHomePlatformSchema.optional(),
 });
 
 export const listCmsTestimonialsQueryDto = z.object({
@@ -26,13 +27,13 @@ export const listCmsTestimonialsQueryDto = z.object({
 export const homeCmsQueryDto = z.object({
     cityId: z.string().uuid().optional(),
     pincode: z.string().trim().min(1).max(12).optional(),
-    platform: z.enum(["web", "mobile"]).default("web"),
+    platform: cmsHomePlatformSchema,
 });
 
 const bannerBaseSchema = z.object({
     placement: cmsPlacementSchema,
     cityId: z.string().uuid().nullable().optional(),
-    platforms: platformsSchema,
+    platforms: cmsPlatformsSchema,
     status: cmsStatusSchema.default("draft"),
     sortIndex: z.number().int().nonnegative().optional(),
     priority: z.number().int().nonnegative().optional(),
@@ -70,7 +71,7 @@ const testimonialBaseSchema = z.object({
     accentColor: z.string().trim().max(32).nullable().optional(),
     avatarUploadId: z.string().uuid().nullable().optional(),
     cityId: z.string().uuid().nullable().optional(),
-    platforms: platformsSchema,
+    platforms: cmsPlatformsSchema,
     status: cmsStatusSchema.default("draft"),
     sortIndex: z.number().int().nonnegative().optional(),
 });

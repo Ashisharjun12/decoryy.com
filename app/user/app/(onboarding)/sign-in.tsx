@@ -1,19 +1,20 @@
 import { Text } from '@/components/ui/text';
+import { getApiError } from '@/api/client';
+import { AuthBlockingOverlay } from '@/module/onboarding/components/AuthBlockingOverlay';
 import { AuthTopBar } from '@/module/onboarding/components/AuthTopBar';
 import { IndiaPhoneField } from '@/module/onboarding/components/IndiaPhoneField';
 import { OnboardingButton } from '@/module/onboarding/components/OnboardingButton';
-import { BRAND_NAME } from '@/module/onboarding/lib/onboarding-copy';
 import {
   signInSchema,
   type SignInFormValues,
 } from '@/module/onboarding/schemas/sign-in.schema';
-import { sendSignInOtp } from '@/module/onboarding/services/mock-otp.service';
+import { sendSignInOtp } from '@/module/onboarding/services/otp.service';
 import { useAuthStore } from '@/store/auth.store';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Href, router } from 'expo-router';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function SignInScreen() {
@@ -36,14 +37,17 @@ export default function SignInScreen() {
       setPendingOtp(values.phone);
       await sendSignInOtp(values.phone);
       router.push('/(onboarding)/verify-otp' as Href);
-    } finally {
+      return;
+    } catch (err) {
       setSending(false);
+      Alert.alert('Could not send OTP', getApiError(err));
     }
   }
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <AuthTopBar backHref={'/(onboarding)/welcome' as Href} />
+      <AuthBlockingOverlay visible={sending} message="Sending OTP to your number" />
+      <AuthTopBar backHref={'/(onboarding)/login' as Href} />
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -54,12 +58,12 @@ export default function SignInScreen() {
           showsVerticalScrollIndicator={false}>
           <View className="mb-8 gap-2">
             <Text
-              className="text-foreground"
-              style={{ fontSize: 32, lineHeight: 38, fontWeight: '700' }}>
-              Sign in
+              className="text-left text-foreground"
+              style={{ fontSize: 30, lineHeight: 36, fontWeight: '700' }}>
+              Log in with phone
             </Text>
-            <Text className="text-muted-foreground text-base leading-6">
-              Sign in to book with {BRAND_NAME}.
+            <Text className="text-muted-foreground text-left text-base leading-6">
+              We&apos;ll send a one-time code to verify your number.
             </Text>
           </View>
 

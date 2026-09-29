@@ -61,6 +61,7 @@ export type PublicPricedFilter = {
     maxPricePaise?: number;
     sort?: PublicProductSort;
     q?: string;
+    instantOnly?: boolean;
 };
 
 export type CategoryFacet = {
@@ -142,6 +143,9 @@ function publicPricedWhere(
     if (priced) conditions.push(priced);
     if (applyCategories && filter.categoryIds?.length) {
         conditions.push(inArray(products.categoryId, filter.categoryIds));
+    }
+    if (filter.instantOnly) {
+        conditions.push(eq(products.instantEnabled, true));
     }
     const sell = sellPriceSql();
     if (filter.minPricePaise != null) {

@@ -15,7 +15,12 @@ import { Spinner } from "@/components/ui/spinner"
 import { AccentColorField } from "@/module/cms/components/AccentColorField"
 import { CmsFormDialogShell } from "@/module/cms/components/CmsFormDialogShell"
 import { PlatformCheckboxes } from "@/module/cms/components/PlatformCheckboxes"
-import { CMS_STATUSES, CMS_TONES, PLACEMENT_LABELS } from "@/module/cms/lib/cms-constants"
+import {
+  CMS_STATUSES,
+  CMS_TONES,
+  PLACEMENT_LABELS,
+  websitePlatformsOnly,
+} from "@/module/cms/lib/cms-constants"
 
 const FORM_ID = "announcement-form"
 
@@ -44,7 +49,7 @@ export function AnnouncementFormDialog({
     setAccentColor(item?.accentColor ?? "#ca8a04")
     setStatus(item?.status ?? "draft")
     setCityId(item?.cityId ?? "global")
-    setPlatforms(item?.platforms ?? ["web", "mobile"])
+    setPlatforms(websitePlatformsOnly(item?.platforms))
     setDismissible(item?.dismissible ?? true)
   }, [open, item])
 

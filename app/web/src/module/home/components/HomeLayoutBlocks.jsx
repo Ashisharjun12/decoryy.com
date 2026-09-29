@@ -26,7 +26,6 @@ export function HomeLayoutBlocks({ blocks = [], loading = false }) {
               showSubtitle={block.showSubtitle}
               maxVisible={block.maxVisible}
               showViewAll={block.showViewAll}
-              viewAllHref={block.viewAllHref}
               enableDrillDown={block.enableDrillDown}
             />
           );

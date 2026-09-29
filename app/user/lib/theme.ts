@@ -1,5 +1,14 @@
 import { DarkTheme, DefaultTheme, type Theme } from '@react-navigation/native';
 
+/** Icon / native color for `THEME.*.primary` (hsl 48 96% 53%). */
+export const BRAND_PRIMARY_HEX = '#FACC15';
+
+/** Instant tab + product instant badge (Tailwind orange-500). */
+export const INSTANT_TAB_HEX = '#F97316';
+
+/** Default horizontal inset for stack screens (matches PDP `paddingHorizontal: 20`). */
+export const SCREEN_HORIZONTAL_GUTTER = 20;
+
 export const THEME = {
   light: {
     background: 'hsl(0 0% 100%)',

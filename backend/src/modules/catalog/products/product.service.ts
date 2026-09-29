@@ -141,6 +141,7 @@ export type PublicProductListQuery = {
     maxPricePaise?: unknown;
     sort?: unknown;
     q?: unknown;
+    instant?: unknown;
     page?: unknown;
     limit?: unknown;
 };
@@ -469,6 +470,7 @@ export class ProductService implements IProductService {
             maxPricePaise,
             sort: parsePublicSort(query),
             q: searchQ,
+            instantOnly: query.instant === "1",
         };
 
         const [{ items: rows, total }, categories, price] = await Promise.all([

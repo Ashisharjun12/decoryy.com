@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Spinner } from "@/components/ui/spinner"
 import { CmsFormDialogShell } from "@/module/cms/components/CmsFormDialogShell"
 import { PlatformCheckboxes } from "@/module/cms/components/PlatformCheckboxes"
-import { CMS_STATUSES } from "@/module/cms/lib/cms-constants"
+import { CMS_STATUSES, websitePlatformsOnly } from "@/module/cms/lib/cms-constants"
 
 const FORM_ID = "faq-form"
 
@@ -28,7 +28,7 @@ export function FaqFormDialog({ open, onOpenChange, item, onSubmit, submitting }
     setQuestion(item?.question ?? "")
     setAnswer(item?.answer ?? "")
     setStatus(item?.status ?? "draft")
-    setPlatforms(item?.platforms ?? ["web", "mobile"])
+    setPlatforms(websitePlatformsOnly(item?.platforms))
   }, [open, item])
 
   function handleSubmit(event) {

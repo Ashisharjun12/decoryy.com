@@ -4,9 +4,7 @@ import type { CmsFooterColumnService } from "@/modules/cms/footer-columns/footer
 import type { CmsPageService } from "@/modules/cms/pages/page.service.js";
 import { resolveCompletedDisplayUrls, urlFromMap } from "@/modules/upload/index.js";
 
-function matchesPlatform(platforms: string[], platform: string) {
-    return platforms.includes(platform);
-}
+import { matchesCmsPlatform } from "@/modules/cms/cms-platforms.js";
 
 export class SiteShellService {
     constructor(
@@ -25,7 +23,7 @@ export class SiteShellService {
             this.footerColumns.listPublished(),
         ]);
 
-        const filteredSocial = socialRows.filter((row) => matchesPlatform(row.platforms, platform));
+        const filteredSocial = socialRows.filter((row) => matchesCmsPlatform(row.platforms, platform));
         const iconUrlMap = await resolveCompletedDisplayUrls(
             filteredSocial.map((row) => row.iconUploadId).filter(Boolean) as string[],
         );
@@ -39,7 +37,7 @@ export class SiteShellService {
 
         const footerColumns = [];
         for (const row of columnRows) {
-            if (!matchesPlatform(row.platforms, platform)) continue;
+            if (!matchesCmsPlatform(row.platforms, platform)) continue;
             const links = await this.pages.resolveFooterLinks(row.links, platform);
             if (!links.length) continue;
             footerColumns.push({

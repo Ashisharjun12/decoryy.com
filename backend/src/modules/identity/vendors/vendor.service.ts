@@ -21,6 +21,8 @@ import type { User } from "@/modules/identity/users/user.schema.js";
 import type { IUserService } from "@/modules/identity/users/user.service.js";
 import { auditService } from "@/modules/ops/audit/audit.service.js";
 import { VendorMemberRepository } from "@/modules/identity/vendor-members/vendor-member.repository.js";
+import type { ISessionService } from "@/modules/identity/sessions/session.service.js";
+import { downgradeStaffRoleIfOrphaned } from "@/modules/identity/consumer/staff-role-lifecycle.js";
 
 export interface IVendorService {
     findByUserId(userId: string): Promise<Vendor | undefined>;
@@ -87,6 +89,7 @@ export class VendorService implements IVendorService {
         private readonly vendors: IVendorRepository,
         private readonly media: IMediaService,
         private readonly users: IUserService,
+        private readonly sessions: ISessionService,
     ) {}
 
     findByUserId(userId: string) {
@@ -209,10 +212,19 @@ export class VendorService implements IVendorService {
         if (!updated) {
             throw ApiError.notFound("vendor not found");
         }
-        if (status === "BLOCKED") {
-            await this.users.updateStatus(existing.userId, "blocked");
+        if (status === "BLOCKED" || status === "REJECTED") {
+            const disabledWorkers = await this.members.disableAllWorkersForVendor(id);
+            const staffUserIds = new Set(
+                disabledWorkers.map((row) => row.userId).filter((uid): uid is string => Boolean(uid)),
+            );
+            for (const staffUserId of staffUserIds) {
+                await downgradeStaffRoleIfOrphaned(staffUserId, {
+                    members: this.members,
+                    users: this.users,
+                    sessions: this.sessions,
+                });
+            }
         } else if (status === "ACTIVE") {
-            await this.users.updateStatus(existing.userId, "active");
             if (existing.phone) {
                 await this.members.upsertOwnerForVendor({
                     vendorId: id,

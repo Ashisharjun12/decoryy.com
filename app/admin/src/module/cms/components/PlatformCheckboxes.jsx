@@ -1,8 +1,8 @@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { CMS_PLATFORMS } from "@/module/cms/lib/cms-constants"
+import { CMS_WEBSITE_PLATFORMS } from "@/module/cms/lib/cms-constants"
 
-export function PlatformCheckboxes({ value = [], onChange }) {
+export function PlatformCheckboxes({ value = [], onChange, options = CMS_WEBSITE_PLATFORMS }) {
   function toggle(platform) {
     const next = value.includes(platform)
       ? value.filter((item) => item !== platform)
@@ -12,7 +12,7 @@ export function PlatformCheckboxes({ value = [], onChange }) {
 
   return (
     <div className="flex flex-wrap gap-4">
-      {CMS_PLATFORMS.map((platform) => (
+      {options.map((platform) => (
         <label key={platform} className="flex items-center gap-2 text-sm">
           <Checkbox
             checked={value.includes(platform)}

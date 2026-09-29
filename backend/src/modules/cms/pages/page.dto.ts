@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { normalizeCmsPageSlug } from "@/modules/cms/pages/page-slugs.js";
+import { cmsHomePlatformSchema, cmsPlatformsSchema } from "@/modules/cms/cms-platforms.js";
 
 const cmsStatusSchema = z.enum(["draft", "published", "hidden"]);
-const platformsSchema = z.array(z.enum(["web", "mobile"])).min(1).default(["web", "mobile"]);
 
 const slugSchema = z
     .string()
@@ -16,7 +16,7 @@ const pageBaseSchema = z.object({
     slug: slugSchema,
     title: z.string().trim().min(1).max(200),
     body: z.string().max(500_000).default(""),
-    platforms: platformsSchema,
+    platforms: cmsPlatformsSchema,
     status: cmsStatusSchema.default("draft"),
     sortIndex: z.number().int().nonnegative().optional(),
 });
@@ -39,5 +39,5 @@ export const cmsPageSlugParamsDto = z.object({
 });
 
 export const cmsPagePublicQueryDto = z.object({
-    platform: z.enum(["web", "mobile"]).default("web"),
+    platform: cmsHomePlatformSchema,
 });

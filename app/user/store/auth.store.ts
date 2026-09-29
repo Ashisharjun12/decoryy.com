@@ -1,13 +1,15 @@
-import type { CustomerUser, MockSessionPayload } from '@/lib/auth.types';
+import type { AuthSessionPayload, CustomerUser } from '@/lib/auth.types';
 import {
   clearAccessToken,
   clearHasSeenWelcome,
   loadAccessToken,
   loadHasSeenWelcome,
-  loadUserPhone,
+  loadUserProfile,
   saveAccessToken,
   saveHasSeenWelcome,
+  saveRefreshToken,
   saveUserPhone,
+  saveUserProfile,
 } from '@/lib/secure-storage';
 import { create } from 'zustand';
 
@@ -24,7 +26,8 @@ type AuthState = {
   completeWelcome: () => Promise<void>;
   setPendingOtp: (phone: string) => void;
   clearPendingOtp: () => void;
-  setSession: (payload: MockSessionPayload) => Promise<void>;
+  setSession: (payload: AuthSessionPayload) => Promise<void>;
+  updateUser: (user: CustomerUser) => Promise<void>;
   signOut: () => Promise<void>;
   resetOnboarding: () => Promise<void>;
 };
@@ -38,10 +41,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   lastDevOtp: null,
 
   hydrate: async () => {
-    const [hasSeenWelcome, accessToken, phone] = await Promise.all([
+    const [hasSeenWelcome, accessToken, profile] = await Promise.all([
       loadHasSeenWelcome(),
       loadAccessToken(),
-      loadUserPhone(),
+      loadUserProfile(),
     ]);
 
     if (!accessToken) {
@@ -53,11 +56,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       hydrated: true,
       hasSeenWelcome,
       accessToken,
-      user: {
-        id: 'mock-customer',
-        name: 'Guest',
-        phone: phone ?? '',
-      },
+      user: profile,
     });
   },
 
@@ -71,15 +70,25 @@ export const useAuthStore = create<AuthState>((set) => ({
   clearPendingOtp: () => set({ pendingOtpPhone: null }),
 
   setSession: async (payload) => {
-    await Promise.all([
+    const saves: Promise<void>[] = [
       saveAccessToken(payload.accessToken),
+      saveUserProfile(payload.user),
       saveUserPhone(payload.user.phone),
-    ]);
+    ];
+    if (payload.refreshToken) {
+      saves.push(saveRefreshToken(payload.refreshToken));
+    }
+    await Promise.all(saves);
     set({
       accessToken: payload.accessToken,
       user: payload.user,
       pendingOtpPhone: null,
     });
+  },
+
+  updateUser: async (user) => {
+    await Promise.all([saveUserProfile(user), saveUserPhone(user.phone)]);
+    set({ user });
   },
 
   signOut: async () => {

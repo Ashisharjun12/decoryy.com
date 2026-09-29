@@ -24,6 +24,8 @@ export interface IVendorMemberRepository {
     findActiveByUserId(userId: string): Promise<VendorMember | undefined>;
     findInvitedByPhone(phone: string): Promise<VendorMember | undefined>;
     findActiveMembershipForUserOnVendor(userId: string, vendorId: string): Promise<VendorMember | undefined>;
+    countActiveMembershipsForUser(userId: string): Promise<number>;
+    disableAllWorkersForVendor(vendorId: string): Promise<VendorMember[]>;
     findOwnerMemberForVendor(vendorId: string): Promise<VendorMember | undefined>;
     findActiveMemberElsewhere(phone: string, excludeVendorId?: string): Promise<VendorMember | undefined>;
     create(data: {
@@ -178,6 +180,28 @@ export class VendorMemberRepository implements IVendorMemberRepository {
             )
             .limit(1);
         return row;
+    }
+
+    async countActiveMembershipsForUser(userId: string): Promise<number> {
+        const [row] = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(vendorMembers)
+            .where(and(eq(vendorMembers.userId, userId), eq(vendorMembers.status, "active")));
+        return Number(row?.count ?? 0);
+    }
+
+    async disableAllWorkersForVendor(vendorId: string): Promise<VendorMember[]> {
+        return db
+            .update(vendorMembers)
+            .set({ status: "disabled", updatedAt: new Date() })
+            .where(
+                and(
+                    eq(vendorMembers.vendorId, vendorId),
+                    eq(vendorMembers.kind, "WORKER"),
+                    ne(vendorMembers.status, "disabled"),
+                ),
+            )
+            .returning();
     }
 
     async findOwnerMemberForVendor(vendorId: string): Promise<VendorMember | undefined> {

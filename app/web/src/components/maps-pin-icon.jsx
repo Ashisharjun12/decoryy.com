@@ -1,4 +1,5 @@
-const MAPS_PIN_ICON_URL = "https://ik.imagekit.io/aevhlnk0h/google-maps.png";
+const MAPS_PIN_ICON_URL =
+  "https://ik.imagekit.io/aevhlnk0h/placeholder.png?updatedAt=1789971373748";
 
 export function MapsPinIcon({ className, size = 20, ...props }) {
   return (

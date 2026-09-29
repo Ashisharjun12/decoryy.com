@@ -1,12 +1,12 @@
 import { z } from "zod";
+import { cmsPlatformsSchema } from "@/modules/cms/cms-platforms.js";
 
 const cmsStatusSchema = z.enum(["draft", "published", "hidden"]);
-const platformsSchema = z.array(z.enum(["web", "mobile"])).min(1).default(["web", "mobile"]);
 
 const faqBaseSchema = z.object({
     question: z.string().trim().min(1).max(500),
     answer: z.string().trim().min(1).max(5000),
-    platforms: platformsSchema,
+    platforms: cmsPlatformsSchema,
     status: cmsStatusSchema.default("draft"),
     sortIndex: z.number().int().nonnegative().optional(),
 });

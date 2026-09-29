@@ -1,13 +1,12 @@
 import { logout, refresh } from "@/api/auth.api";
 import { useAuthStore } from "@/store/auth.store";
 import { useCartStore } from "@/store/cart.store";
+import { isConsumerAppEligible } from "@/module/auth/lib/consumer-eligibility";
 
-export function isCustomer(user) {
-  return user?.role === "user";
-}
+export { isConsumerAppEligible, isConsumerAppEligible as isCustomer } from "@/module/auth/lib/consumer-eligibility";
 
 export async function applyCustomerSession(payload) {
-  if (!isCustomer(payload?.user)) {
+  if (!isConsumerAppEligible(payload?.user)) {
     try {
       await logout();
     } catch {

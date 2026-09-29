@@ -13,7 +13,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { Spinner } from "@/components/ui/spinner"
 import { CmsFormDialogShell } from "@/module/cms/components/CmsFormDialogShell"
 import { PlatformCheckboxes } from "@/module/cms/components/PlatformCheckboxes"
-import { CMS_PLACEMENTS, CMS_STATUSES, PLACEMENT_LABELS } from "@/module/cms/lib/cms-constants"
+import {
+  CMS_PLACEMENTS,
+  CMS_STATUSES,
+  PLACEMENT_LABELS,
+  websitePlatformsOnly,
+} from "@/module/cms/lib/cms-constants"
 import {
   CMS_BANNER_DESKTOP_SIZE_HINT,
   CMS_BANNER_MOBILE_SIZE_HINT,
@@ -77,7 +82,7 @@ export function BannerFormDialog({
     setSecondaryHref(item?.secondaryHref ?? "")
     setStatus(item?.status ?? "draft")
     setCityId(item?.cityId ?? "global")
-    setPlatforms(item?.platforms ?? ["web", "mobile"])
+    setPlatforms(websitePlatformsOnly(item?.platforms))
     setImageUploadId(pickedDesktopUploadId ?? item?.imageUploadId ?? null)
     setMobileImageUploadId(pickedMobileUploadId ?? item?.mobileImageUploadId ?? null)
     setMobileImageCleared(false)

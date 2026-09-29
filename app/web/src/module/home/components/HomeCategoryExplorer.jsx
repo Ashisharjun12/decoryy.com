@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeftIcon } from "lucide-react";
-import { categoryPath } from "@/lib/catalog-path";
 import { Button } from "@/components/ui/button";
+import { resolveViewAllCategoryHref } from "@/module/catalog/lib/category-nav";
 import {
   CategoryTileGrid,
+  HOME_CATEGORY_DESKTOP_VISIBLE,
   HOME_CATEGORY_PREVIEW_COUNT,
 } from "@/module/catalog/components/CategoryTileGrid";
 import { HomeSectionHeading } from "@/module/home/components/HomeSectionHeading";
+import { normalizeCategoryTree } from "@/module/home/lib/home-catalog";
+import { useCatalogStore } from "@/store/catalog.store";
 
 export function HomeCategoryExplorer({
   categories = [],
@@ -18,10 +21,14 @@ export function HomeCategoryExplorer({
   showSubtitle = true,
   maxVisible = HOME_CATEGORY_PREVIEW_COUNT,
   showViewAll = true,
-  viewAllHref: viewAllHrefProp,
   enableDrillDown = true,
 }) {
   const [stack, setStack] = useState([]);
+  const catalogRaw = useCatalogStore((s) => s.categories);
+  const catalogTree = useMemo(
+    () => normalizeCategoryTree(catalogRaw),
+    [catalogRaw],
+  );
 
   useEffect(() => {
     setStack([]);
@@ -38,13 +45,22 @@ export function HomeCategoryExplorer({
     ? `Pick a ${currentParent.name.toLowerCase()} setup`
     : headingSubtitle ?? "Trusted decorators for all events";
 
-  const showViewAllLink =
-    showViewAll &&
-    visibleCategories.length > maxVisible &&
-    !loading;
-  const viewAllHref = currentParent
-    ? categoryPath(currentParent)
-    : viewAllHrefProp ?? "/decorations";
+  const viewAllHref = useMemo(() => {
+    if (showViewAll === false || loading) return null;
+    return resolveViewAllCategoryHref({
+      rowCategories: visibleCategories,
+      catalogCategories: catalogTree,
+      currentParent,
+    });
+  }, [
+    showViewAll,
+    loading,
+    visibleCategories,
+    catalogTree,
+    currentParent,
+  ]);
+
+  const showViewAllLink = Boolean(viewAllHref);
 
   return (
     <section aria-label="Decoration categories">
@@ -73,7 +89,7 @@ export function HomeCategoryExplorer({
               />
             ) : null}
           </div>
-          {showViewAllLink && !loading ? (
+          {showViewAllLink ? (
             <Link
               to={viewAllHref}
               className="shrink-0 self-center whitespace-nowrap pt-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground sm:text-sm"
@@ -97,7 +113,7 @@ export function HomeCategoryExplorer({
         loading={loading}
         initialVisible={maxVisible}
         showExpandButton={false}
-        skeletonCount={HOME_CATEGORY_PREVIEW_COUNT}
+        skeletonCount={HOME_CATEGORY_DESKTOP_VISIBLE}
         layout="home"
       />
     </section>

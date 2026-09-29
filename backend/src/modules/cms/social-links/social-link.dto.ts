@@ -1,7 +1,7 @@
 import { z } from "zod";
+import { cmsPlatformsSchema } from "@/modules/cms/cms-platforms.js";
 
 const cmsStatusSchema = z.enum(["draft", "published", "hidden"]);
-const platformsSchema = z.array(z.enum(["web", "mobile"])).min(1).default(["web", "mobile"]);
 export const socialIconPresetSchema = z.enum([
     "instagram",
     "facebook",
@@ -30,7 +30,7 @@ const socialBaseSchema = z.object({
     href: hrefSchema,
     iconPreset: socialIconPresetSchema.nullable().optional(),
     iconUploadId: z.string().uuid().nullable().optional(),
-    platforms: platformsSchema,
+    platforms: cmsPlatformsSchema,
     status: cmsStatusSchema.default("draft"),
     sortIndex: z.number().int().nonnegative().optional(),
 });

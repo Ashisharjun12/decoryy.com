@@ -19,7 +19,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/toast"
 import { PlatformCheckboxes } from "@/module/cms/components/PlatformCheckboxes"
-import { CMS_STATUSES } from "@/module/cms/lib/cms-constants"
+import { CMS_STATUSES, websitePlatformsOnly } from "@/module/cms/lib/cms-constants"
 import { slugifyPageTitle } from "@/module/brand/lib/page-slug"
 
 export function BrandPageFormPage() {
@@ -50,7 +50,7 @@ export function BrandPageFormPage() {
         setSlugTouched(true)
         setBody(data.body ?? "")
         setStatus(data.status ?? "draft")
-        setPlatforms(data.platforms ?? ["web", "mobile"])
+        setPlatforms(websitePlatformsOnly(data.platforms))
       })
       .catch((err) => {
         if (!cancelled) setError(getApiError(err))
@@ -92,7 +92,7 @@ export function BrandPageFormPage() {
       setSlug(data.slug ?? slug)
       setBody(data.body ?? body)
       setStatus(data.status ?? payload.status)
-      setPlatforms(data.platforms ?? platforms)
+      setPlatforms(websitePlatformsOnly(data.platforms ?? platforms))
       toast.add({
         title: payload.status === "published" ? "Page published" : "Page saved",
         type: "success",

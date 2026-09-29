@@ -69,8 +69,8 @@ const vendorRepository = new VendorRepository();
 const sessionRepository = new SessionRepository();
 
 const userService = new UserService(userRepository);
-const vendorService = new VendorService(vendorRepository, mediaService, userService);
 const sessionService = new SessionService(sessionRepository, userRepository);
+const vendorService = new VendorService(vendorRepository, mediaService, userService, sessionService);
 const authService = new AuthService(userService, vendorService, sessionService, notificationService);
 const adminAccountService = new AdminAccountService(userRepository, new AdminEmailChangeRepository());
 const adminAccountController = new AdminAccountController(adminAccountService);
@@ -124,6 +124,7 @@ const vendorTeamService = new VendorTeamService(
     new VendorMemberRepository(),
     vendorRepository,
     userService,
+    sessionService,
 );
 const vendorTeamController = new VendorTeamController(vendorTeamService);
 const collectionController = new CollectionController(collectionService);

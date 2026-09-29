@@ -16,7 +16,7 @@ export function getUnauthenticatedRedirect(hasSeenWelcome: boolean): Href {
   if (!hasSeenWelcome) {
     return '/(onboarding)/welcome' as Href;
   }
-  return '/(onboarding)/sign-in' as Href;
+  return '/(onboarding)/login' as Href;
 }
 
 export function getAuthRedirectPath(state: AuthRedirectInput): Href | null {

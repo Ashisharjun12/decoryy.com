@@ -1,5 +1,6 @@
 import type { CmsBanner } from "@/modules/cms/banners/banner.schema.js";
 import type { CmsTestimonial } from "@/modules/cms/testimonials/testimonial.schema.js";
+import { matchesCmsPlatform } from "@/modules/cms/cms-platforms.js";
 
 type ResolveRow = {
     id: string;
@@ -49,10 +50,6 @@ function isPublished(row: { status: string; startsAt?: Date | null; endsAt?: Dat
     if (row.startsAt && row.startsAt > at) return false;
     if (row.endsAt && row.endsAt < at) return false;
     return true;
-}
-
-function matchesPlatform(platforms: string[], platform: string) {
-    return platforms.includes(platform);
 }
 
 function sortByIndex(a: { sortIndex: number }, b: { sortIndex: number }) {
@@ -143,7 +140,7 @@ export class CmsHomeService {
         const at = new Date();
 
         const eligibleBanners = banners.filter(
-            (row) => isPublished(row, at) && matchesPlatform(row.platforms, platform),
+            (row) => isPublished(row, at) && matchesCmsPlatform(row.platforms, platform),
         );
 
         const announcementPool = eligibleBanners.filter((row) => row.placement === "announcement_bar");
@@ -159,12 +156,12 @@ export class CmsHomeService {
         }
 
         const testimonialPool = testimonials.filter(
-            (row) => isPublished(row, at) && matchesPlatform(row.platforms, platform),
+            (row) => isPublished(row, at) && matchesCmsPlatform(row.platforms, platform),
         );
         const mergedTestimonials = mergeCityPrepend(cityId, testimonialPool).map(toTestimonial);
 
         const faqPool = faqs.filter(
-            (row) => isPublished(row, at) && matchesPlatform(row.platforms, platform),
+            (row) => isPublished(row, at) && matchesCmsPlatform(row.platforms, platform),
         );
         const resolvedFaqs = faqPool.sort(sortByIndex).map(toFaq);
 

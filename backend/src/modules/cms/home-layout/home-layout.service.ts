@@ -16,6 +16,7 @@ import type {
     patchHomeLayoutBlockDto,
 } from "@/modules/cms/home-layout/home-layout.dto.js";
 import { invalidateHome } from "@/modules/cms/cache/cms-cache.invalidation.js";
+import { matchesCmsHomeLayoutPlatform } from "@/modules/cms/cms-platforms.js";
 
 type CreateInput = z.infer<typeof createHomeLayoutBlockDto>;
 type PatchInput = z.infer<typeof patchHomeLayoutBlockDto>;
@@ -65,10 +66,6 @@ function isPublished(row: { status: string; startsAt?: Date | null; endsAt?: Dat
     if (row.startsAt && row.startsAt > at) return false;
     if (row.endsAt && row.endsAt < at) return false;
     return true;
-}
-
-function matchesPlatform(platforms: string[], platform: string) {
-    return platforms.includes(platform);
 }
 
 function normalizeCategoryRowConfig(config: CategoryRowConfig | null | undefined): CategoryRowConfig {
@@ -275,7 +272,7 @@ export class CmsHomeLayoutService {
 
         const at = new Date();
         const published = (await this.blocks.listPublished()).filter(
-            (row) => isPublished(row, at) && matchesPlatform(row.platforms, platform),
+            (row) => isPublished(row, at) && matchesCmsHomeLayoutPlatform(row.platforms, platform),
         );
 
         const cityBlocks = published

@@ -9,9 +9,22 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "DeccorBuddys uses your location to show decorations available near you and improve delivery estimates.",
+        "NSUserNotificationsUsageDescription": "DeccorBuddys sends order updates, booking reminders, and offers.",
+        "NSCameraUsageDescription": "DeccorBuddys uses the camera when you add a profile or support photo.",
+        "NSPhotoLibraryUsageDescription": "DeccorBuddys uses your photo library when you upload images."
+      }
     },
     "android": {
+      "permissions": [
+        "android.permission.WAKE_LOCK",
+        "POST_NOTIFICATIONS",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "CAMERA"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -42,7 +55,22 @@
         }
       ],
       "expo-secure-store",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "@react-native-google-signin/google-signin",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#ffffff"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "DeccorBuddys uses your location to show decorations available near you and improve delivery estimates."
+        }
+      ],
+      "@maplibre/maplibre-react-native"
     ],
     "experiments": {
       "typedRoutes": true,

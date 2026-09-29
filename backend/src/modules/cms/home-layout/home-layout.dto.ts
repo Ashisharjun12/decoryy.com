@@ -1,8 +1,8 @@
 import { z } from "zod";
+import { cmsPlatformsSchema } from "@/modules/cms/cms-platforms.js";
 
 const cmsStatusSchema = z.enum(["draft", "published", "hidden"]);
 const blockTypeSchema = z.enum(["category_row", "product_rail"]);
-const platformsSchema = z.array(z.enum(["web", "mobile"])).min(1).default(["web", "mobile"]);
 
 const categoryRowConfigSchema = z.object({
     maxVisible: z.number().int().min(1).max(10).optional(),
@@ -15,7 +15,7 @@ const blockBaseSchema = z.object({
     cityId: z.string().uuid().nullable().optional(),
     status: cmsStatusSchema.default("draft"),
     sortIndex: z.number().int().nonnegative().optional(),
-    platforms: platformsSchema,
+    platforms: cmsPlatformsSchema,
     startsAt: z.coerce.date().nullable().optional(),
     endsAt: z.coerce.date().nullable().optional(),
     title: z.string().trim().max(200).nullable().optional(),
@@ -41,7 +41,7 @@ export const patchHomeLayoutBlockDto = z.object({
     cityId: z.string().uuid().nullable().optional(),
     status: cmsStatusSchema.optional(),
     sortIndex: z.number().int().nonnegative().optional(),
-    platforms: platformsSchema.optional(),
+    platforms: cmsPlatformsSchema.optional(),
     startsAt: z.coerce.date().nullable().optional(),
     endsAt: z.coerce.date().nullable().optional(),
     title: z.string().trim().max(200).nullable().optional(),

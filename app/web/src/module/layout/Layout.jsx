@@ -14,13 +14,15 @@ import { ScrollToTopOnNavigate } from "@/module/layout/components/ScrollToTopOnN
 import { MobileBottomNav } from "@/module/layout/components/MobileBottomNav";
 import { MobileCategorySheet } from "@/module/layout/components/MobileCategorySheet";
 import { RouteSeo } from "@/module/layout/components/RouteSeo";
+import { isProductDetailPath } from "@/lib/product-page-route";
 
 export function Layout() {
   const { pathname } = useLocation();
   const isAccountArea = pathname.startsWith("/account");
   const isCheckoutArea = pathname.startsWith("/checkout");
+  const isProductPdp = isProductDetailPath(pathname);
   const showFooter = !isAccountArea && !isCheckoutArea;
-  const showMobileBottomNav = !isCheckoutArea;
+  const showMobileBottomNav = !isCheckoutArea && !isProductPdp;
 
   return (
     <LenisProvider>

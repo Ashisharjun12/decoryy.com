@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray, ne, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, ne, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/postgres-client.js";
 import { cities } from "@/modules/geo/cities/city.schema.js";
 import {
@@ -18,7 +18,24 @@ export type CmsBannerListFilter = {
     placement?: CmsBanner["placement"];
     excludePlacement?: CmsBanner["placement"];
     status?: CmsBanner["status"];
+    platform?: string;
 };
+
+function platformListFilter(platform: string): SQL {
+    if (platform === "android") {
+        return or(
+            sql`${cmsBanners.platforms} @> ARRAY['android']::text[]`,
+            sql`${cmsBanners.platforms} @> ARRAY['mobile']::text[]`,
+        )!;
+    }
+    if (platform === "ios") {
+        return or(
+            sql`${cmsBanners.platforms} @> ARRAY['ios']::text[]`,
+            sql`${cmsBanners.platforms} @> ARRAY['mobile']::text[]`,
+        )!;
+    }
+    return sql`${cmsBanners.platforms} @> ARRAY[${platform}]::text[]`;
+}
 
 export class CmsBannerRepository {
     async findById(id: string): Promise<CmsBanner | undefined> {
@@ -61,6 +78,7 @@ export class CmsBannerRepository {
         if (filter.placement) parts.push(eq(cmsBanners.placement, filter.placement));
         if (filter.excludePlacement) parts.push(ne(cmsBanners.placement, filter.excludePlacement));
         if (filter.status) parts.push(eq(cmsBanners.status, filter.status));
+        if (filter.platform) parts.push(platformListFilter(filter.platform));
         const where = parts.length ? and(...parts) : undefined;
 
         const base = db

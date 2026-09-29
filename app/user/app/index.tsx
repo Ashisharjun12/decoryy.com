@@ -1,4 +1,4 @@
-import { LoadingPlaceholder } from '@/components/shell';
+import { LoadingPlaceholder } from '@/components/shell/LoadingPlaceholder';
 import { getAuthRedirectPath, useAuthStore } from '@/store/auth.store';
 import { Href, Redirect } from 'expo-router';
 import { View } from 'react-native';

@@ -14,7 +14,7 @@ import {
 import { Spinner } from "@/components/ui/spinner"
 import { CmsFormDialogShell } from "@/module/cms/components/CmsFormDialogShell"
 import { PlatformCheckboxes } from "@/module/cms/components/PlatformCheckboxes"
-import { CMS_STATUSES } from "@/module/cms/lib/cms-constants"
+import { CMS_STATUSES, websitePlatformsOnly } from "@/module/cms/lib/cms-constants"
 
 const FORM_ID = "footer-column-form"
 
@@ -64,7 +64,7 @@ export function FooterColumnFormDialog({ open, onOpenChange, item, onSubmit, sub
     if (!open) return
     setTitle(item?.title ?? "")
     setStatus(item?.status ?? "draft")
-    setPlatforms(item?.platforms ?? ["web", "mobile"])
+    setPlatforms(websitePlatformsOnly(item?.platforms))
     const existing = item?.links ?? []
     setLinks(existing.length ? existing.map(normalizeLinkFromApi) : [emptyLink()])
     setPickerLoading(true)

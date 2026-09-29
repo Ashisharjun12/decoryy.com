@@ -1,6 +1,7 @@
 import axios from "axios";
 import { API_URL } from "@/lib/env";
 import { useAuthStore } from "@/store/auth.store";
+import { isConsumerAppEligible } from "@/module/auth/lib/consumer-eligibility";
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -40,10 +41,6 @@ function skipRefresh(url = "") {
   );
 }
 
-function isCustomer(user) {
-  return user?.role === "user";
-}
-
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;
   if (token) {
@@ -73,7 +70,7 @@ api.interceptors.response.use(
           .post("/auth/refresh", { clientType: "web" })
           .then((res) => {
             const payload = unwrap(res);
-            if (!isCustomer(payload?.user)) {
+            if (!isConsumerAppEligible(payload?.user)) {
               throw error;
             }
             useAuthStore.getState().setSession(payload);

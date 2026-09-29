@@ -12,7 +12,7 @@ import {
 import { Spinner } from "@/components/ui/spinner"
 import { CmsFormDialogShell } from "@/module/cms/components/CmsFormDialogShell"
 import { PlatformCheckboxes } from "@/module/cms/components/PlatformCheckboxes"
-import { CMS_STATUSES } from "@/module/cms/lib/cms-constants"
+import { CMS_STATUSES, websitePlatformsOnly } from "@/module/cms/lib/cms-constants"
 import { ProductMediaPickerDialog } from "@/module/catalog/components/ProductMediaPickerDialog"
 import { toGalleryItem } from "@/module/catalog/components/ProductMediaGallery"
 
@@ -38,7 +38,7 @@ export function SocialLinkFormDialog({ open, onOpenChange, item, onSubmit, submi
     setIconUploadId(item?.iconUploadId ?? null)
     setIconUrl(item?.iconUrl ?? "")
     setStatus(item?.status ?? "draft")
-    setPlatforms(item?.platforms ?? ["web", "mobile"])
+    setPlatforms(websitePlatformsOnly(item?.platforms))
   }, [open, item])
 
   function handleSubmit(event) {

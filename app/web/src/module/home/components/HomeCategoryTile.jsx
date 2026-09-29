@@ -12,6 +12,9 @@ export function HomeCategoryTile({
   onDrill,
   className,
   navigation = "drill",
+  compact = false,
+  squareImage = false,
+  active = false,
 }) {
   const [broken, setBroken] = useState(false);
   const hasChildren = category.children?.length > 0;
@@ -23,14 +26,23 @@ export function HomeCategoryTile({
   const imageUrl = categoryImageUrl(category);
   const label = category.name;
   const tileClass = cn(
-    "group flex min-w-0 flex-col items-center gap-2",
+    "group flex min-w-0 flex-col items-center",
+    compact ? "gap-1" : "gap-2",
     className,
   );
+
+  const imageRadius = squareImage
+    ? "rounded-md"
+    : compact
+      ? "rounded-xl"
+      : "rounded-2xl";
 
   const imageBox = (
     <span
       className={cn(
-        "relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl bg-transparent",
+        "relative flex aspect-square w-full items-center justify-center overflow-hidden bg-transparent",
+        imageRadius,
+        active && "border-2 border-primary",
         !imageUrl && !broken && iconBg,
       )}
     >
@@ -44,15 +56,23 @@ export function HomeCategoryTile({
           onError={() => setBroken(true)}
         />
       ) : imageUrl && broken ? (
-        <DecoryImageFallback className="rounded-2xl" />
+        <DecoryImageFallback className={imageRadius} />
       ) : (
-        <Icon className="size-9 sm:size-10" strokeWidth={1.75} />
+        <Icon
+          className={compact ? "size-7 sm:size-8" : "size-9 sm:size-10"}
+          strokeWidth={1.75}
+        />
       )}
     </span>
   );
 
   const labelEl = (
-    <span className="line-clamp-2 w-full px-0.5 text-center text-[11px] font-semibold leading-snug text-foreground sm:text-xs">
+    <span
+      className={cn(
+        "line-clamp-2 w-full px-0.5 text-center font-semibold leading-snug text-foreground",
+        compact ? "text-[10px] sm:text-[11px]" : "text-[11px] sm:text-xs",
+      )}
+    >
       {label}
     </span>
   );

@@ -1,6 +1,13 @@
 import { api, unwrap } from "@/api/api"
 
-export function listCmsBanners({ page = 1, limit = 50, placement, excludePlacement, status } = {}) {
+export function listCmsBanners({
+  page = 1,
+  limit = 50,
+  placement,
+  excludePlacement,
+  status,
+  platform,
+} = {}) {
   return api
     .get("/admin/cms/banners", {
       params: {
@@ -9,6 +16,7 @@ export function listCmsBanners({ page = 1, limit = 50, placement, excludePlaceme
         ...(placement ? { placement } : {}),
         ...(excludePlacement ? { excludePlacement } : {}),
         ...(status ? { status } : {}),
+        ...(platform ? { platform } : {}),
       },
     })
     .then(unwrap)

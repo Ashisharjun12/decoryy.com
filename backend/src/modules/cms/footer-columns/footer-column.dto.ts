@@ -1,7 +1,7 @@
 import { z } from "zod";
+import { cmsPlatformsSchema } from "@/modules/cms/cms-platforms.js";
 
 const cmsStatusSchema = z.enum(["draft", "published", "hidden"]);
-const platformsSchema = z.array(z.enum(["web", "mobile"])).min(1).default(["web", "mobile"]);
 
 const footerHrefSchema = z
     .string()
@@ -34,7 +34,7 @@ const footerLinkSchema = z.discriminatedUnion("linkType", [
 
 const columnBaseSchema = z.object({
     title: z.string().trim().min(1).max(120),
-    platforms: platformsSchema,
+    platforms: cmsPlatformsSchema,
     status: cmsStatusSchema.default("draft"),
     sortIndex: z.number().int().nonnegative().optional(),
 });

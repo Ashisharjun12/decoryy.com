@@ -1,3 +1,5 @@
+import { categoryPath } from "@/lib/catalog-path";
+
 /**
  * Resolve category routes from the public catalog tree (top-level nodes with `children`).
  */
@@ -29,4 +31,30 @@ export function isCategoryRouteValid({ parent, childSlug, child }) {
   if (!parent) return false;
   if (childSlug && !child) return false;
   return true;
+}
+
+/** Home “View all” → first row category that exists in the catalog tree (e.g. `/c/birthday`). */
+export function resolveViewAllCategoryHref({
+  rowCategories = [],
+  catalogCategories = [],
+  currentParent = null,
+} = {}) {
+  const tree =
+    catalogCategories.length > 0 ? catalogCategories : rowCategories;
+
+  if (currentParent?.slug) {
+    const parent =
+      tree.find((row) => row.slug === currentParent.slug) ?? currentParent;
+    return parent?.slug ? categoryPath(parent) : null;
+  }
+
+  const ordered = rowCategories.length > 0 ? rowCategories : tree;
+  for (const cat of ordered) {
+    if (!cat?.slug) continue;
+    const match = tree.find((row) => row.slug === cat.slug);
+    if (match) return categoryPath(match);
+  }
+
+  const first = tree[0];
+  return first?.slug ? categoryPath(first) : null;
 }

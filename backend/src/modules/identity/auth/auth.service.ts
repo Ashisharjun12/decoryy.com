@@ -39,6 +39,7 @@ import {
     assertPartnerLoginIntentOnProfile,
     requirePartnerLoginIntentForSignIn,
 } from "@/modules/identity/auth/partner-login-eligibility.js";
+import { assertConsumerAppEligible } from "@/modules/identity/consumer/consumer-app-eligibility.js";
 
 export type PublicUser = {
     id: string;
@@ -328,6 +329,8 @@ export class AuthService implements IAuthService {
             );
             if (loginIntent) {
                 assertPartnerLoginIntentOnProfile(loginIntent, publicProfile);
+            } else {
+                assertConsumerAppEligible(publicProfile.role);
             }
         }
 
@@ -379,8 +382,11 @@ export class AuthService implements IAuthService {
             user = await this.users.setAvatar(user.id, payload.picture);
         }
 
+        const publicProfile = await this.withVendor(user);
+        assertConsumerAppEligible(publicProfile.role);
+
         const tokens = await this.sessions.issue(user, resolveDevice(input.clientType, input.device));
-        return { user: await this.withVendor(user), tokens };
+        return { user: publicProfile, tokens };
     }
 
     async adminLogin(input: {
@@ -456,7 +462,7 @@ export class AuthService implements IAuthService {
         await this.sessions.revoke(refreshToken);
     }
 
-    private async assertCustomerActor(actorId: string): Promise<User> {
+    private async assertConsumerActor(actorId: string): Promise<User> {
         const user = await this.users.findById(actorId);
         if (!user) {
             throw ApiError.unauthorized("user not found");
@@ -464,14 +470,12 @@ export class AuthService implements IAuthService {
         if (user.status === "blocked") {
             throw ApiError.forbidden("account blocked");
         }
-        if (user.role !== "user") {
-            throw ApiError.forbidden("insufficient role");
-        }
+        assertConsumerAppEligible(user.role);
         return user;
     }
 
     async linkPhone(actorId: string, phoneRaw: string, otp: string): Promise<PublicUser> {
-        const actor = await this.assertCustomerActor(actorId);
+        const actor = await this.assertConsumerActor(actorId);
         const phone = normalizePhone(phoneRaw);
 
         if (actor.phone) {
@@ -500,7 +504,7 @@ export class AuthService implements IAuthService {
     }
 
     async linkGoogle(actorId: string, idToken: string): Promise<PublicUser> {
-        const actor = await this.assertCustomerActor(actorId);
+        const actor = await this.assertConsumerActor(actorId);
 
         if (actor.googleId) {
             throw ApiError.conflict("google already linked");

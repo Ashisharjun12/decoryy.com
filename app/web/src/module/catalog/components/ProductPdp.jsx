@@ -7,14 +7,12 @@ import {
   CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  HomeIcon,
   TimerIcon,
-  CircleHelpIcon,
   ClockIcon,
   FlameIcon,
   ZapIcon,
-  PackageIcon,
   SparklesIcon,
-  TruckIcon,
 } from "lucide-react";
 import { categoryPath } from "@/lib/catalog-path";
 import { formatPaise } from "@/lib/money";
@@ -23,46 +21,30 @@ import { useCatalogStore } from "@/store/catalog.store";
 import { toast } from "@/components/ui/toast";
 import { getApiError } from "@/api/api";
 import { useCartStore } from "@/store/cart.store";
+import { LocationPicker } from "@/module/layout/components/LocationPicker";
 import { isBackendCityId, useLocationStore } from "@/store/location.store";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-} from "@/components/ui/carousel";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DecoryImageFallback } from "@/components/decory-image-fallback";
 import { MapsPinIcon } from "@/components/maps-pin-icon";
 import { Skeleton } from "@/components/ui/skeleton";
-import { listProducts } from "@/api/products.api";
 import { ProductCustomizeOrderDialog } from "@/module/catalog/components/ProductCustomizeOrderDialog";
+import {
+  ProductShareGalleryTrigger,
+  ProductShareSheet,
+  ProductShareTrigger,
+} from "@/module/catalog/components/ProductShareSheet";
 import { ProductPdpOffers } from "@/module/catalog/components/ProductPdpOffers";
+import { ProductPdpDetailsTabs } from "@/module/catalog/components/ProductPdpDetailsTabs";
 import { FulfillmentModeSwitch } from "@/module/catalog/components/FulfillmentModeTabs";
-import { ProductPdpSectionTrigger } from "@/module/catalog/components/ProductPdpSectionTrigger";
 import { ProductReviewsPreview } from "@/module/catalog/components/reviews/ProductReviewsPreview";
 import { proceedToCheckout } from "@/module/booking/lib/proceed-to-checkout";
 import { useAuthStore } from "@/store/auth.store";
-import {
-  HomeProductCardRail,
-  HomeProductCardRailSkeleton,
-} from "@/module/home/components/HomeProductCard";
-import { HomeScrollControls } from "@/module/home/components/HomeScrollControls";
-import { HomeSectionHeading } from "@/module/home/components/HomeSectionHeading";
-import { normalizeProduct } from "@/module/home/lib/home-catalog";
-import {
-  PRODUCT_RAIL_ITEM_CLASS,
-  PRODUCT_RAIL_MIN_ITEMS_FOR_CONTROLS,
-} from "@/module/home/lib/product-rail-layout";
-
-const SIMILAR_PAGE_SIZE = 20;
+import { ProductOtherCategoriesRail } from "@/module/catalog/components/ProductOtherCategoriesRail";
+import { ProductRelatedRail } from "@/module/catalog/components/ProductRelatedRail";
+import { useSiteShell } from "@/module/site/hooks/use-site-shell.jsx";
 
 const LG_MEDIA_QUERY = "(min-width: 1024px)";
 
@@ -118,14 +100,6 @@ function galleryImages(images) {
   return (images ?? []).filter((item) => item.kind !== "video");
 }
 
-function filledPoints(items) {
-  return (items ?? []).map((item) => String(item).trim()).filter(Boolean);
-}
-
-function filledFaqs(items) {
-  return (items ?? []).filter((item) => (item.question ?? "").trim() && (item.answer ?? "").trim());
-}
-
 function indexCategories(categories) {
   const byId = new Map();
   function walk(nodes) {
@@ -158,8 +132,60 @@ function formatRating(value) {
   return n % 1 === 0 ? String(n) : n.toFixed(1);
 }
 
-function comingSoon() {
-  toast.add({ title: "Coming soon", type: "info" });
+function openBrandWhatsApp(brand) {
+  if (brand?.whatsappUrl) {
+    window.open(brand.whatsappUrl, "_blank", "noopener,noreferrer");
+    return;
+  }
+  if (brand?.contactPhone) {
+    window.open(`tel:${brand.contactPhone}`, "_self");
+    return;
+  }
+  toast.add({
+    title: "WhatsApp is not available right now.",
+    type: "error",
+  });
+}
+
+function ProductPdpBookingActions({
+  booking,
+  isInstantBooking,
+  onWhatsApp,
+  onBookNow,
+  className,
+}) {
+  return (
+    <div className={cn("flex min-w-0 gap-2.5 sm:gap-3", className)}>
+      <Button
+        type="button"
+        size="lg"
+        className="h-12 min-w-0 flex-1 gap-2 rounded-xl bg-[#00A859] text-base font-semibold text-white shadow-sm hover:bg-[#009650] hover:text-white sm:min-w-40 [&_svg]:size-5"
+        onClick={onWhatsApp}
+      >
+        <WhatsAppIcon />
+        WhatsApp
+      </Button>
+      <Button
+        type="button"
+        size="lg"
+        variant={isInstantBooking ? "ghost" : "default"}
+        className={cn(
+          "h-12 min-w-0 flex-1 rounded-xl text-base font-bold sm:min-w-40",
+          isInstantBooking
+            ? "gap-2 border-0 bg-orange-500 text-white shadow-md shadow-orange-500/30 hover:bg-orange-600 hover:text-white"
+            : "bg-primary text-black shadow-sm hover:bg-primary/90",
+        )}
+        disabled={booking}
+        onClick={onBookNow}
+      >
+        {isInstantBooking ? <ZapIcon className="size-5 fill-current" aria-hidden /> : null}
+        {booking ? "Adding…" : isInstantBooking ? "Book instant" : "Book Now"}
+        {!booking && !isInstantBooking ? (
+          <ChevronRightIcon className="size-5 shrink-0" aria-hidden />
+        ) : null}
+      </Button>
+    </div>
+  );
 }
 
 const INSTANT_ETA_FALLBACK_MINUTES = 15;
@@ -218,39 +244,6 @@ function WhatsAppIcon() {
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
       <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
     </svg>
-  );
-}
-
-function IncludedList({ items }) {
-  const points = filledPoints(items);
-  if (!points.length) {
-    return <p className="text-muted-foreground">Details coming soon</p>;
-  }
-  return (
-    <ul className="grid gap-3 sm:grid-cols-2">
-      {points.map((point, index) => (
-        <li key={`${index}-${point}`} className="flex gap-2">
-          <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-600/15 text-emerald-600 dark:text-emerald-400">
-            <CheckIcon className="size-3.5" />
-          </span>
-          <span>{point}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function BulletList({ items }) {
-  const points = filledPoints(items);
-  if (!points.length) {
-    return <p className="text-muted-foreground">Details coming soon</p>;
-  }
-  return (
-    <ul className="list-disc space-y-2 pl-5">
-      {points.map((point, index) => (
-        <li key={`${index}-${point}`}>{point}</li>
-      ))}
-    </ul>
   );
 }
 
@@ -396,7 +389,8 @@ function ProductBreadcrumb({ title, categoryId }) {
   );
 }
 
-function ProductGallery({ images, title }) {
+function ProductGallery({ images, title, onShare }) {
+  const navigate = useNavigate();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const selected = images[selectedIndex] ?? images[0] ?? null;
   const src = imageSrc(selected);
@@ -414,10 +408,10 @@ function ProductGallery({ images, title }) {
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-3">
+    <div className="flex w-full min-w-0 flex-col gap-3">
       <div
         className={cn(
-          "relative min-w-0 overflow-hidden bg-muted",
+          "relative flex w-full min-w-0 items-center justify-center overflow-hidden bg-muted",
           "max-md:rounded-none max-md:border-0 max-md:shadow-none",
           "md:rounded-2xl md:border md:border-border/80 md:shadow-sm",
         )}
@@ -426,11 +420,35 @@ function ProductGallery({ images, title }) {
           <img
             src={src}
             alt={title}
-            className="aspect-[5/4] w-full max-w-full object-cover max-md:aspect-[4/3]"
+            className="block h-auto w-full max-w-full object-contain"
+            decoding="async"
+            fetchPriority="high"
           />
         ) : (
-          <DecoryImageFallback className="aspect-[5/4] min-h-48 max-md:aspect-[4/3]" />
+          <DecoryImageFallback className="min-h-48 w-full md:min-h-[360px]" />
         )}
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between p-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:hidden"
+        >
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="pointer-events-auto flex size-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md ring-1 ring-black/5"
+            aria-label="Go back"
+          >
+            <ChevronLeftIcon className="size-5" aria-hidden />
+          </button>
+          <div className="pointer-events-auto flex items-center gap-2">
+            {onShare ? <ProductShareGalleryTrigger onClick={onShare} /> : null}
+            <Link
+              to="/"
+              className="flex size-10 items-center justify-center rounded-full bg-white/95 text-foreground shadow-md ring-1 ring-black/5 dark:bg-background/95"
+              aria-label="Home"
+            >
+              <HomeIcon className="size-5" aria-hidden />
+            </Link>
+          </div>
+        </div>
         {images.length > 1 ? (
           <>
             <Button
@@ -489,13 +507,15 @@ function ProductGallery({ images, title }) {
 function ProductSchedule({ onChange }) {
   const today = useMemo(() => startOfToday(), []);
   const dates = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(today, i)), [today]);
-  const [selectedDate, setSelectedDate] = useState(today);
+  const [selectedDate, setSelectedDate] = useState(null);
   const [slot, setSlot] = useState("9-12");
   const [moreOpen, setMoreOpen] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
-  const inStrip = dates.some((date) => isSameDay(date, selectedDate));
+  const dateSelected = selectedDate != null;
+  const inStrip = dateSelected && dates.some((date) => isSameDay(date, selectedDate));
 
   function commitSchedule() {
+    if (!selectedDate) return;
     const scheduled = new Date(selectedDate);
     scheduled.setHours(slotHour(slot), 0, 0, 0);
     onChange?.(scheduled.toISOString());
@@ -508,7 +528,7 @@ function ProductSchedule({ onChange }) {
   }
 
   const slotLabel = slotLabelFor(slot);
-  const dateSummary = format(selectedDate, "EEEE, d MMMM yyyy");
+  const dateSummary = dateSelected ? format(selectedDate, "EEEE, d MMMM yyyy") : "";
 
   return (
     <Card>
@@ -567,7 +587,7 @@ function ProductSchedule({ onChange }) {
           </p>
           <div className={SCROLL_X}>
             {dates.map((date) => {
-              const selected = isSameDay(date, selectedDate);
+              const selected = dateSelected && isSameDay(date, selectedDate);
               return (
                 <button
                   key={date.toISOString()}
@@ -591,18 +611,18 @@ function ProductSchedule({ onChange }) {
                 type="button"
                 className={cn(
                   "inline-flex h-auto min-w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl border px-2 py-2 text-xs font-medium transition-colors",
-                  inStrip
-                    ? "border-border bg-background hover:bg-muted"
-                    : "border-primary bg-primary text-primary-foreground",
+                  dateSelected && !inStrip
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-background hover:bg-muted",
                 )}
               >
                 <CalendarDaysIcon className="size-4" />
-                {inStrip ? "More dates" : format(selectedDate, "d MMM")}
+                {inStrip || !dateSelected ? "More dates" : format(selectedDate, "d MMM")}
               </PopoverTrigger>
               <PopoverContent align="end" className="w-auto p-2">
                 <Calendar
                   mode="single"
-                  selected={selectedDate}
+                  selected={selectedDate ?? undefined}
                   onSelect={(date) => {
                     if (!date) return;
                     setSelectedDate(date);
@@ -615,68 +635,76 @@ function ProductSchedule({ onChange }) {
           </div>
         </div>
 
-        <div className="min-w-0">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              Select time
-            </p>
-            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-              <ClockIcon className="size-3.5" />
-              3-hr window
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {TIME_SLOTS.map((item) => {
-              const selected = slot === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => setSlot(item.id)}
-                  className={cn(
-                    "flex w-full min-w-0 flex-col items-center justify-center gap-1 rounded-2xl border border-black/10 bg-background px-1 py-2 text-center shadow-none transition-colors dark:border-white/15",
-                    selected
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "hover:bg-muted/60",
-                  )}
-                >
-                  <span
+        {dateSelected ? (
+          <div className="min-w-0">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                Select time
+              </p>
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <ClockIcon className="size-3.5" />
+                3-hr window
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {TIME_SLOTS.map((item) => {
+                const selected = slot === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setSlot(item.id)}
                     className={cn(
-                      "text-[11px] leading-none font-semibold whitespace-nowrap sm:text-xs",
-                      selected ? "text-primary-foreground" : "text-foreground",
+                      "flex w-full min-w-0 flex-col items-center justify-center gap-1 rounded-2xl border border-black/10 bg-background px-1 py-2 text-center shadow-none transition-colors dark:border-white/15",
+                      selected
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "hover:bg-muted/60",
                     )}
                   >
-                    {item.label}
-                  </span>
-                  {item.fillingFast ? (
                     <span
                       className={cn(
-                        "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[8px] font-bold tracking-wide uppercase",
-                        selected
-                          ? "bg-white/20 text-primary-foreground"
-                          : "bg-rose-600 text-white",
+                        "text-[11px] leading-none font-semibold whitespace-nowrap sm:text-xs",
+                        selected ? "text-primary-foreground" : "text-foreground",
                       )}
                     >
-                      <FlameIcon className="size-2.5" />
-                      Filling fast
+                      {item.label}
                     </span>
-                  ) : null}
-                </button>
-              );
-            })}
+                    {item.fillingFast ? (
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[8px] font-bold tracking-wide uppercase",
+                          selected
+                            ? "bg-white/20 text-primary-foreground"
+                            : "bg-rose-600 text-white",
+                        )}
+                      >
+                        <FlameIcon className="size-2.5" />
+                        Filling fast
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2.5 flex items-start gap-2 text-xs text-muted-foreground">
+              <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
+                <CheckIcon className="size-2.5" strokeWidth={3} />
+              </span>
+              <span>
+                Our team <span className="font-medium text-foreground">arrives &amp; completes the setup</span>{" "}
+                within your selected time slot.
+              </span>
+            </p>
           </div>
-          <p className="mt-2.5 flex items-start gap-2 text-xs text-muted-foreground">
-            <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
-              <CheckIcon className="size-2.5" strokeWidth={3} />
-            </span>
-            <span>
-              Our team <span className="font-medium text-foreground">arrives &amp; completes the setup</span>{" "}
-              within your selected time slot.
-            </span>
-          </p>
-        </div>
-        <Button type="button" className="w-full" size="lg" onClick={commitSchedule}>
+        ) : null}
+        <Button
+          type="button"
+          className="w-full"
+          size="lg"
+          disabled={!dateSelected}
+          onClick={commitSchedule}
+        >
           Done
         </Button>
       </CardContent>
@@ -685,192 +713,10 @@ function ProductSchedule({ onChange }) {
   );
 }
 
-function ProductRelatedRail({ product }) {
-  const city = useLocationStore((s) => s.city);
-  const pincode = useLocationStore((s) => s.pincode);
-  const [items, setItems] = useState([]);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [carouselApi, setCarouselApi] = useState(null);
-  const [canPrev, setCanPrev] = useState(false);
-  const [canNext, setCanNext] = useState(false);
-
-  const serviceCityId = isBackendCityId(city?.id) ? city.id : undefined;
-  const pincodeCode = pincode?.code || undefined;
-  const hasLocation = Boolean(serviceCityId || pincodeCode);
-
-  const onCarouselSelect = useCallback((api) => {
-    if (!api) return;
-    setCanPrev(api.canScrollPrev());
-    setCanNext(api.canScrollNext());
-  }, []);
-
-  useEffect(() => {
-    if (!carouselApi) return undefined;
-    onCarouselSelect(carouselApi);
-    carouselApi.on("reInit", onCarouselSelect);
-    carouselApi.on("select", onCarouselSelect);
-    return () => {
-      carouselApi.off("select", onCarouselSelect);
-    };
-  }, [carouselApi, onCarouselSelect, items.length]);
-
-  async function fetchPage(pageNum, append) {
-    if (!product?.categoryId || !product?.id) return;
-    const data = await listProducts({
-      categoryIds: [product.categoryId],
-      cityId: pincodeCode ? undefined : serviceCityId,
-      pincode: pincodeCode,
-      page: pageNum,
-      limit: SIMILAR_PAGE_SIZE,
-    });
-    const raw = data?.items ?? [];
-    const rows = raw
-      .filter((row) => row.id !== product.id)
-      .map(normalizeProduct)
-      .filter(Boolean);
-    const nextTotal = Number(data?.total ?? 0);
-    setHasMore(pageNum * SIMILAR_PAGE_SIZE < nextTotal);
-    setItems((prev) => {
-      if (!append) return rows;
-      const seen = new Set(prev.map((item) => item.id));
-      const merged = [...prev];
-      for (const row of rows) {
-        if (!seen.has(row.id)) merged.push(row);
-      }
-      return merged;
-    });
-  }
-
-  useEffect(() => {
-    if (!product?.id || !product?.categoryId || !hasLocation) {
-      setItems([]);
-      setHasMore(false);
-      setPage(1);
-      setLoading(false);
-      return undefined;
-    }
-
-    let cancelled = false;
-    setLoading(true);
-    setPage(1);
-
-    void fetchPage(1, false)
-      .catch(() => {
-        if (!cancelled) {
-          setItems([]);
-          setHasMore(false);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [product?.categoryId, product?.id, city?.id, pincode?.code, hasLocation]);
-
-  async function onViewMore() {
-    if (loadingMore || !hasMore) return;
-    setLoadingMore(true);
-    const nextPage = page + 1;
-    try {
-      await fetchPage(nextPage, true);
-      setPage(nextPage);
-      requestAnimationFrame(() => carouselApi?.reInit());
-    } catch {
-      // keep current items
-    } finally {
-      setLoadingMore(false);
-    }
-  }
-
-  if (!loading && items.length === 0) return null;
-
-  const showScrollControls =
-    !loading && items.length >= PRODUCT_RAIL_MIN_ITEMS_FOR_CONTROLS;
-
-  return (
-    <section
-      className="mt-12 border-t border-border/60 pt-10 md:mt-16 md:pt-12"
-      aria-label="Similar packages"
-    >
-      <div
-        className={cn(
-          "mb-3 gap-x-2 gap-y-1",
-          showScrollControls
-            ? "grid grid-cols-[minmax(0,1fr)_auto] items-start"
-            : "flex flex-col",
-        )}
-      >
-        <HomeSectionHeading
-          title="Similar packages"
-          subtitle="Explore more décor in this category"
-          compact
-        />
-        {showScrollControls ? (
-          <HomeScrollControls
-            className="shrink-0 pt-0.5"
-            canPrev={canPrev}
-            canNext={canNext}
-            onPrev={() => carouselApi?.scrollPrev()}
-            onNext={() => carouselApi?.scrollNext()}
-          />
-        ) : null}
-      </div>
-
-      {loading ? (
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, index) => (
-            <HomeProductCardRailSkeleton key={index} />
-          ))}
-        </div>
-      ) : (
-        <>
-          <Carousel
-            setApi={setCarouselApi}
-            opts={{ align: "start", dragFree: true }}
-            className="w-full"
-          >
-            <CarouselContent className="-ml-2.5">
-              {items.map((item) => (
-                <CarouselItem
-                  key={item.id}
-                  className={cn(PRODUCT_RAIL_ITEM_CLASS, "pl-2.5")}
-                >
-                  <HomeProductCardRail product={item} />
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-          </Carousel>
-          {hasMore ? (
-            <div className="mt-6 flex justify-center">
-              <Button
-                type="button"
-                size="lg"
-                className="min-w-[10.5rem] rounded-full bg-primary text-black hover:bg-primary/85"
-                disabled={loadingMore}
-                onClick={() => void onViewMore()}
-              >
-                {loadingMore ? "Loading…" : "View more"}
-              </Button>
-            </div>
-          ) : null}
-        </>
-      )}
-    </section>
-  );
-}
-
 export function ProductPdp({ product, onChangeLocation }) {
   const images = useMemo(() => galleryImages(product?.images), [product?.images]);
   const title = (product?.name ?? "").trim() || "Product";
   const copy = (product?.description ?? "").trim();
-  const faqItems = filledFaqs(product?.faqs);
-  const includePoints = filledPoints(product?.includes);
   const cityLabel = (product?.city?.name ?? "").trim() || "Select city";
   const [scheduledAt, setScheduledAt] = useState(null);
   const canInstant = Boolean(product?.instant?.enabled);
@@ -881,6 +727,7 @@ export function ProductPdp({ product, onChangeLocation }) {
   const isInstantBooking = fulfillment === "instant" && canInstant;
   const [booking, setBooking] = useState(false);
   const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const navigate = useNavigate();
   const addItem = useCartStore((s) => s.addItem);
   const setCartOpen = useCartStore((s) => s.setOpen);
@@ -893,6 +740,9 @@ export function ProductPdp({ product, onChangeLocation }) {
   const productAddons = product?.addons ?? [];
   const hasAddons = productAddons.length > 0;
   const isLgUp = useIsLgUp();
+  const { brand } = useSiteShell();
+
+  const onWhatsApp = useCallback(() => openBrandWhatsApp(brand), [brand]);
 
   const reviewsPreview = (
     <ProductReviewsPreview
@@ -959,10 +809,19 @@ export function ProductPdp({ product, onChangeLocation }) {
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-0">
+    <div className="flex min-w-0 flex-col gap-0 max-md:pb-[calc(4.75rem+env(safe-area-inset-bottom))]">
+      <div
+        className="sticky top-0 z-30 border-b border-border/70 bg-background/95 px-3 py-2 backdrop-blur-sm md:hidden"
+      >
+        <LocationPicker variant="mobileToolbar" />
+      </div>
       <div className="grid min-w-0 gap-8 overflow-x-hidden lg:grid-cols-2 lg:items-start lg:gap-10">
         <div className="flex min-w-0 flex-col gap-6 lg:sticky lg:top-20 lg:z-[1] lg:self-start">
-          <ProductGallery images={images} title={title} />
+          <ProductGallery
+            images={images}
+            title={title}
+            onShare={() => setShareOpen(true)}
+          />
           {isLgUp ? reviewsPreview : null}
         </div>
 
@@ -970,12 +829,18 @@ export function ProductPdp({ product, onChangeLocation }) {
         <ProductBreadcrumb title={title} categoryId={product?.categoryId} />
 
         <div className="flex min-w-0 flex-col gap-2">
-          <h1
-            className="line-clamp-2 font-heading text-2xl font-semibold tracking-tight md:text-[1.75rem] md:leading-snug"
-            title={title}
-          >
-            {title}
-          </h1>
+          <div className="flex min-w-0 items-start justify-between gap-3">
+            <h1
+              className="line-clamp-2 min-w-0 flex-1 font-heading text-2xl font-semibold tracking-tight md:text-[1.75rem] md:leading-snug"
+              title={title}
+            >
+              {title}
+            </h1>
+            <ProductShareTrigger
+              className="hidden md:inline-flex"
+              onClick={() => setShareOpen(true)}
+            />
+          </div>
           {copy ? (
             <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
               {copy}
@@ -992,7 +857,9 @@ export function ProductPdp({ product, onChangeLocation }) {
 
         <div className="flex flex-col gap-3">
           <ProductOnSiteSetupBadge />
-          <ProductLocationCard cityLabel={cityLabel} onChangeLocation={onChangeLocation} />
+          <div className="hidden md:block">
+            <ProductLocationCard cityLabel={cityLabel} onChangeLocation={onChangeLocation} />
+          </div>
         </div>
 
         {canInstant && canScheduled ? (
@@ -1012,33 +879,13 @@ export function ProductPdp({ product, onChangeLocation }) {
           <ProductSchedule onChange={setScheduledAt} />
         ) : null}
 
-        <div className="flex min-w-0 gap-3">
-          <Button
-            type="button"
-            size="lg"
-            className="h-12 min-w-0 flex-1 gap-2 rounded-2xl bg-[#00A859] text-base font-semibold text-white shadow-sm hover:bg-[#009650] hover:text-white sm:min-w-40 [&_svg]:size-5"
-            onClick={comingSoon}
-          >
-            <WhatsAppIcon />
-            WhatsApp
-          </Button>
-          <Button
-            type="button"
-            size="lg"
-            variant={isInstantBooking ? "ghost" : "default"}
-            className={cn(
-              "h-12 min-w-0 flex-1 rounded-2xl text-base font-bold sm:min-w-40",
-              isInstantBooking
-                ? "gap-2 border-0 bg-orange-500 text-white shadow-md shadow-orange-500/30 hover:bg-orange-600 hover:text-white"
-                : "bg-primary text-black shadow-sm hover:bg-primary/90",
-            )}
-            disabled={booking}
-            onClick={onBookNow}
-          >
-            {isInstantBooking ? <ZapIcon className="size-5 fill-current" aria-hidden /> : null}
-            {booking ? "Adding…" : isInstantBooking ? "Book instant" : "Book Now"}
-          </Button>
-        </div>
+        <ProductPdpBookingActions
+          className="hidden md:flex"
+          booking={booking}
+          isInstantBooking={isInstantBooking}
+          onWhatsApp={onWhatsApp}
+          onBookNow={onBookNow}
+        />
 
         <ProductCustomizeOrderDialog
           open={customizeOpen}
@@ -1051,77 +898,12 @@ export function ProductPdp({ product, onChangeLocation }) {
 
         <ProductPdpOffers productId={product?.id} categoryId={product?.categoryId} />
 
-        <Accordion multiple defaultValue={["includes"]} className="rounded-4xl border bg-card">
-          <AccordionItem value="includes" className="data-open:bg-transparent">
-            <ProductPdpSectionTrigger
-              icon={<PackageIcon className="size-4" />}
-              iconClassName="bg-emerald-600/15 text-emerald-600 dark:text-emerald-400"
-              title="What’s included"
-              subtitle={
-                includePoints.length
-                  ? `${includePoints.length} items in your setup`
-                  : "Details coming soon"
-              }
-            />
-            <AccordionContent>
-              <IncludedList items={product?.includes} />
-            </AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="faqs" className="data-open:bg-transparent">
-            <ProductPdpSectionTrigger
-              icon={<CircleHelpIcon className="size-4" />}
-              iconClassName="bg-amber-500/15 text-amber-600 dark:text-amber-400"
-              title="FAQs"
-              subtitle={
-                faqItems.length ? `${faqItems.length} common questions` : "Details coming soon"
-              }
-            />
-            <AccordionContent>
-              {faqItems.length ? (
-                <Accordion multiple className="rounded-none border-none">
-                  {faqItems.map((item, index) => (
-                    <AccordionItem
-                      key={item.key || `${index}-${item.question}`}
-                      value={item.key || String(index)}
-                      className="mb-2 rounded-2xl border-none bg-muted last:mb-0 data-open:bg-muted"
-                    >
-                      <AccordionTrigger className="text-foreground hover:no-underline">
-                        {item.question.trim()}
-                      </AccordionTrigger>
-                      <AccordionContent className="text-muted-foreground">
-                        <p className="whitespace-pre-wrap">{item.answer.trim()}</p>
-                      </AccordionContent>
-                    </AccordionItem>
-                  ))}
-                </Accordion>
-              ) : (
-                <p className="text-muted-foreground">Details coming soon</p>
-              )}
-            </AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="delivery" className="data-open:bg-transparent">
-            <ProductPdpSectionTrigger
-              icon={<TruckIcon className="size-4" />}
-              iconClassName="bg-blue-600/15 text-blue-600 dark:text-blue-400"
-              title="Delivery and setup"
-              subtitle="How and when we arrive"
-            />
-            <AccordionContent>
-              <BulletList items={product?.deliverySetup} />
-            </AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="care" className="data-open:bg-transparent">
-            <ProductPdpSectionTrigger
-              icon={<SparklesIcon className="size-4" />}
-              iconClassName="bg-primary/15 text-primary"
-              title="Care instructions"
-              subtitle="Keep your décor looking great"
-            />
-            <AccordionContent>
-              <BulletList items={product?.careInstructions} />
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
+        <ProductPdpDetailsTabs
+          includes={product?.includes}
+          faqs={product?.faqs}
+          deliverySetup={product?.deliverySetup}
+          careInstructions={product?.careInstructions}
+        />
 
         {!isLgUp ? reviewsPreview : null}
 
@@ -1130,7 +912,27 @@ export function ProductPdp({ product, onChangeLocation }) {
 
       <div className="px-4 md:px-0">
         <ProductRelatedRail product={product} />
+        <ProductOtherCategoriesRail product={product} />
       </div>
+
+      <div
+        className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 px-3 pt-2.5 shadow-[0_-4px_24px_-8px] shadow-foreground/10 backdrop-blur-md md:hidden"
+        style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}
+      >
+        <ProductPdpBookingActions
+          booking={booking}
+          isInstantBooking={isInstantBooking}
+          onWhatsApp={onWhatsApp}
+          onBookNow={onBookNow}
+        />
+      </div>
+
+      <ProductShareSheet
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        title={title}
+        productId={product?.id}
+      />
     </div>
   );
 }
@@ -1145,7 +947,7 @@ export function ProductPdpSkeleton() {
       <span className="sr-only">Loading product</span>
       <div className="min-w-0 lg:sticky lg:top-20">
         <div className="flex min-w-0 flex-col gap-3">
-          <Skeleton className="aspect-[4/3] w-full rounded-none md:aspect-[5/4] md:rounded-2xl" />
+          <Skeleton className="min-h-[min(100vw,360px)] w-full rounded-none md:min-h-[360px] md:rounded-2xl" />
           <div className="flex gap-2">
             <Skeleton className="size-16 shrink-0 rounded-2xl" />
             <Skeleton className="size-16 shrink-0 rounded-2xl" />

@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ArrowRightIcon } from "lucide-react";
+import { ArrowRightIcon, SlidersHorizontalIcon } from "lucide-react";
 import { getApiError } from "@/api/api";
 import { listProducts } from "@/api/products.api";
 import { Button } from "@/components/ui/button";
+import { CatalogListingFilterSheet } from "@/module/catalog/components/CatalogListingFilterSheet";
 import { CatalogListingToolbar } from "@/module/catalog/components/CatalogListingToolbar";
 import { CatalogPagination } from "@/module/catalog/components/CatalogPagination";
 import { CatalogPriceFilter } from "@/module/catalog/components/CatalogPriceFilter";
+import {
+  countActiveListingFilters,
+  parseSubcategoryIdsParam,
+  resolveCategoryListingIds,
+} from "@/module/catalog/lib/category-listing-filter";
 import {
   CATALOG_SORT_DEFAULT,
   parseCatalogSort,
@@ -34,6 +40,13 @@ export function CatalogProductGrid({
   emptyDescription = "Check back soon or try another city.",
   pageParam = "page",
   limit = DEFAULT_LIMIT,
+  filterUi = "chips",
+  subcategoryFilterOptions = [],
+  childRouteActive = false,
+  parentChildIds = [],
+  filterTriggerPlacement = "inline",
+  filterSheetOpen: filterSheetOpenProp,
+  onFilterSheetOpenChange,
 }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const city = useLocationStore((s) => s.city);
@@ -45,13 +58,28 @@ export function CatalogProductGrid({
   const minPriceRupees = parsePriceParam(searchParams.get("minPrice"));
   const maxPriceRupees = parsePriceParam(searchParams.get("maxPrice"));
   const instantOnly = searchParams.get("instant") === "1";
+  const appliedSubcategoryIds = useMemo(
+    () => (childRouteActive ? [] : parseSubcategoryIdsParam(searchParams)),
+    [searchParams, childRouteActive],
+  );
+
+  const listingCategoryIds = useMemo(
+    () =>
+      resolveCategoryListingIds({
+        routeCategoryIds: categoryIds,
+        childRouteActive,
+        subcategoryIds: appliedSubcategoryIds,
+        parentChildIds,
+      }),
+    [categoryIds, childRouteActive, appliedSubcategoryIds, parentChildIds],
+  );
 
   const hasLocation =
     Boolean(pincode?.code) || (Boolean(city?.id) && isBackendCityId(city.id));
 
   const filterKey = useMemo(
-    () => (categoryIds?.length ? categoryIds.join(",") : ""),
-    [categoryIds],
+    () => (listingCategoryIds?.length ? listingCategoryIds.join(",") : ""),
+    [listingCategoryIds],
   );
 
   const listingKey = useMemo(
@@ -66,6 +94,11 @@ export function CatalogProductGrid({
   const [total, setTotal] = useState(0);
   const [priceFacet, setPriceFacet] = useState({ minPaise: 0, maxPaise: 0 });
   const [priceOpen, setPriceOpen] = useState(false);
+  const [filterSheetOpenInternal, setFilterSheetOpenInternal] = useState(false);
+  const filterSheetOpen = filterSheetOpenProp ?? filterSheetOpenInternal;
+  const setFilterSheetOpen = onFilterSheetOpenChange ?? setFilterSheetOpenInternal;
+  const useSheetFilters = filterUi === "sheet";
+  const externalFilterTrigger = filterTriggerPlacement === "external";
 
   const updateListingParams = useCallback(
     (patch) => {
@@ -87,6 +120,11 @@ export function CatalogProductGrid({
           if (patch.maxPriceRupees !== undefined) {
             if (patch.maxPriceRupees == null) next.delete("maxPrice");
             else next.set("maxPrice", String(patch.maxPriceRupees));
+          }
+
+          if (patch.subcategoryIds !== undefined) {
+            if (!patch.subcategoryIds?.length) next.delete("subcategoryIds");
+            else next.set("subcategoryIds", patch.subcategoryIds.join(","));
           }
 
           return next;
@@ -137,7 +175,7 @@ export function CatalogProductGrid({
     void listProducts({
       pincode: pincode?.code || undefined,
       cityId: pincode?.code ? undefined : city?.id,
-      categoryIds: categoryIds?.length ? categoryIds : undefined,
+      categoryIds: listingCategoryIds?.length ? listingCategoryIds : undefined,
       sort,
       minPricePaise,
       maxPricePaise,
@@ -184,6 +222,23 @@ export function CatalogProductGrid({
     minPriceRupees != null ||
     maxPriceRupees != null;
 
+  const activeFilterCount = countActiveListingFilters({
+    sort,
+    minPriceRupees,
+    maxPriceRupees,
+    subcategoryIds: appliedSubcategoryIds,
+    defaultSort: CATALOG_SORT_DEFAULT,
+  });
+
+  function clearSheetFilters() {
+    updateListingParams({
+      sort: CATALOG_SORT_DEFAULT,
+      minPriceRupees: null,
+      maxPriceRupees: null,
+      subcategoryIds: [],
+    });
+  }
+
   return (
     <section className="space-y-4" aria-label={sectionTitle || "Product listings"}>
       {sectionTitle ? (
@@ -210,37 +265,110 @@ export function CatalogProductGrid({
 
       {showListingControls ? (
         <div className="space-y-4">
-          <CatalogListingToolbar
-            total={total}
-            sort={sort}
-            loading={listingBusy}
-            showPriceButton={priceRangeReady || priceActive || listingBusy}
-            priceOpen={priceOpen}
-            priceActive={priceActive}
-            onPriceClick={() => setPriceOpen((open) => !open)}
-            onSortChange={(nextSort) => updateListingParams({ sort: nextSort })}
-          />
-          {priceOpen && priceRangeReady ? (
-            <CatalogPriceFilter
-              facetMaxPaise={priceFacet.maxPaise}
-              appliedMinRupees={minPriceRupees ?? 0}
-              appliedMaxRupees={maxPriceRupees ?? facetMaxRupees}
-              disabled={listingBusy}
-              onApply={({ minRupees, maxRupees }) => {
-                updateListingParams({
-                  minPriceRupees: minRupees,
-                  maxPriceRupees: maxRupees,
-                });
-              }}
-            />
-          ) : null}
+          {useSheetFilters ? (
+            <>
+              <div
+                className={
+                  externalFilterTrigger
+                    ? "flex items-center justify-between gap-3 border-b border-border/80 pb-3 md:pb-4"
+                    : "flex items-center justify-between gap-3 border-b border-border/80 pb-4"
+                }
+              >
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-bold text-foreground tabular-nums">
+                    {listingBusy ? "…" : total.toLocaleString()}
+                  </span>{" "}
+                  products
+                </p>
+                {!externalFilterTrigger ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 rounded-full"
+                    onClick={() => setFilterSheetOpen(true)}
+                  >
+                    <SlidersHorizontalIcon className="size-4" />
+                    Filter
+                    {activeFilterCount > 0 ? (
+                      <span className="ml-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">
+                        {activeFilterCount}
+                      </span>
+                    ) : null}
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="hidden shrink-0 rounded-full md:inline-flex"
+                    onClick={() => setFilterSheetOpen(true)}
+                  >
+                    <SlidersHorizontalIcon className="size-4" />
+                    Filter
+                    {activeFilterCount > 0 ? (
+                      <span className="ml-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">
+                        {activeFilterCount}
+                      </span>
+                    ) : null}
+                  </Button>
+                )}
+              </div>
+              <CatalogListingFilterSheet
+                open={filterSheetOpen}
+                onOpenChange={setFilterSheetOpen}
+                sort={sort}
+                minPriceRupees={minPriceRupees}
+                maxPriceRupees={maxPriceRupees}
+                facetMaxPaise={priceFacet.maxPaise}
+                subcategoryOptions={subcategoryFilterOptions}
+                selectedSubcategoryIds={appliedSubcategoryIds}
+                onApply={({ sort: nextSort, minPriceRupees: minR, maxPriceRupees: maxR, subcategoryIds }) => {
+                  updateListingParams({
+                    sort: nextSort,
+                    minPriceRupees: minR,
+                    maxPriceRupees: maxR,
+                    subcategoryIds,
+                  });
+                }}
+                onClear={clearSheetFilters}
+              />
+            </>
+          ) : (
+            <>
+              <CatalogListingToolbar
+                total={total}
+                sort={sort}
+                loading={listingBusy}
+                showPriceButton={priceRangeReady || priceActive || listingBusy}
+                priceOpen={priceOpen}
+                priceActive={priceActive}
+                onPriceClick={() => setPriceOpen((open) => !open)}
+                onSortChange={(nextSort) => updateListingParams({ sort: nextSort })}
+              />
+              {priceOpen && priceRangeReady ? (
+                <CatalogPriceFilter
+                  facetMaxPaise={priceFacet.maxPaise}
+                  appliedMinRupees={minPriceRupees ?? 0}
+                  appliedMaxRupees={maxPriceRupees ?? facetMaxRupees}
+                  disabled={listingBusy}
+                  onApply={({ minRupees, maxRupees }) => {
+                    updateListingParams({
+                      minPriceRupees: minRupees,
+                      maxPriceRupees: maxRupees,
+                    });
+                  }}
+                />
+              ) : null}
+            </>
+          )}
         </div>
       ) : null}
 
       {status === "loading" ? (
         <div className="space-y-6" aria-busy="true" aria-live="polite">
           <span className="sr-only">Loading products</span>
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:gap-3 lg:grid-cols-5">
+          <div className="grid grid-cols-2 items-stretch gap-2.5 sm:grid-cols-3 md:gap-3 lg:grid-cols-5">
             {Array.from({ length: 10 }, (_, i) => (
               <HomeProductCardRailSkeleton key={i} />
             ))}
@@ -265,7 +393,7 @@ export function CatalogProductGrid({
 
       {status === "ready" && items.length > 0 ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:gap-3 lg:grid-cols-5">
+          <div className="grid grid-cols-2 items-stretch gap-2.5 sm:grid-cols-3 md:gap-3 lg:grid-cols-5">
             {items.map((product) => (
               <HomeProductCardRail key={product.id} product={product} />
             ))}

@@ -238,6 +238,26 @@ After adding `sessions.family_id`, run `pnpm db:generate` then `pnpm db:migrate`
 
 
 
+## Consumer app vs partner app
+
+One phone maps to one `users` row. The **consumer** surfaces (customer mobile app, web storefront) accept sign-in for `role` **`user`**, **`vendor`**, or **`vendor_staff`**. The **partner** app requires `partnerSignIn` + owner/staff intent and an **ACTIVE** shop.
+
+| Block type | Partner app | Consumer app |
+|------------|-------------|--------------|
+| `users.status = blocked` (admin customer block) | Blocked | Blocked |
+| `vendors.onboardingStatus = BLOCKED` or `REJECTED` | Blocked (shop not active) | Allowed (same user id can book) |
+| `admin` role on consumer OTP/Google | — | `403` code `USE_ADMIN_PORTAL` |
+
+**Link while logged in:** `POST /user/link-phone` and `POST /user/link-google` use the same consumer-eligible roles (not admin).
+
+**Self-dealing:** instant dispatch, admin assign, and vendor accept skip when the booking customer is the shop owner or active staff of that vendor (`SELF_DEALING_NOT_ALLOWED`).
+
+**Shop blocked:** worker `vendor_members` rows are disabled; staff with no other active shop are downgraded to `role: user` and partner refresh sessions revoked.
+
+**Manual QA (consumer identity):** vendor/staff OTP → consumer app; admin OTP → `USE_ADMIN_PORTAL`; shop BLOCKED → partner blocked, consumer OK; global user blocked → all blocked; owner/staff instant order → own shop excluded from dispatch; link Google on vendor without `googleId`.
+
+---
+
 ## Auth flows
 
 

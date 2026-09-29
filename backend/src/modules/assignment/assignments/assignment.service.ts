@@ -13,6 +13,11 @@ import { auditService } from "@/modules/ops/audit/audit.service.js";
 import { settingService } from "@/modules/ops/index.js";
 import { ledgerService } from "@/modules/payments/ledger/ledger.service.js";
 import { logger } from "@/utils/logger.js";
+import { VendorMemberRepository } from "@/modules/identity/vendor-members/vendor-member.repository.js";
+import {
+    isOrderCustomerConflictWithVendor,
+    SELF_DEALING_CODE,
+} from "@/modules/identity/consumer/self-dealing.js";
 
 const BLOCKED_ASSIGN_STATUSES = new Set(["EN_ROUTE", "ON_SITE", "COMPLETED", "CANCELLED", "DISPUTED"]);
 
@@ -97,6 +102,18 @@ export class AssignmentService implements IAssignmentService {
         }
         if (!vendor.isOnDuty) {
             throw ApiError.conflict("vendor is offline");
+        }
+
+        const memberRepo = new VendorMemberRepository();
+        if (
+            await isOrderCustomerConflictWithVendor(order.userId, input.vendorId, {
+                vendors: this.vendors,
+                members: memberRepo,
+            })
+        ) {
+            const err = ApiError.conflict("customer cannot be assigned to their own shop");
+            err.code = SELF_DEALING_CODE;
+            throw err;
         }
 
         const policy = await settingService.getPayoutPolicy();

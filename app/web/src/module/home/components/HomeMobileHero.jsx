@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { BannerSlider } from "@/module/home/components/BannerSlider";
 import { CartButton } from "@/module/layout/components/CartButton";
+import { LocationPicker } from "@/module/layout/components/LocationPicker";
 import { MobileNav } from "@/module/layout/components/MobileNav";
 import { SearchCommand } from "@/module/layout/components/SearchCommand";
 import { UserMenu } from "@/module/layout/components/UserMenu";
@@ -33,7 +34,9 @@ export function HomeMobileHero({ slides = [] }) {
             alt={companyName}
           />
         </Link>
-        <div className="min-w-0 flex-1" />
+        <div className="min-w-0 flex-1 px-1">
+          <LocationPicker variant="mobileToolbar" />
+        </div>
         <SearchCommand variant="toolbarIcon" />
         <CartButton />
         {isLoggedIn ? (

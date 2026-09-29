@@ -1,12 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  CheckIcon,
-  ChevronDownIcon,
-  LocateFixedIcon,
-  SearchIcon,
-} from "lucide-react";
+import { CheckIcon, ChevronDownIcon, SearchIcon } from "lucide-react";
 import { MapsPinIcon } from "@/components/maps-pin-icon";
-import { getApiError } from "@/api/api";
 import { getLenis } from "@/lib/lenis-instance";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -18,12 +12,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Spinner } from "@/components/ui/spinner";
-import { toast } from "@/components/ui/toast";
-import { detectLocationFromDevice } from "@/module/geo/detect-location";
 import {
   formatLocationLabel,
   isBackendCityId,
+  LOCATION_PROMPT_DISMISSED_KEY,
   useLocationStore,
 } from "@/store/location.store";
 import { useCartStore } from "@/store/cart.store";
@@ -57,7 +49,7 @@ function CityChip({
   );
 }
 
-export function LocationPicker({ variant = "default" }) {
+export function LocationPicker({ variant = "default", className }) {
   const city = useLocationStore((s) => s.city);
   const pincode = useLocationStore((s) => s.pincode);
   const source = useLocationStore((s) => s.source);
@@ -67,7 +59,6 @@ export function LocationPicker({ variant = "default" }) {
   const setLocation = useLocationStore((s) => s.setLocation);
   const setCartLocation = useCartStore((s) => s.setLocation);
   const [query, setQuery] = useState("");
-  const [pending, setPending] = useState(false);
 
   function syncCartLocation(nextCity, nextPincode) {
     if (!nextCity?.id || !isBackendCityId(nextCity.id)) return;
@@ -102,31 +93,12 @@ export function LocationPicker({ variant = "default" }) {
     };
   }, [pickerOpen]);
 
-  async function onDetectLocation() {
-    if (pending) return;
-    setPending(true);
-    try {
-      const location = await detectLocationFromDevice();
-      setLocation(location);
-      syncCartLocation(location.city, location.pincode);
-      toast.add({
-        title: `Set to ${formatLocationLabel(location.city, location.pincode, location.source)}`,
-        type: "success",
-      });
-    } catch (err) {
-      toast.add({ title: getApiError(err), type: "error" });
-      if (String(getApiError(err)).toLowerCase().includes("serviceable")) {
-        setPickerOpen(true);
-      }
-    } finally {
-      setPending(false);
-    }
-  }
-
   function selectCity(next) {
     setLocation({ city: next, pincode: null, source: "manual" });
     syncCartLocation(next, null);
     setQuery("");
+    sessionStorage.setItem(LOCATION_PROMPT_DISMISSED_KEY, "1");
+    useLocationStore.getState().setNeedsPrompt(false);
   }
 
   return (
@@ -136,17 +108,23 @@ export function LocationPicker({ variant = "default" }) {
         pincode={pincode}
         source={source}
         onClick={() => setPickerOpen(true)}
-        className={
+        className={cn(
           variant === "onBrand" || variant === "onHero"
             ? "h-auto max-w-[10.5rem] border-0 bg-transparent px-0 py-0 shadow-none hover:border-0 hover:bg-transparent hover:shadow-none"
-            : undefined
-        }
+            : undefined,
+          variant === "mobileToolbar"
+            ? "h-9 w-full max-w-full border-border/80 bg-muted/40 px-2.5 text-xs hover:bg-muted/60"
+            : undefined,
+          className,
+        )}
         labelClassName={
           variant === "onBrand"
             ? "text-sm font-semibold text-primary-foreground"
             : variant === "onHero"
               ? "text-sm font-semibold text-background"
-              : undefined
+              : variant === "mobileToolbar"
+                ? "text-xs font-bold"
+                : undefined
         }
         chevronClassName={
           variant === "onBrand"
@@ -168,27 +146,13 @@ export function LocationPicker({ variant = "default" }) {
         >
           <div className="shrink-0 px-4 pt-5 pr-12 pb-3">
             <DialogHeader className="gap-1 text-left">
-              <DialogTitle className="font-heading text-lg">Select your area</DialogTitle>
+              <DialogTitle className="font-heading text-lg">Choose city</DialogTitle>
               <DialogDescription>
-                Use your location or pick a city for local pricing and availability.
+                Pick a city for local pricing and availability.
               </DialogDescription>
             </DialogHeader>
 
-            <Button
-              type="button"
-              className="mt-4 h-11 w-full rounded-full font-semibold"
-              disabled={pending}
-              onClick={onDetectLocation}
-            >
-              {pending ? (
-                <Spinner className="size-4" />
-              ) : (
-                <LocateFixedIcon className="size-4" />
-              )}
-              Use my location
-            </Button>
-
-            <div className="relative mt-3">
+            <div className="relative mt-4">
               <SearchIcon
                 className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
                 aria-hidden
@@ -199,7 +163,6 @@ export function LocationPicker({ variant = "default" }) {
                 placeholder="Search city or state"
                 className="h-11 rounded-2xl border-border/60 bg-muted/40 pl-10 shadow-none"
                 autoComplete="off"
-                disabled={pending}
               />
             </div>
 
@@ -229,7 +192,6 @@ export function LocationPicker({ variant = "default" }) {
                   <li key={item.id}>
                     <button
                       type="button"
-                      disabled={pending}
                       onClick={() => selectCity(item)}
                       className={cn(
                         "flex w-full cursor-pointer items-center gap-3 rounded-xl px-2.5 py-2.5 text-left text-sm transition-colors hover:bg-muted/80",

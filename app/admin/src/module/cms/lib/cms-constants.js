@@ -7,7 +7,17 @@ export const CMS_PLACEMENTS = [
 
 export const CMS_STATUSES = ["draft", "published", "hidden"];
 
-export const CMS_PLATFORMS = ["web", "mobile"];
+/** Website / mweb editors (Content → Web | Mobile). */
+export const CMS_WEBSITE_PLATFORMS = ["web", "mobile"];
+
+/** Full API platform list (app channel uses android in dedicated forms). */
+export const CMS_PLATFORMS = ["web", "mobile", "android", "ios"];
+
+export function websitePlatformsOnly(platforms) {
+  const list = Array.isArray(platforms) ? platforms : []
+  const filtered = list.filter((p) => CMS_WEBSITE_PLATFORMS.includes(p))
+  return filtered.length ? filtered : ["web", "mobile"]
+}
 
 export const CMS_TONES = ["info", "promo", "warning"];
 

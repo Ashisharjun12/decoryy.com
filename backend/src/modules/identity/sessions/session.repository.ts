@@ -15,6 +15,7 @@ export interface ISessionRepository {
     findByHash(tokenHash: string): Promise<Session | undefined>;
     revokeActiveByHash(tokenHash: string): Promise<Session | undefined>;
     revokeAllForFamily(familyId: string): Promise<void>;
+    revokeAllForUser(userId: string): Promise<void>;
     revokeById(id: string): Promise<void>;
 }
 
@@ -49,6 +50,13 @@ export class SessionRepository implements ISessionRepository {
             .update(sessions)
             .set({ revokedAt: new Date() })
             .where(and(eq(sessions.familyId, familyId), isNull(sessions.revokedAt)));
+    }
+
+    async revokeAllForUser(userId: string): Promise<void> {
+        await db
+            .update(sessions)
+            .set({ revokedAt: new Date() })
+            .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)));
     }
 
     async revokeById(id: string): Promise<void> {

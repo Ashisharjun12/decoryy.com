@@ -14,7 +14,7 @@ import { Switch } from "@/components/ui/switch"
 import { Spinner } from "@/components/ui/spinner"
 import { CmsFormDialogShell } from "@/module/cms/components/CmsFormDialogShell"
 import { PlatformCheckboxes } from "@/module/cms/components/PlatformCheckboxes"
-import { CMS_STATUSES } from "@/module/cms/lib/cms-constants"
+import { CMS_STATUSES, websitePlatformsOnly } from "@/module/cms/lib/cms-constants"
 
 const FORM_ID = "home-layout-form"
 
@@ -23,7 +23,13 @@ function emptyToNull(value) {
   return trimmed ? trimmed : null
 }
 
+const APP_DEFAULT_MAX_VISIBLE = 6
+const APP_DEFAULT_VIEW_ALL = "/(app)/category"
+const WEBSITE_DEFAULT_MAX_VISIBLE = 5
+const WEBSITE_DEFAULT_VIEW_ALL = "/decorations"
+
 export function HomeLayoutFormDialog({
+  channel = "website",
   open,
   onOpenChange,
   item,
@@ -34,7 +40,10 @@ export function HomeLayoutFormDialog({
   onSubmit,
   submitting,
 }) {
+  const isApp = channel === "app"
   const isEdit = Boolean(item?.id)
+  const defaultMaxVisible = isApp ? APP_DEFAULT_MAX_VISIBLE : WEBSITE_DEFAULT_MAX_VISIBLE
+  const defaultViewAll = isApp ? APP_DEFAULT_VIEW_ALL : WEBSITE_DEFAULT_VIEW_ALL
   const [type, setType] = useState("category_row")
   const [title, setTitle] = useState("")
   const [subtitle, setSubtitle] = useState("")
@@ -60,16 +69,16 @@ export function HomeLayoutFormDialog({
     setShowSubtitle(item?.showSubtitle ?? true)
     setStatus(item?.status ?? "draft")
     setCityId(item?.cityId ?? scopeCityId ?? "global")
-    setPlatforms(item?.platforms ?? ["web", "mobile"])
+    setPlatforms(isApp ? ["android"] : websitePlatformsOnly(item?.platforms))
     setSectionId(item?.sectionId ?? "")
     setCategoryIds(item?.categoryIds ?? [])
     const config = item?.config ?? {}
-    setMaxVisible(config.maxVisible ?? 5)
+    setMaxVisible(config.maxVisible ?? defaultMaxVisible)
     setShowViewAll(config.showViewAll ?? true)
-    setViewAllHref(config.viewAllHref ?? "/decorations")
+    setViewAllHref(config.viewAllHref ?? defaultViewAll)
     setEnableDrillDown(config.enableDrillDown ?? false)
     setAddCategoryId("")
-  }, [open, item, scopeCityId])
+  }, [open, item, scopeCityId, isApp, defaultMaxVisible, defaultViewAll])
 
   const availableCategories = useMemo(
     () => categoryOptions.filter((cat) => !categoryIds.includes(cat.id)),
@@ -108,17 +117,17 @@ export function HomeLayoutFormDialog({
       showSubtitle,
       status,
       cityId: cityId === "global" ? null : cityId,
-      platforms,
+      platforms: isApp ? ["android"] : platforms,
     }
     if (type === "product_rail") {
       payload.sectionId = sectionId
     } else {
       payload.categoryIds = categoryIds
       payload.config = {
-        maxVisible: Number(maxVisible) || 5,
+        maxVisible: Number(maxVisible) || defaultMaxVisible,
         showViewAll,
-        viewAllHref: emptyToNull(viewAllHref) ?? "/decorations",
-        enableDrillDown,
+        viewAllHref: emptyToNull(viewAllHref) ?? defaultViewAll,
+        enableDrillDown: isApp ? false : enableDrillDown,
       }
     }
     onSubmit(payload)
@@ -206,13 +215,20 @@ export function HomeLayoutFormDialog({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Scope</Label>
+            <Label>{isApp ? "Show this block in" : "Scope"}</Label>
+            {isApp ? (
+              <p className="text-xs text-muted-foreground">
+                All cities by default. Pick one city only if this block is city-specific.
+              </p>
+            ) : null}
             <Select value={cityId} onValueChange={setCityId}>
               <SelectTrigger>
-                <SelectValue placeholder="Scope">{scopeCityLabel}</SelectValue>
+                <SelectValue placeholder={isApp ? "All cities" : "Scope"}>
+                  {scopeCityLabel === "Global" && isApp ? "All cities" : scopeCityLabel}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="global">Global</SelectItem>
+                <SelectItem value="global">{isApp ? "All cities" : "Global"}</SelectItem>
                 {cities.map((city) => (
                   <SelectItem key={city.id} value={city.id}>{city.name}</SelectItem>
                 ))}
@@ -221,11 +237,18 @@ export function HomeLayoutFormDialog({
           </div>
         </div>
 
-        <PlatformCheckboxes value={platforms} onChange={setPlatforms} />
+        {!isApp ? (
+          <PlatformCheckboxes value={platforms} onChange={setPlatforms} />
+        ) : null}
 
         {type === "product_rail" ? (
           <div className="space-y-2">
             <Label>Catalog section</Label>
+            {isApp ? (
+              <p className="text-xs text-muted-foreground">
+                Products in this horizontal row come from the selected catalog section (same as website).
+              </p>
+            ) : null}
             <Select value={sectionId} onValueChange={setSectionId}>
               <SelectTrigger>
                 <SelectValue placeholder="Select section">
@@ -296,16 +319,23 @@ export function HomeLayoutFormDialog({
               <div className="space-y-2">
                 <Label htmlFor="view-all-href">View all link</Label>
                 <Input id="view-all-href" value={viewAllHref} onChange={(e) => setViewAllHref(e.target.value)} />
+                {isApp ? (
+                  <p className="text-xs text-muted-foreground">
+                    Use /(app)/category to open the Category tab when home shows fewer tiles than selected.
+                  </p>
+                ) : null}
               </div>
             </div>
             <label className="flex items-center gap-2 text-sm">
               <Switch checked={showViewAll} onCheckedChange={setShowViewAll} />
               Show View all when more categories than max
             </label>
-            <label className="flex items-center gap-2 text-sm">
-              <Switch checked={enableDrillDown} onCheckedChange={setEnableDrillDown} />
-              Enable subcategory drill-down
-            </label>
+            {!isApp ? (
+              <label className="flex items-center gap-2 text-sm">
+                <Switch checked={enableDrillDown} onCheckedChange={setEnableDrillDown} />
+                Enable subcategory drill-down
+              </label>
+            ) : null}
           </div>
         )}
 

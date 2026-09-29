@@ -1,15 +1,26 @@
+import '@/lib/patch-keep-awake';
 import '@/global.css';
+import { installOlaMapBootstrap } from '@/lib/ola-map-bootstrap';
 
+installOlaMapBootstrap();
+
+import { registerAccessTokenGetter } from '@/api/client';
 import { LoadingPlaceholder } from '@/components/shell';
+import { GOOGLE_WEB_CLIENT_ID } from '@/lib/env';
+import { queryClient } from '@/lib/query-client';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { NAV_THEME } from '@/lib/theme';
 import { useAuthStore } from '@/store/auth.store';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { PortalHost } from '@rn-primitives/portal';
 import { ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'nativewind';
+import { configureForegroundNotifications } from '@/lib/notifications';
+import { LenisProvider } from '@/lib/lenis-web';
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export {
@@ -22,8 +33,23 @@ export default function RootLayout() {
   const hydrated = useAuthStore((s) => s.hydrated);
 
   useEffect(() => {
+    registerAccessTokenGetter(() => useAuthStore.getState().accessToken);
+    if (GOOGLE_WEB_CLIENT_ID) {
+      GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
+    }
+    configureForegroundNotifications();
     void hydrate();
   }, [hydrate]);
+
+  const appTree = (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
+        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+        <Stack screenOptions={{ headerShown: false }} />
+        <PortalHost />
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -32,11 +58,7 @@ export default function RootLayout() {
           <LoadingPlaceholder className="py-0" />
         </View>
       ) : (
-        <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
-          <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-          <Stack screenOptions={{ headerShown: false }} />
-          <PortalHost />
-        </ThemeProvider>
+        Platform.OS === 'web' ? <LenisProvider>{appTree}</LenisProvider> : appTree
       )}
     </GestureHandlerRootView>
   );

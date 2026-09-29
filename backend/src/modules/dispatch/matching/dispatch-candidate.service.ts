@@ -7,6 +7,9 @@ import { vendors } from "@/modules/identity/vendors/vendor.schema.js";
 import { assignments } from "@/modules/assignment/assignments/assignment.schema.js";
 import { ledgerService } from "@/modules/payments/ledger/ledger.service.js";
 import { settingService } from "@/modules/ops/index.js";
+import { VendorMemberRepository } from "@/modules/identity/vendor-members/vendor-member.repository.js";
+import { VendorRepository } from "@/modules/identity/vendors/vendor.repository.js";
+import { isOrderCustomerConflictWithVendor } from "@/modules/identity/consumer/self-dealing.js";
 
 const ACTIVE_TRIP = ["ASSIGNED", "EN_ROUTE", "ON_SITE"] as const;
 
@@ -31,6 +34,9 @@ export async function listDispatchCandidates(input: {
 
     const [orderRow] = await db.select().from(orders).where(eq(orders.id, input.orderId)).limit(1);
     const isCod = orderRow?.paymentMethod === "COD";
+    const orderUserId = orderRow?.userId;
+    const vendorRepo = new VendorRepository();
+    const memberRepo = new VendorMemberRepository();
 
     const busyRows = await db
         .select({ vendorId: assignments.vendorId })
@@ -77,6 +83,15 @@ export async function listDispatchCandidates(input: {
     for (const row of vendorRows) {
         if (input.excludeVendorIds.includes(row.id)) continue;
         if (busyVendorIds.has(row.id)) continue;
+        if (
+            orderUserId &&
+            (await isOrderCustomerConflictWithVendor(orderUserId, row.id, {
+                vendors: vendorRepo,
+                members: memberRepo,
+            }))
+        ) {
+            continue;
+        }
         if (isCod) {
             const codDue = await ledgerService.getVendorCodDue(row.id);
             if (codDue > codMax) continue;

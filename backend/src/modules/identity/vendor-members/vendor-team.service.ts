@@ -5,6 +5,8 @@ import type { IVendorRepository } from "@/modules/identity/vendors/vendor.reposi
 import type { IUserService } from "@/modules/identity/users/user.service.js";
 import type { IVendorMemberRepository } from "@/modules/identity/vendor-members/vendor-member.repository.js";
 import { auditService } from "@/modules/ops/audit/audit.service.js";
+import { downgradeStaffRoleIfOrphaned } from "@/modules/identity/consumer/staff-role-lifecycle.js";
+import type { ISessionService } from "@/modules/identity/sessions/session.service.js";
 import type { VendorMember } from "@/modules/identity/vendor-members/vendor-member.schema.js";
 import { parsePagination, type Paginated } from "@/shared/http/pagination.js";
 
@@ -33,6 +35,7 @@ export class VendorTeamService {
         private readonly members: IVendorMemberRepository,
         private readonly vendors: IVendorRepository,
         private readonly users: IUserService,
+        private readonly sessions: ISessionService,
     ) {}
 
     private assertOwner(partner: PartnerContext) {
@@ -145,6 +148,15 @@ export class VendorTeamService {
     }
 
     async disable(partner: PartnerContext, memberId: string): Promise<void> {
+        const member = await this.members.findByIdForVendor(partner.vendorId, memberId);
+        if (!member) {
+            throw ApiError.notFound("team member not found");
+        }
         await this.patch(partner, memberId, { status: "disabled" });
+        await downgradeStaffRoleIfOrphaned(member.userId, {
+            members: this.members,
+            users: this.users,
+            sessions: this.sessions,
+        });
     }
 }

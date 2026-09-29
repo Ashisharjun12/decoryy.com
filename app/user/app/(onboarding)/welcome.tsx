@@ -24,9 +24,9 @@ export default function WelcomeScreen() {
   const listRef = useRef<FlatList<(typeof ONBOARDING_SLIDES)[number]>>(null);
   const isLast = index === ONBOARDING_SLIDES.length - 1;
 
-  async function goToSignIn() {
+  async function goToLogin() {
     await completeWelcome();
-    router.replace('/(onboarding)/sign-in' as Href);
+    router.replace('/(onboarding)/login' as Href);
   }
 
   function handleContinue() {
@@ -36,11 +36,11 @@ export default function WelcomeScreen() {
       setIndex(next);
       return;
     }
-    void goToSignIn();
+    void goToLogin();
   }
 
   function handleSkip() {
-    void goToSignIn();
+    void goToLogin();
   }
 
   function onScrollEnd(event: NativeSyntheticEvent<NativeScrollEvent>) {
@@ -62,6 +62,7 @@ export default function WelcomeScreen() {
 
       <FlatList
         ref={listRef}
+        className="flex-1"
         data={[...ONBOARDING_SLIDES]}
         keyExtractor={(item) => item.id}
         horizontal
@@ -75,7 +76,7 @@ export default function WelcomeScreen() {
           index: itemIndex,
         })}
         renderItem={({ item }) => (
-          <View style={{ width: SCREEN_WIDTH }}>
+          <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
             <OnboardingSlide slide={item} />
           </View>
         )}

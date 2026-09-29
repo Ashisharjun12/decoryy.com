@@ -9,23 +9,23 @@ type OnboardingSlideProps = {
 
 export function OnboardingSlide({ slide }: OnboardingSlideProps) {
   return (
-    <View className="flex-1 justify-center px-8 pb-4">
-      <Image
-        source={{ uri: slide.imageUrl }}
-        accessibilityLabel={slide.title}
-        contentFit="contain"
-        style={{ width: '100%', maxWidth: 300, height: 220, marginBottom: 28, alignSelf: 'center' }}
-      />
+    <View className="flex-1 px-6">
+      <View className="min-h-0 flex-1 items-center justify-center pt-2">
+        <Image
+          source={{ uri: slide.imageUrl }}
+          accessibilityLabel={slide.title}
+          contentFit="contain"
+          style={{ width: '100%', height: '100%', maxHeight: 420 }}
+        />
+      </View>
 
-      <View className="max-w-[340px] gap-4 self-center px-2">
+      <View className="max-w-full gap-3 pb-2 pt-6">
         <Text
-          className="text-center text-foreground"
-          style={{ fontSize: 32, lineHeight: 38, fontWeight: '700' }}>
+          className="text-left text-foreground"
+          style={{ fontSize: 30, lineHeight: 36, fontWeight: '700' }}>
           {slide.title}
         </Text>
-        <Text className="text-muted-foreground text-center text-base leading-6">
-          {slide.description}
-        </Text>
+        <Text className="text-muted-foreground text-left text-sm leading-5">{slide.description}</Text>
       </View>
     </View>
   );

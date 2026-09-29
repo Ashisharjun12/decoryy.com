@@ -2,21 +2,25 @@ import { useEffect, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import { listAdmin as listCities } from "@/api/cities.api"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AnnouncementsPanel } from "@/module/cms/pages/AnnouncementsPanel"
-import { BannersPanel } from "@/module/cms/pages/BannersPanel"
-import { TestimonialsPanel } from "@/module/cms/pages/TestimonialsPanel"
-import { HomeLayoutPanel } from "@/module/cms/pages/HomeLayoutPanel"
-import { FaqPanel } from "@/module/cms/pages/FaqPanel"
+import {
+  CONTENT_CHANNELS,
+  channelSubtitle,
+  contentSearchParams,
+  parseContentParams,
+} from "@/module/cms/lib/content-channels"
+import { AppContentSection } from "@/module/cms/pages/AppContentSection"
+import { WebsiteContentTabs } from "@/module/cms/pages/WebsiteContentTabs"
 
-const TABS = ["announcements", "banners", "homepage", "testimonials", "faq"]
-
-function normalizeTab(value) {
-  return TABS.includes(value) ? value : "announcements"
+const CHANNEL_LABELS = {
+  web: "Web",
+  mobile: "Mobile",
+  android: "Android",
+  ios: "iOS",
 }
 
 export function ContentPage() {
   const [params, setParams] = useSearchParams()
-  const tab = normalizeTab(params.get("tab"))
+  const { channel, tab, atab } = parseContentParams(params)
   const [cities, setCities] = useState([])
 
   useEffect(() => {
@@ -25,8 +29,31 @@ export function ContentPage() {
       .catch(() => setCities([]))
   }, [])
 
-  function onTabChange(next) {
-    setParams({ tab: next }, { replace: true })
+  function onChannelChange(nextChannel) {
+    const next = contentSearchParams({
+      channel: nextChannel,
+      tab,
+      atab,
+    })
+    setParams(next, { replace: true })
+  }
+
+  function onWebTabChange(nextTab) {
+    const next = contentSearchParams({
+      channel,
+      tab: nextTab,
+      atab,
+    })
+    setParams(next, { replace: true })
+  }
+
+  function onAppTabChange(nextAtab) {
+    const next = contentSearchParams({
+      channel,
+      tab,
+      atab: nextAtab,
+    })
+    setParams(next, { replace: true })
   }
 
   return (
@@ -34,31 +61,49 @@ export function ContentPage() {
       <div>
         <h1 className="font-heading text-2xl font-medium tracking-tight">Content</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Manage announcements, banners, homepage layout, testimonials, and FAQs.
+          {channelSubtitle(channel)}
         </p>
       </div>
-      <Tabs value={tab} onValueChange={onTabChange}>
+      <Tabs value={channel} onValueChange={onChannelChange}>
         <TabsList variant="line">
-          <TabsTrigger value="announcements">Announcements</TabsTrigger>
-          <TabsTrigger value="banners">Banners</TabsTrigger>
-          <TabsTrigger value="homepage">Homepage</TabsTrigger>
-          <TabsTrigger value="testimonials">Testimonials</TabsTrigger>
-          <TabsTrigger value="faq">FAQ</TabsTrigger>
+          {CONTENT_CHANNELS.map((ch) => (
+            <TabsTrigger key={ch} value={ch}>
+              {CHANNEL_LABELS[ch]}
+            </TabsTrigger>
+          ))}
         </TabsList>
-        <TabsContent value="announcements">
-          <AnnouncementsPanel cities={cities} />
+        <TabsContent value="web">
+          <WebsiteContentTabs
+            channel="web"
+            tab={tab}
+            onTabChange={onWebTabChange}
+            cities={cities}
+          />
         </TabsContent>
-        <TabsContent value="banners">
-          <BannersPanel cities={cities} />
+        <TabsContent value="mobile">
+          <WebsiteContentTabs
+            channel="mobile"
+            tab={tab}
+            onTabChange={onWebTabChange}
+            cities={cities}
+          />
         </TabsContent>
-        <TabsContent value="homepage">
-          <HomeLayoutPanel cities={cities} />
+        <TabsContent value="android">
+          <AppContentSection
+            channel="android"
+            atab={atab}
+            onAppTabChange={onAppTabChange}
+            disabled={false}
+            cities={cities}
+          />
         </TabsContent>
-        <TabsContent value="testimonials">
-          <TestimonialsPanel cities={cities} />
-        </TabsContent>
-        <TabsContent value="faq">
-          <FaqPanel />
+        <TabsContent value="ios">
+          <AppContentSection
+            channel="ios"
+            atab={atab}
+            onAppTabChange={onAppTabChange}
+            disabled
+          />
         </TabsContent>
       </Tabs>
     </div>

@@ -15,6 +15,7 @@ import { UserMenu } from "@/module/layout/components/UserMenu";
 import { NotificationBell } from "@/module/notifications/components/NotificationBell";
 import { useAuthStore } from "@/store/auth.store";
 import { useSiteShell } from "@/module/site/hooks/use-site-shell.jsx";
+import { isProductDetailPath } from "@/lib/product-page-route";
 
 export function SiteHeader() {
   const { brand } = useSiteShell();
@@ -27,6 +28,7 @@ export function SiteHeader() {
   const isAccount = location.pathname.startsWith("/account");
   const isCheckout = location.pathname.startsWith("/checkout");
   const isHome = location.pathname === "/";
+  const isProductPdp = isProductDetailPath(location.pathname);
 
   useMotionValueEvent(scrollY, "change", (value) => {
     setCompact(value > 24);
@@ -54,7 +56,7 @@ export function SiteHeader() {
       ref={headerRef}
       className={cn(
         "sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-md",
-        isHome && "hidden md:block",
+        (isHome || isProductPdp) && "hidden md:block",
       )}
     >
       <div
@@ -74,7 +76,9 @@ export function SiteHeader() {
             {brand.companyName}
           </span>
         </Link>
-        <LocationPicker />
+        <div className="min-w-0 flex-1 md:flex-none">
+          <LocationPicker className="max-md:h-9 max-md:w-full max-md:max-w-full" />
+        </div>
         <div className="mx-auto hidden min-w-0 max-w-[340px] flex-1 md:block">
           <SearchCommand />
         </div>

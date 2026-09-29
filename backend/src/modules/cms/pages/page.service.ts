@@ -6,6 +6,7 @@ import { assertCmsPageSlugAllowed, normalizeCmsPageSlug } from "@/modules/cms/pa
 import type { z } from "zod";
 import type { createCmsPageDto, patchCmsPageDto } from "@/modules/cms/pages/page.dto.js";
 import { invalidatePages, invalidateSiteShell } from "@/modules/cms/cache/cms-cache.invalidation.js";
+import { matchesCmsPlatform } from "@/modules/cms/cms-platforms.js";
 
 type CreateInput = z.infer<typeof createCmsPageDto>;
 type PatchInput = z.infer<typeof patchCmsPageDto>;
@@ -16,10 +17,6 @@ export type FooterLinkRow = {
     pageId: string | null;
     href: string;
 };
-
-function matchesPlatform(platforms: string[], platform: string) {
-    return platforms.includes(platform);
-}
 
 export class CmsPageService {
     constructor(private readonly pages: CmsPageRepository) {}
@@ -126,7 +123,7 @@ export class CmsPageService {
         if (!row || row.status !== "published") {
             throw ApiError.notFound("Page not found");
         }
-        if (!matchesPlatform(row.platforms, platform)) {
+        if (!matchesCmsPlatform(row.platforms, platform)) {
             throw ApiError.notFound("Page not found");
         }
         return this.toPublic(row);
@@ -153,7 +150,7 @@ export class CmsPageService {
             if (link.linkType === "page" && link.pageId) {
                 const page = pageMap.get(link.pageId);
                 if (!page || page.status !== "published") continue;
-                if (!matchesPlatform(page.platforms, platform)) continue;
+                if (!matchesCmsPlatform(page.platforms, platform)) continue;
                 resolved.push({ label: link.label, href: `/pages/${page.slug}` });
                 continue;
             }

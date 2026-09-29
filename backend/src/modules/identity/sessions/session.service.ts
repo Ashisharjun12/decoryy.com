@@ -51,6 +51,7 @@ export interface ISessionService {
     issue(user: User, device: Device, familyId?: string): Promise<AuthTokens>;
     rotate(incomingRefreshToken: string, device: Device): Promise<{ user: User; tokens: AuthTokens }>;
     revoke(incomingRefreshToken: string): Promise<void>;
+    revokeAllForUser(userId: string): Promise<void>;
 }
 
 export class SessionService implements ISessionService {
@@ -103,5 +104,9 @@ export class SessionService implements ISessionService {
 
     async revoke(incomingRefreshToken: string): Promise<void> {
         await this.sessions.revokeActiveByHash(hashRefreshToken(incomingRefreshToken));
+    }
+
+    async revokeAllForUser(userId: string): Promise<void> {
+        await this.sessions.revokeAllForUser(userId);
     }
 }

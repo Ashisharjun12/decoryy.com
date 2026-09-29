@@ -14,7 +14,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { AccentColorField } from "@/module/cms/components/AccentColorField"
 import { CmsFormDialogShell } from "@/module/cms/components/CmsFormDialogShell"
 import { PlatformCheckboxes } from "@/module/cms/components/PlatformCheckboxes"
-import { CMS_STATUSES } from "@/module/cms/lib/cms-constants"
+import { CMS_STATUSES, websitePlatformsOnly } from "@/module/cms/lib/cms-constants"
 
 const FORM_ID = "testimonial-form"
 
@@ -48,7 +48,7 @@ export function TestimonialFormDialog({
     setStatus(item?.status ?? "draft")
     setSortIndex(Math.max(0, item?.sortIndex ?? 0))
     setCityId(item?.cityId ?? "global")
-    setPlatforms(item?.platforms ?? ["web", "mobile"])
+    setPlatforms(websitePlatformsOnly(item?.platforms))
   }, [open, item])
 
   function handleSubmit(event) {

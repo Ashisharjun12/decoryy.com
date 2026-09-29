@@ -19,6 +19,7 @@ export class CmsBannerService {
             placement: query.placement as CmsBanner["placement"] | undefined,
             excludePlacement: query.excludePlacement as CmsBanner["placement"] | undefined,
             status: query.status as CmsBanner["status"] | undefined,
+            platform: typeof query.platform === "string" ? query.platform : undefined,
         });
         return {
             items: await Promise.all(items.map((row) => this.toAdmin(row))),

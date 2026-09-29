@@ -1,30 +1,27 @@
 import { listCities } from "@/api/geo.api";
 import {
+  isBackendCityId,
   isLegacyDemoCity,
   LOCATION_PROMPT_DISMISSED_KEY,
   useLocationStore,
 } from "@/store/location.store";
 
-function shouldPrompt({ city, pincode, source }) {
+function shouldPrompt({ city }) {
   if (typeof sessionStorage !== "undefined") {
     if (sessionStorage.getItem(LOCATION_PROMPT_DISMISSED_KEY) === "1") {
       return false;
     }
   }
 
-  if (isLegacyDemoCity(city)) {
+  if (!city || isLegacyDemoCity(city)) {
     return true;
   }
 
-  if (!city) {
-    return true;
+  if (isBackendCityId(city.id)) {
+    return false;
   }
 
-  if (source === "default" && !pincode) {
-    return true;
-  }
-
-  return false;
+  return true;
 }
 
 export async function hydrateLocation() {
@@ -58,13 +55,7 @@ export async function hydrateLocation() {
       });
     }
 
-    store.setNeedsPrompt(
-      shouldPrompt({
-        city: nextCity,
-        pincode: nextPincode,
-        source: nextSource,
-      }),
-    );
+    store.setNeedsPrompt(shouldPrompt({ city: nextCity }));
   } catch {
     const { city } = useLocationStore.getState();
     store.setNeedsPrompt(isLegacyDemoCity(city) || !city);
