@@ -9,31 +9,31 @@ import { Pressable, View } from 'react-native';
 
 export function ProfileHeaderCard() {
   const user = useAuthStore((s) => s.user);
-  const name = user?.name ?? 'Guest';
-  const phoneLabel = user?.phone ? formatIndiaPhoneDisplay(user.phone) : '';
+  const name = user?.name?.trim() || 'Account';
+  const phoneLabel = user?.phone?.trim() ? formatIndiaPhoneDisplay(user.phone) : '';
+  const emailLabel = user?.email?.trim() ?? '';
+  const subtitle = phoneLabel || emailLabel || 'Personal details';
 
   return (
     <Pressable
       onPress={() => router.push('/(app)/profile/account' as Href)}
-      className="flex-row items-center gap-3 px-4 py-4 active:bg-muted/40"
+      className="flex-row items-center gap-4 rounded-2xl py-2 active:opacity-80"
       accessibilityRole="button"
       accessibilityLabel="Open account details">
-      <Avatar alt={name} className="size-12">
-        <AvatarFallback>
-          <Icon as={UserRound} className="text-muted-foreground size-6" />
+      <Avatar alt={name} className="size-16 border-2 border-background shadow-sm">
+        <AvatarFallback className="bg-muted">
+          <Icon as={UserRound} className="text-muted-foreground size-7" />
         </AvatarFallback>
       </Avatar>
       <View className="min-w-0 flex-1">
-        <Text className="text-foreground text-base font-bold" numberOfLines={1}>{name}</Text>
-        {phoneLabel ? (
-          <Text className="text-muted-foreground mt-0.5 text-sm" numberOfLines={1}>
-            {phoneLabel}
-          </Text>
-        ) : (
-          <Text className="text-muted-foreground mt-0.5 text-sm">View account</Text>
-        )}
+        <Text className="text-foreground text-xl font-bold tracking-tight" numberOfLines={1}>
+          {name}
+        </Text>
+        <Text className="text-muted-foreground mt-1 text-sm" numberOfLines={1}>
+          {subtitle}
+        </Text>
       </View>
-      <Icon as={ChevronRight} className="text-muted-foreground size-5 shrink-0" />
+      <Icon as={ChevronRight} className="text-muted-foreground/70 size-5 shrink-0" />
     </Pressable>
   );
 }

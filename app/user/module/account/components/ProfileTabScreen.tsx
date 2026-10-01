@@ -1,6 +1,7 @@
 import { Screen, TabScreenTitle } from '@/components/shell';
 import { WhatsAppIcon } from '@/components/shell/WhatsAppIcon';
 import { requestNotificationPermission } from '@/lib/notifications';
+import { syncPushRegistration } from '@/lib/push-registration';
 import { openWhatsAppSupport } from '@/lib/support-actions';
 import { ProfileHeaderCard } from '@/module/account/components/ProfileHeaderCard';
 import { ProfileLogoutButton } from '@/module/account/components/ProfileLogoutButton';
@@ -11,11 +12,12 @@ import {
   PROFILE_MENU_SECTIONS,
   type ProfileMenuItem,
 } from '@/module/account/lib/profile-menu';
+import { useCurrentUserQuery } from '@/module/account/hooks/use-current-user-query';
 import { useNotificationPermissionStatus } from '@/module/permissions/hooks/use-notification-permission-status';
 import { useAuthStore } from '@/store/auth.store';
 import { Href, router } from 'expo-router';
 import { useCallback } from 'react';
-import { Linking, ScrollView } from 'react-native';
+import { Linking, ScrollView, View } from 'react-native';
 
 function renderMenuItem(item: ProfileMenuItem, isLast: boolean) {
   if (item.type === 'notification-toggle') {
@@ -46,7 +48,10 @@ function renderMenuItem(item: ProfileMenuItem, isLast: boolean) {
 }
 
 export function ProfileTabScreen() {
+  useCurrentUserQuery();
   const signOut = useAuthStore((s) => s.signOut);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const userId = useAuthStore((s) => s.user?.id ?? null);
   const { notificationStatus, refresh } = useNotificationPermissionStatus();
   const notificationsOn = notificationStatus === 'granted';
 
@@ -59,6 +64,7 @@ export function ProfileTabScreen() {
     async (next: boolean) => {
       if (next) {
         await requestNotificationPermission();
+        await syncPushRegistration(accessToken, userId);
         await refresh();
         return;
       }
@@ -67,45 +73,46 @@ export function ProfileTabScreen() {
       }
       await refresh();
     },
-    [notificationStatus, refresh],
+    [notificationStatus, refresh, accessToken, userId],
   );
 
   return (
-    <Screen scroll={false} edges={['top', 'left', 'right']} contentClassName="flex-1">
+    <Screen scroll={false} edges={['top', 'left', 'right']} gutter contentClassName="flex-1">
       <TabScreenTitle
         title="Profile"
         showBack
         onBack={() => router.navigate('/(app)/' as Href)}
         backAccessibilityLabel="Back to home"
+        insetFromParentGutter
       />
       <ScrollView
         className="flex-1"
-        contentContainerClassName="gap-5 px-5 pb-28 pt-4"
+        contentContainerClassName="pb-28 pt-3"
         showsVerticalScrollIndicator={false}>
-        <ProfileSettingsGroup>
-          <ProfileHeaderCard />
-        </ProfileSettingsGroup>
+        <ProfileHeaderCard />
 
-        {PROFILE_MENU_SECTIONS.map((section) => (
-          <ProfileSettingsGroup key={section.id} title={section.title}>
-            {section.items.map((item, index) => {
-              const isLast = index === section.items.length - 1;
-              if (item.type === 'notification-toggle') {
-                return (
-                  <ProfileToggleRow
-                    key={item.id}
-                    label={item.label}
-                    icon={item.icon}
-                    value={notificationsOn}
-                    onValueChange={(next) => void onNotificationToggle(next)}
-                    isLast={isLast}
-                  />
-                );
-              }
-              return renderMenuItem(item, isLast);
-            })}
-          </ProfileSettingsGroup>
-        ))}
+        <View className="mt-8 gap-7">
+          {PROFILE_MENU_SECTIONS.map((section) => (
+            <ProfileSettingsGroup key={section.id} title={section.title}>
+              {section.items.map((item, index) => {
+                const isLast = index === section.items.length - 1;
+                if (item.type === 'notification-toggle') {
+                  return (
+                    <ProfileToggleRow
+                      key={item.id}
+                      label={item.label}
+                      icon={item.icon}
+                      value={notificationsOn}
+                      onValueChange={(next) => void onNotificationToggle(next)}
+                      isLast={isLast}
+                    />
+                  );
+                }
+                return renderMenuItem(item, isLast);
+              })}
+            </ProfileSettingsGroup>
+          ))}
+        </View>
 
         <ProfileLogoutButton onPress={() => void handleSignOut()} />
       </ScrollView>

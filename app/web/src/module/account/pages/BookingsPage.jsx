@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getApiError } from "@/api/api";
 import { listOrders } from "@/api/orders.api";
@@ -10,7 +10,6 @@ import {
   BookingCard,
   BookingCardSkeleton,
 } from "@/module/account/components/BookingCard";
-import { filterOrdersByTab } from "@/module/account/lib/booking-ui";
 
 const ORDER_TABS = [
   { value: "all", label: "All" },
@@ -38,6 +37,8 @@ const EMPTY_COPY = {
   },
 };
 
+const PAGE_SIZE = 20;
+
 function OrdersEmpty({ tab }) {
   const copy = EMPTY_COPY[tab] ?? EMPTY_COPY.all;
   return (
@@ -52,30 +53,49 @@ function OrdersEmpty({ tab }) {
 }
 
 export function BookingsPage() {
+  const [tab, setTab] = useState("all");
   const [status, setStatus] = useState("loading");
   const [error, setError] = useState("");
   const [items, setItems] = useState([]);
-  const [tab, setTab] = useState("all");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    setStatus("loading");
-    void listOrders({ page: 1, limit: 50 })
-      .then((data) => {
-        if (cancelled) return;
-        setItems(Array.isArray(data?.items) ? data.items : []);
+  const loadPage = useCallback(
+    async (bucket, pageNum, append) => {
+      if (append) setLoadingMore(true);
+      else setStatus("loading");
+      try {
+        const data = await listOrders({ page: pageNum, limit: PAGE_SIZE, bucket });
+        const nextItems = Array.isArray(data?.items) ? data.items : [];
+        setItems((prev) => (append ? [...prev, ...nextItems] : nextItems));
+        setPage(data?.page ?? pageNum);
+        setTotal(typeof data?.total === "number" ? data.total : nextItems.length);
         setStatus("ready");
-      })
-      .catch((err) => {
-        if (cancelled) return;
+        setError("");
+      } catch (err) {
         setError(getApiError(err));
         setStatus("error");
-      });
+      } finally {
+        setLoadingMore(false);
+      }
+    },
+    [],
+  );
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  useEffect(() => {
+    setItems([]);
+    setPage(1);
+    setTotal(0);
+    void loadPage(tab, 1, false);
+  }, [tab, loadPage]);
+
+  const hasMore = page * PAGE_SIZE < total;
+
+  function loadMore() {
+    if (!hasMore || loadingMore || status !== "ready") return;
+    void loadPage(tab, page + 1, true);
+  }
 
   return (
     <div className="w-full max-w-none">
@@ -94,9 +114,7 @@ export function BookingsPage() {
           ))}
         </TabsList>
 
-        {ORDER_TABS.map((item) => {
-          const filtered = filterOrdersByTab(items, item.value);
-          return (
+        {ORDER_TABS.map((item) => (
           <TabsContent key={item.value} value={item.value} className="mt-0">
             {status === "loading" ? (
               <div className="flex flex-col gap-3">
@@ -109,18 +127,35 @@ export function BookingsPage() {
               <p className="text-sm text-destructive">{error || "Could not load orders."}</p>
             ) : null}
 
-            {status === "ready" && !filtered.length ? <OrdersEmpty tab={item.value} /> : null}
+            {status === "ready" && !items.length ? <OrdersEmpty tab={item.value} /> : null}
 
-            {status === "ready" && filtered.length ? (
+            {status === "ready" && items.length ? (
               <div className="flex flex-col gap-5">
-                {filtered.map((booking) => (
+                {items.map((booking) => (
                   <BookingCard key={booking.id} booking={booking} />
                 ))}
+                {hasMore ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="self-center"
+                    disabled={loadingMore}
+                    onClick={loadMore}
+                  >
+                    {loadingMore ? (
+                      <>
+                        <Spinner className="size-4" />
+                        Loading…
+                      </>
+                    ) : (
+                      "Load more"
+                    )}
+                  </Button>
+                ) : null}
               </div>
             ) : null}
           </TabsContent>
-          );
-        })}
+        ))}
       </Tabs>
     </div>
   );

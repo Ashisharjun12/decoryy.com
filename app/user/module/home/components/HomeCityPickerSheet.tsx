@@ -3,8 +3,9 @@ import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import { ScalePressable } from '@/components/shell';
 import { cn } from '@/lib/utils';
+import { HomeCityMapIcon } from '@/module/home/components/HomeCityMapIcon';
 import { useLocationStore, type ServiceCity } from '@/store/location.store';
-import { MapPin, Search } from 'lucide-react-native';
+import { Search } from 'lucide-react-native';
 import { useKeyboardInset } from '@/lib/use-keyboard-inset';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, useWindowDimensions, View } from 'react-native';
@@ -41,9 +42,7 @@ function CityRow({
       accessibilityRole="radio"
       accessibilityState={{ selected }}>
       <View className="flex-row items-center gap-3 border-b border-border/80 py-3.5">
-        <View className="size-9 items-center justify-center rounded-full bg-muted/80">
-          <Icon as={MapPin} className="text-muted-foreground size-4" />
-        </View>
+        <HomeCityMapIcon variant="listRow" />
         <Text className="text-foreground min-w-0 flex-1 text-base">{item.name}</Text>
         <CityRadio selected={selected} />
       </View>

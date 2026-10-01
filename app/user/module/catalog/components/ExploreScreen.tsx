@@ -9,9 +9,13 @@ import { useHomeCategories } from '@/module/home/hooks/use-home-categories';
 import { filterCategoriesForDisplay, type HomeCategory } from '@/module/home/lib/home-catalog';
 import { type Href, router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
+import { useActiveOrderScrollPaddingBottom } from '@/module/home/hooks/use-tab-active-order-bar';
 import { ActivityIndicator, RefreshControl, View } from 'react-native';
 
+const TAB_SCROLL_BASE_BOTTOM = 112;
+
 export function ExploreScreen() {
+  const scrollBottomPadding = useActiveOrderScrollPaddingBottom(TAB_SCROLL_BASE_BOTTOM);
   const params = useLocalSearchParams<{
     categoryId?: string | string[];
     categoryIds?: string | string[];
@@ -82,7 +86,8 @@ export function ExploreScreen() {
       />
       <SmoothScrollView
         className="flex-1"
-        contentContainerClassName="gap-3 pb-28 pt-3"
+        contentContainerClassName="gap-3 pt-3"
+        contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
         {isPending && categories.length === 0 ? (
           <ActivityIndicator className="py-6" />

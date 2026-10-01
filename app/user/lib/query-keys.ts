@@ -1,4 +1,12 @@
 export const queryKeys = {
+  currentUser: () => ['user', 'me'] as const,
+  ordersList: (bucket: string, page: number) => ['orders', 'list', bucket, page] as const,
+  ordersInfinite: (bucket: string) => ['orders', 'infinite', bucket] as const,
+  orderDetail: (id: string) => ['orders', 'detail', id] as const,
+  orderTracking: (id: string) => ['orders', 'tracking', id] as const,
+  activeOrdersHome: () => ['orders', 'active-home'] as const,
+  chatBooking: (orderId: string) => ['chat', 'booking', orderId] as const,
+  chatMessages: (conversationId: string) => ['chat', 'messages', conversationId] as const,
   cmsHome: (cityId: string | null, pincode: string | null) =>
     ['cms', 'home', 'mobile', cityId, pincode] as const,
   homeSections: (cityId: string | null, pincode: string | null) =>
@@ -72,6 +80,7 @@ export const queryKeys = {
   productReviews: (productId: string, limit: number) =>
     ['catalog', 'product-reviews', productId, limit] as const,
   cart: () => ['cart'] as const,
+  paymentMethods: () => ['payments', 'methods'] as const,
   availableCoupons: (
     productId: string | undefined,
     categoryId: string | undefined,

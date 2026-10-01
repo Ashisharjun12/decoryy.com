@@ -8,10 +8,19 @@ import {
 import { queryKeys } from '@/lib/query-keys';
 import { emptyCart } from '@/module/booking/lib/cart-types';
 import { useCartStore } from '@/store/cart.store';
+import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 function syncCartCount(cart: { itemCount?: number }) {
   useCartStore.getState().setItemCount(cart?.itemCount ?? 0);
+}
+
+export function syncCartQueryCache(
+  queryClient: QueryClient,
+  cart: Awaited<ReturnType<typeof getCart>>,
+) {
+  queryClient.setQueryData(queryKeys.cart(), cart);
+  syncCartCount(cart);
 }
 
 export function useCartQuery(enabled = true) {
@@ -66,6 +75,7 @@ export function useCartData() {
   return {
     cart: query.data ?? emptyCart,
     isLoading: query.isLoading,
+    isFetching: query.isFetching,
     isError: query.isError,
     refetch: query.refetch,
   };

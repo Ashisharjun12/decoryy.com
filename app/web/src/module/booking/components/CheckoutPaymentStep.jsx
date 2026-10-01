@@ -1,7 +1,13 @@
 import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-export function CheckoutPaymentStep({ value, onChange, allowCod = true, allowOnline = false }) {
+export function CheckoutPaymentStep({
+  value,
+  onChange,
+  allowCod = true,
+  allowOnline = false,
+  paymentIncomplete = false,
+}) {
   if (!allowCod && !allowOnline) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -12,6 +18,16 @@ export function CheckoutPaymentStep({ value, onChange, allowCod = true, allowOnl
   }
 
   return (
+    <div className="space-y-4">
+      {paymentIncomplete ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm dark:border-amber-900/50 dark:bg-amber-950/30">
+          <p className="font-semibold text-foreground">Payment didn&apos;t go through</p>
+          <p className="mt-1 text-muted-foreground">
+            Your booking isn&apos;t confirmed yet. Select Pay online or Cash on delivery below, then
+            continue to review and place your booking.
+          </p>
+        </div>
+      ) : null}
     <RadioGroup
       className="gap-3"
       value={value || undefined}
@@ -40,5 +56,6 @@ export function CheckoutPaymentStep({ value, onChange, allowCod = true, allowOnl
         </FieldLabel>
       ) : null}
     </RadioGroup>
+    </div>
   );
 }

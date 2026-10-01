@@ -92,15 +92,41 @@ function ProductCardReviewsAndEta({
 function ProductCardPriceBlock({
   pricePaise,
   compareAtPaise,
+  compact,
 }: {
   pricePaise: number;
   compareAtPaise?: number | null;
+  compact?: boolean;
 }) {
   const percentOff = discountPercent(pricePaise, compareAtPaise);
   const hasCompare = compareAtPaise != null && compareAtPaise > pricePaise;
 
+  if (compact) {
+    return (
+      <View className="mt-2 gap-1">
+        <View className="flex-row flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+          <Text className="text-foreground text-[15px] font-extrabold tabular-nums">
+            {formatPaise(pricePaise)}
+          </Text>
+          {hasCompare ? (
+            <Text className="text-muted-foreground text-[11px] font-medium line-through tabular-nums">
+              {formatPaise(compareAtPaise!)}
+            </Text>
+          ) : null}
+        </View>
+        {percentOff > 0 ? (
+          <View className="self-start rounded-md bg-emerald-50 px-1.5 py-0.5 dark:bg-emerald-950/40">
+            <Text className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+              {percentOff}% OFF
+            </Text>
+          </View>
+        ) : null}
+      </View>
+    );
+  }
+
   return (
-    <View className="mt-2 h-8 flex-row items-end justify-between gap-2">
+    <View className="mt-2 min-h-8 flex-row flex-wrap items-end justify-between gap-x-2 gap-y-1">
       <View className="min-w-0 flex-row flex-wrap items-baseline gap-x-1.5">
         <Text className="text-foreground text-[15px] font-extrabold tabular-nums">
           {formatPaise(pricePaise)}
@@ -184,6 +210,7 @@ export function HomeProductCard({
         <ProductCardPriceBlock
           pricePaise={product.pricePaise}
           compareAtPaise={product.compareAtPaise}
+          compact={compact}
         />
       </View>
     </ScalePressable>

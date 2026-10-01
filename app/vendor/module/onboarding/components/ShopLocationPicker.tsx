@@ -66,15 +66,15 @@ function LocationOptionRow({
       onPress={onPress}
       disabled={loading}
       className="flex-row items-center gap-3 border-b border-border/70 py-4 active:opacity-80">
-      <View className="size-10 items-center justify-center rounded-full bg-primary/10">
+      <View className="size-10 items-center justify-center rounded-full bg-muted">
         {loading ? (
           <AppSpinner size="sm" />
         ) : (
-          <Icon as={icon} className="text-primary size-5" />
+          <Icon as={icon} className="text-foreground size-5" />
         )}
       </View>
       <View className="min-w-0 flex-1">
-        <Text className="text-primary text-base font-semibold">{title}</Text>
+        <Text className="text-foreground text-base font-semibold">{title}</Text>
         {subtitle ? (
           <Text className="text-muted-foreground mt-0.5 text-sm leading-5" numberOfLines={2}>
             {subtitle}
@@ -202,10 +202,10 @@ export function ShopLocationPicker({
     setCurrentConfirm(null);
   }
 
-  const summary =
-    pin && address.trim().length >= 10
-      ? address.trim()
-      : null;
+  const trimmedAddress = address.trim();
+  const summary = trimmedAddress.length > 0 ? trimmedAddress : null;
+  const searchPreview =
+    trimmedAddress.length > 0 ? trimmedAddress : 'Search for area, street name…';
 
   return (
     <View className="gap-2">
@@ -221,7 +221,7 @@ export function ShopLocationPicker({
           ) : null}
           <View className="flex-row gap-4 pl-6 pt-1">
             <Pressable onPress={openMainSheet}>
-              <Text className="text-primary text-sm font-semibold">Change</Text>
+              <Text className="text-foreground text-sm font-semibold underline">Change</Text>
             </Pressable>
             <Pressable onPress={() => openPinMap()}>
               <Text className="text-foreground text-sm font-semibold underline">Adjust pin</Text>
@@ -281,8 +281,14 @@ export function ShopLocationPicker({
                 }}
                 className="mt-4 h-11 flex-row items-center gap-2 rounded-xl border border-border bg-card px-3 active:opacity-90">
                 <Icon as={Search} className="text-muted-foreground size-4 shrink-0" />
-                <Text className="text-muted-foreground flex-1 text-base">
-                  Search for area, street name…
+                <Text
+                  className={
+                    trimmedAddress.length > 0
+                      ? 'text-foreground flex-1 text-base'
+                      : 'text-muted-foreground flex-1 text-base'
+                  }
+                  numberOfLines={2}>
+                  {searchPreview}
                 </Text>
               </Pressable>
 

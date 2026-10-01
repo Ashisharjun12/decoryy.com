@@ -1,5 +1,6 @@
 import { PaymentFactory } from "@/infrastructure/payment/payment.factory.js";
 import { getQueues } from "@/infrastructure/queue/bull.connection.js";
+import { CartRepository } from "@/modules/booking/carts/cart.repository.js";
 import { OrderRepository } from "@/modules/booking/orders/order.repository.js";
 import { collectionService } from "@/modules/payments/collections/collection.service.js";
 import { PaymentIntentRepository } from "@/modules/payments/intents/payment-intent.repository.js";
@@ -8,6 +9,7 @@ import { logger } from "@/utils/logger.js";
 
 export class PaymentWebhookService {
     private readonly orders = new OrderRepository();
+    private readonly carts = new CartRepository();
     private readonly intents = new PaymentIntentRepository();
 
     async process(
@@ -42,8 +44,14 @@ export class PaymentWebhookService {
         if (!order) return;
 
         if (order.status === "PENDING_PAYMENT") {
-            await this.orders.confirmOrder(event.orderId, order.userId);
-            await this.intents.markPaid(event.orderId, event.providerRef);
+            const confirmed = await this.orders.confirmOrder(event.orderId, order.userId);
+            if (confirmed) {
+                await this.intents.markPaid(event.orderId, event.providerPaymentId);
+                const cart = await this.carts.findByUserId(order.userId);
+                if (cart) {
+                    await this.orders.clearCart(cart.id);
+                }
+            }
         }
     }
 

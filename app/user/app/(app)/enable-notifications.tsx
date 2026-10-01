@@ -1,4 +1,5 @@
 import { requestNotificationPermission } from '@/lib/notifications';
+import { syncPushRegistration } from '@/lib/push-registration';
 import {
   saveNotificationPromptCompleted,
   savePermissionsSetupCompleted,
@@ -7,9 +8,12 @@ import { PermissionStepScreen } from '@/module/permissions/components/Permission
 import { Href, router } from 'expo-router';
 import { Bell } from 'lucide-react-native';
 import { useState } from 'react';
+import { useAuthStore } from '@/store/auth.store';
 
 export default function EnableNotificationsScreen() {
   const [loading, setLoading] = useState(false);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const userId = useAuthStore((s) => s.user?.id ?? null);
 
   async function finish() {
     await saveNotificationPromptCompleted();
@@ -21,6 +25,7 @@ export default function EnableNotificationsScreen() {
     setLoading(true);
     try {
       await requestNotificationPermission();
+      await syncPushRegistration(accessToken, userId);
     } finally {
       setLoading(false);
     }

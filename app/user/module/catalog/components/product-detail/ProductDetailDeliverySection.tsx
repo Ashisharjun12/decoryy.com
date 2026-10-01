@@ -80,7 +80,7 @@ export function ProductDetailDeliverySection({
   }, [isInstantBooking, canScheduled, dateChosen, selectedDate, slotId, onScheduledAtChange]);
 
   return (
-    <View className="gap-4">
+    <View className="gap-3">
       {canInstant && canScheduled ? (
         <ProductFulfillmentTabs
           value={fulfillment}
@@ -92,7 +92,7 @@ export function ProductDetailDeliverySection({
       {isInstantBooking ? (
         <ProductInstantDetails note={instantNote} etaMinutes={instantEtaMinutes} />
       ) : canScheduled ? (
-        <View className="gap-4 rounded-2xl border border-border bg-card p-4">
+        <View className="gap-3 rounded-xl border border-primary/15 bg-primary/5 px-3 py-3">
           <ProductDeliveryDateChips
             mode={dateMode}
             selectedDate={selectedDate}
@@ -101,17 +101,12 @@ export function ProductDetailDeliverySection({
           />
 
           {isLater ? (
-            <View className="flex-row items-center justify-between gap-3 rounded-2xl bg-muted/40 px-3 py-3">
-              <View className="min-w-0 flex-1">
-                <Text className="text-muted-foreground text-xs font-medium uppercase">
-                  Delivery date
-                </Text>
-                <Text className="text-foreground mt-0.5 text-sm font-semibold">
-                  {format(selectedDate, 'EEE, d MMM yyyy')}
-                </Text>
-              </View>
+            <View className="flex-row items-center justify-between gap-2 rounded-lg border border-sky-200/80 bg-sky-50 px-2.5 py-2 dark:border-sky-900 dark:bg-sky-950/40">
+              <Text className="text-sky-900 min-w-0 flex-1 text-xs font-medium dark:text-sky-100">
+                {format(selectedDate, 'EEE, d MMM yyyy')}
+              </Text>
               <ScalePressable haptic onPress={openLaterDialog} accessibilityRole="button">
-                <Text className="text-foreground text-sm font-semibold">Change</Text>
+                <Text className="text-sky-800 text-xs font-semibold dark:text-sky-300">Change</Text>
               </ScalePressable>
             </View>
           ) : null}

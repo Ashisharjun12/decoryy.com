@@ -97,8 +97,9 @@ export function LoginHubScreen() {
             />
             <AuthOrDivider />
             <AuthMethodButton
+              tone="primary"
               label="Continue with number"
-              icon={<Icon as={Phone} className="text-foreground size-5" />}
+              icon={<Icon as={Phone} className="text-primary-foreground size-5" />}
               disabled={googleLoading}
               onPress={handlePhone}
             />

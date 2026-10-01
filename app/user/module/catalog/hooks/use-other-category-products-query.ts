@@ -1,8 +1,7 @@
 import { listProductsForCatalogLocation } from '@/lib/catalog-location';
 import { queryKeys } from '@/lib/query-keys';
-import { isBackendCityId } from '@/lib/location-label';
+import { useCatalogLocationGate } from '@/module/catalog/hooks/use-catalog-location-gate';
 import { normalizeProduct, type HomeCatalogProduct } from '@/module/home/lib/home-catalog';
-import { useLocationStore } from '@/store/location.store';
 import { useQuery } from '@tanstack/react-query';
 
 const OTHER_CATEGORY_LIMIT = 48;
@@ -12,11 +11,7 @@ export function useOtherCategoryProductsQuery(
   productId: string | undefined,
   categoryId: string | undefined,
 ) {
-  const city = useLocationStore((s) => s.city);
-  const pincode = useLocationStore((s) => s.pincode);
-  const cityId = city?.id && isBackendCityId(city.id) ? city.id : undefined;
-  const pincodeCode = pincode?.code?.replace(/\D/g, '').slice(0, 6) || undefined;
-  const hasLocation = Boolean(pincodeCode || cityId);
+  const { ready, cityId, pincodeCode } = useCatalogLocationGate();
 
   return useQuery({
     queryKey: queryKeys.otherCategoryProducts(
@@ -46,7 +41,7 @@ export function useOtherCategoryProductsQuery(
         .filter(Boolean) as HomeCatalogProduct[];
       return rows;
     },
-    enabled: Boolean(productId && categoryId && hasLocation),
+    enabled: Boolean(productId && categoryId && ready),
     staleTime: 120_000,
   });
 }

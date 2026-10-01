@@ -1,6 +1,7 @@
 import type { Href } from 'expo-router';
 import {
   Bell,
+  Inbox,
   LifeBuoy,
   MapPin,
   Package,
@@ -93,8 +94,15 @@ export const PROFILE_MENU_SECTIONS: ProfileMenuSection[] = [
       {
         type: 'notification-toggle',
         id: 'notifications',
-        label: 'Notifications',
+        label: 'Push notifications',
         icon: Bell,
+      },
+      {
+        type: 'route',
+        id: 'notification-inbox',
+        label: 'Notification inbox',
+        href: '/(app)/notifications?from=profile',
+        icon: Inbox,
       },
       {
         type: 'route',

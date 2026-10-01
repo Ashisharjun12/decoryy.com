@@ -67,6 +67,7 @@ const {
     OLA_MAPS_API_KEY,
     OLA_MAPS_CLIENT_ID,
     OLA_MAPS_CLIENT_SECRET,
+    BOOKING_PAYMENT_TTL_MINUTES,
 } = process.env
 
 const MSG91 = loadMsg91EnvConfig(process.env)
@@ -151,4 +152,7 @@ export const _config = {
     OLA_MAPS_API_KEY,
     OLA_MAPS_CLIENT_ID,
     OLA_MAPS_CLIENT_SECRET,
+    BOOKING_PAYMENT_TTL_MINUTES: Number(BOOKING_PAYMENT_TTL_MINUTES) > 0
+        ? Number(BOOKING_PAYMENT_TTL_MINUTES)
+        : 15,
 }

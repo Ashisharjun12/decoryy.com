@@ -20,6 +20,7 @@ import type { HomeCatalogProduct } from '@/module/home/lib/home-catalog';
 import { useLocationStore } from '@/store/location.store';
 import { type Href, router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useActiveOrderScrollPaddingBottom } from '@/module/home/hooks/use-tab-active-order-bar';
 import {
   ActivityIndicator,
   FlatList,
@@ -27,7 +28,10 @@ import {
   View,
 } from 'react-native';
 
+const TAB_SCROLL_BASE_BOTTOM = 112;
+
 export function InstantScreen() {
+  const scrollBottomPadding = useActiveOrderScrollPaddingBottom(TAB_SCROLL_BASE_BOTTOM);
   const city = useLocationStore((s) => s.city);
   const locationChosen = useLocationStore((s) => s.isLocationChosen());
   const cityId = city?.id && isBackendCityId(city.id) ? city.id : undefined;
@@ -208,7 +212,7 @@ export function InstantScreen() {
       keyExtractor={(item) => item.id}
       numColumns={2}
       columnWrapperStyle={{ gap: 10, paddingHorizontal: 20 }}
-      contentContainerStyle={{ paddingBottom: 112, gap: 10 }}
+      contentContainerStyle={{ paddingBottom: scrollBottomPadding, gap: 10 }}
       ListHeaderComponent={listHeader}
       ListFooterComponent={
         isFetching && page > 1 ? (

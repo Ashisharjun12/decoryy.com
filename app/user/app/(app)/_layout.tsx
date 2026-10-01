@@ -1,4 +1,5 @@
 import { AppTabBar, LoadingPlaceholder } from '@/components/shell';
+import { TabActiveOrderOverlay } from '@/module/home/components/TabActiveOrderOverlay';
 import { usePermissionsSetupPrompt } from '@/module/permissions/hooks/use-permissions-setup-prompt';
 import { useLocationStore } from '@/store/location.store';
 import { Tabs, Redirect, type Href } from 'expo-router';
@@ -7,11 +8,11 @@ import { View } from 'react-native';
 
 export default function AppLayout() {
   const { pendingRoute, isLoading } = usePermissionsSetupPrompt();
-  const bootstrapWithGps = useLocationStore((s) => s.bootstrapWithGps);
+  const bootstrapLocation = useLocationStore((s) => s.bootstrapLocation);
 
   useEffect(() => {
-    void bootstrapWithGps();
-  }, [bootstrapWithGps]);
+    void bootstrapLocation();
+  }, [bootstrapLocation]);
 
   if (isLoading) {
     return (
@@ -26,11 +27,12 @@ export default function AppLayout() {
   }
 
   return (
-    <Tabs
-      tabBar={(props) => <AppTabBar {...props} />}
-      screenOptions={{
-        headerShown: false,
-      }}>
+    <View className="flex-1">
+      <Tabs
+        tabBar={(props) => <AppTabBar {...props} />}
+        screenOptions={{
+          headerShown: false,
+        }}>
       <Tabs.Screen name="index" options={{ title: 'Home' }} />
       <Tabs.Screen name="category" options={{ title: 'Category' }} />
       <Tabs.Screen name="explore" options={{ title: 'Explore' }} />
@@ -43,9 +45,11 @@ export default function AppLayout() {
       <Tabs.Screen name="enable-location" options={{ href: null }} />
       <Tabs.Screen name="enable-notifications" options={{ href: null }} />
       <Tabs.Screen name="location" options={{ href: null }} />
-      <Tabs.Screen name="cart" options={{ href: null }} />
       <Tabs.Screen name="checkout" options={{ href: null }} />
       <Tabs.Screen name="offers" options={{ href: null }} />
-    </Tabs>
+      <Tabs.Screen name="notifications" options={{ href: null }} />
+      </Tabs>
+      <TabActiveOrderOverlay />
+    </View>
   );
 }

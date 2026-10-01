@@ -3,6 +3,8 @@ import { SELECT_LOCATION_HREF } from '@/lib/select-location-route';
 import { HomeBannerCarousel } from '@/module/home/components/HomeBannerCarousel';
 import { HomeDiscoveryFeed } from '@/module/home/components/HomeDiscoveryFeed';
 import { HomeFeedSkeleton } from '@/module/home/components/HomeFeedSkeleton';
+import { HomeSelectCityBanner } from '@/module/home/components/HomeSelectCityBanner';
+import { useActiveOrderScrollPaddingBottom } from '@/module/home/hooks/use-tab-active-order-bar';
 import { HomeStickyHeader } from '@/module/home/components/HomeStickyHeader';
 import { useHomeCategories } from '@/module/home/hooks/use-home-categories';
 import { useHomeCms } from '@/module/home/hooks/use-home-cms';
@@ -12,12 +14,15 @@ import { useAuthStore } from '@/store/auth.store';
 import { useCartStore } from '@/store/cart.store';
 import { useLocationStore } from '@/store/location.store';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { RefreshControl } from 'react-native';
 
 export function HomeScreen() {
   const openSelectLocation = useCallback(() => router.push(SELECT_LOCATION_HREF), []);
   const locationStatus = useLocationStore((s) => s.status);
+  const bootstrapDone = useLocationStore((s) => s.bootstrapDone);
+  const locationChosen = useLocationStore((s) => s.isLocationChosen());
+  const [cityPickerOpen, setCityPickerOpen] = useState(false);
   useHomeDeliveryBootstrap();
   const accessToken = useAuthStore((s) => s.accessToken);
   const loadCart = useCartStore((s) => s.loadFromApi);
@@ -54,8 +59,22 @@ export function HomeScreen() {
     }, [accessToken, loadCart]),
   );
 
+  useEffect(() => {
+    if (bootstrapDone && locationStatus === 'ready' && !locationChosen) {
+      setCityPickerOpen(true);
+    }
+  }, [bootstrapDone, locationChosen, locationStatus]);
+
+  useEffect(() => {
+    if (locationChosen) {
+      setCityPickerOpen(false);
+    }
+  }, [locationChosen]);
+
   const discoveryLoading = categoriesPending || discoveryPending;
   const showSkeleton = locationStatus !== 'ready' || cmsPending;
+
+  const scrollBottomPadding = useActiveOrderScrollPaddingBottom(32);
 
   const refreshing =
     locationStatus === 'ready' &&
@@ -72,6 +91,7 @@ export function HomeScreen() {
   }, [
     accessToken,
     loadCart,
+    locationChosen,
     locationStatus,
     refetchCategories,
     refetchCms,
@@ -81,9 +101,14 @@ export function HomeScreen() {
 
   return (
     <Screen scroll={false} edges={['top']} contentClassName="flex-1">
-      <HomeStickyHeader onLocationPress={openSelectLocation} />
+      <HomeStickyHeader
+        onLocationPress={openSelectLocation}
+        cityPickerOpen={cityPickerOpen}
+        onCityPickerOpenChange={setCityPickerOpen}
+      />
       <SmoothScrollView
-        contentContainerClassName="gap-4 pb-8 pt-2"
+        contentContainerClassName="gap-4 pt-2"
+        contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} />
         }>
@@ -91,6 +116,9 @@ export function HomeScreen() {
           <HomeFeedSkeleton />
         ) : (
           <>
+            {!locationChosen ? (
+              <HomeSelectCityBanner onPress={() => setCityPickerOpen(true)} />
+            ) : null}
             <HomeBannerCarousel slides={heroSlides} />
             <HomeDiscoveryFeed
               useCmsLayout={useCmsLayout}

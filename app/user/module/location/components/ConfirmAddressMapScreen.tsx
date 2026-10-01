@@ -3,8 +3,9 @@ import { getApiError } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
-import { LoadingPlaceholder } from '@/components/shell';
+import { LoadingPlaceholder, ScalePressable } from '@/components/shell';
 import { requestForegroundLocationPermission } from '@/lib/location';
+import { PRIMARY_CTA_BUTTON_CLASS, PRIMARY_CTA_BUTTON_TEXT_CLASS } from '@/lib/primary-cta-button';
 import { buildCreateAddressBody } from '@/module/account/lib/address-form';
 import { useAddressMutations } from '@/module/account/hooks/use-addresses-query';
 import { MapCenterPin } from '@/module/geo/components/MapCenterPin';
@@ -16,7 +17,7 @@ import { LocationStackHeader } from '@/module/location/components/LocationStackH
 import { PlacesAddressAutocomplete } from '@/module/geo/components/PlacesAddressAutocomplete';
 import { useAddressFormDraftStore } from '@/store/address-form-draft.store';
 import { useDeliveryLocationStore } from '@/store/delivery-location.store';
-import { MapPin } from 'lucide-react-native';
+import { MapPin, Search } from 'lucide-react-native';
 import { navigateBackOrHome, navigateToAppHome } from '@/lib/navigate-back';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -35,22 +36,31 @@ export function ConfirmAddressMapScreen() {
   const { create, update } = useAddressMutations();
   const { config: sdkConfig, loading: sdkLoading, error: sdkError, retry } = useMapsSdkConfig();
 
-  const initial =
-    form.latitude != null && form.longitude != null
-      ? { latitude: form.latitude, longitude: form.longitude }
-      : INDIA_CENTER;
+  const hasSearchCoords =
+    form.latitude != null &&
+    form.longitude != null &&
+    isInsideIndiaBounds(form.latitude, form.longitude);
+
+  const initial = hasSearchCoords
+    ? { latitude: form.latitude!, longitude: form.longitude! }
+    : INDIA_CENTER;
 
   const [mapCenter, setMapCenter] = useState(initial);
-  const [mapZoom, setMapZoom] = useState(16);
-  const [mapFlyKey, setMapFlyKey] = useState(0);
+  const [mapZoom, setMapZoom] = useState(hasSearchCoords ? 17 : 5);
+  const [mapFlyKey, setMapFlyKey] = useState(hasSearchCoords ? 1 : 0);
   const [locating, setLocating] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [placeTitle, setPlaceTitle] = useState(form.cityName || 'Delivery address');
+  const [placeTitle, setPlaceTitle] = useState(
+    form.label.trim() || form.cityName || 'Delivery address',
+  );
   const [placeLine, setPlaceLine] = useState(form.address.trim());
   const [geoLoading, setGeoLoading] = useState(false);
   const [searchLine, setSearchLine] = useState('');
+  const [mapSearchOpen, setMapSearchOpen] = useState(!hasSearchCoords);
 
   const reverseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reverseFromPinRef = useRef(!hasSearchCoords);
+  const holdSearchCenterRef = useRef(hasSearchCoords);
 
   const scheduleReverse = useCallback((latitude: number, longitude: number) => {
     if (reverseTimer.current) clearTimeout(reverseTimer.current);
@@ -73,6 +83,21 @@ export function ConfirmAddressMapScreen() {
   }, []);
 
   useEffect(() => {
+    if (!form.latitude || !form.longitude) return;
+    if (!isInsideIndiaBounds(form.latitude, form.longitude)) return;
+    setMapCenter({ latitude: form.latitude, longitude: form.longitude });
+    setMapZoom(17);
+    setMapFlyKey((k) => k + 1);
+    setPlaceLine(form.address.trim());
+    setPlaceTitle(form.label.trim() || form.cityName || 'Delivery address');
+    setSearchLine('');
+    setMapSearchOpen(false);
+    reverseFromPinRef.current = false;
+    holdSearchCenterRef.current = true;
+  }, [form.latitude, form.longitude, form.address, form.label, form.cityName]);
+
+  useEffect(() => {
+    if (!reverseFromPinRef.current) return;
     scheduleReverse(mapCenter.latitude, mapCenter.longitude);
     return () => {
       if (reverseTimer.current) clearTimeout(reverseTimer.current);
@@ -105,6 +130,8 @@ export function ConfirmAddressMapScreen() {
         Alert.alert('Location', 'Select a location within India.');
         return;
       }
+      holdSearchCenterRef.current = false;
+      reverseFromPinRef.current = true;
       setMapCenter({ latitude, longitude });
       setMapZoom(17);
       setMapFlyKey((k) => k + 1);
@@ -178,8 +205,8 @@ export function ConfirmAddressMapScreen() {
             <Text className="text-muted-foreground text-center text-sm">
               Map is unavailable. Check maps configuration and try again.
             </Text>
-            <Button className="mt-4" onPress={retry}>
-              <Text>Retry</Text>
+            <Button className={`mt-4 ${PRIMARY_CTA_BUTTON_CLASS}`} onPress={retry}>
+              <Text className={PRIMARY_CTA_BUTTON_TEXT_CLASS}>Retry</Text>
             </Button>
           </View>
         ) : (
@@ -191,6 +218,11 @@ export function ConfirmAddressMapScreen() {
               flyToKey={mapFlyKey}
               showUserLocation
               onCenterChange={({ latitude, longitude, zoom, userInteraction }) => {
+                if (!userInteraction && holdSearchCenterRef.current) return;
+                if (userInteraction) {
+                  holdSearchCenterRef.current = false;
+                  reverseFromPinRef.current = true;
+                }
                 setMapCenter({ latitude, longitude });
                 if (userInteraction && zoom != null) {
                   setMapZoom(zoom);
@@ -204,20 +236,39 @@ export function ConfirmAddressMapScreen() {
               pointerEvents="box-none"
               className="absolute left-0 right-0 top-3 z-30 px-4"
               style={{ elevation: 30 }}>
-              <PlacesAddressAutocomplete
-                value={searchLine}
-                onChange={setSearchLine}
-                onPlaceResolved={({ address, latitude, longitude }) => {
-                  Keyboard.dismiss();
-                  setSearchLine(address);
-                  setMapCenter({ latitude, longitude });
-                  setMapZoom(17);
-                  setMapFlyKey((k) => k + 1);
-                  setPlaceLine(address);
-                }}
-                placeholder="Search an area or address"
-                className="h-12 rounded-2xl border-0 bg-background shadow-md"
-              />
+              {mapSearchOpen ? (
+                <PlacesAddressAutocomplete
+                  value={searchLine}
+                  onChange={setSearchLine}
+                  onPlaceResolved={({ address, latitude, longitude }) => {
+                    Keyboard.dismiss();
+                    holdSearchCenterRef.current = false;
+                    reverseFromPinRef.current = true;
+                    setMapCenter({ latitude, longitude });
+                    setMapZoom(17);
+                    setMapFlyKey((k) => k + 1);
+                    setPlaceLine(address);
+                    setPlaceTitle(form.cityName || 'Delivery address');
+                    setSearchLine('');
+                    setMapSearchOpen(false);
+                  }}
+                  placeholder="Search an area or address"
+                  className="h-12 rounded-2xl border-0 bg-background shadow-md"
+                />
+              ) : (
+                <ScalePressable
+                  haptic
+                  onPress={() => {
+                    setSearchLine('');
+                    setMapSearchOpen(true);
+                  }}
+                  className="h-12 flex-row items-center justify-center gap-2 rounded-2xl border border-border bg-background/95 px-4 shadow-md">
+                  <Icon as={Search} className="text-muted-foreground size-4" />
+                  <Text className="text-muted-foreground text-sm font-medium">
+                    Search another area
+                  </Text>
+                </ScalePressable>
+              )}
             </View>
 
             <MapLocateFab
@@ -251,8 +302,13 @@ export function ConfirmAddressMapScreen() {
               ) : null}
             </View>
           </View>
-          <Button className="mt-5" onPress={() => void saveAddress()} disabled={saving || sdkLoading}>
-            <Text>{saving ? 'Saving…' : 'Save address'}</Text>
+          <Button
+            className={`mt-5 ${PRIMARY_CTA_BUTTON_CLASS}`}
+            onPress={() => void saveAddress()}
+            disabled={saving || sdkLoading}>
+            <Text className={PRIMARY_CTA_BUTTON_TEXT_CLASS}>
+              {saving ? 'Saving…' : 'Save address'}
+            </Text>
           </Button>
         </View>
       </View>

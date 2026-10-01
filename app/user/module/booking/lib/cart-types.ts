@@ -13,6 +13,11 @@ export type CartItemLine = {
   productId: string;
   name: string;
   quantity: number;
+  /** Product-only unit price (excludes add-ons). */
+  productPaise?: number;
+  /** Add-on portion of one unit. */
+  addonsPaise?: number;
+  /** Product + add-ons for the whole line. */
   lineTotalPaise: number;
   imageUrl?: string | null;
   addons?: CartAddonLine[];
@@ -55,7 +60,31 @@ export const emptyCart: CartSnapshot = {
 export function normalizeCart(raw: unknown): CartSnapshot {
   if (!raw || typeof raw !== 'object') return emptyCart;
   const c = raw as Record<string, unknown>;
-  const items = Array.isArray(c.items) ? (c.items as CartItemLine[]) : [];
+  const rawItems = Array.isArray(c.items) ? (c.items as CartItemLine[]) : [];
+  const items = rawItems.map((rawItem) => {
+    const row = rawItem as CartItemLine & { image_url?: string | null };
+    const imageUrl =
+      (typeof row.imageUrl === 'string' && row.imageUrl.trim()) ||
+      (typeof row.image_url === 'string' && row.image_url.trim()) ||
+      null;
+    const addons = (row.addons ?? [])
+      .filter((a) => (a.quantity ?? 0) > 0)
+      .map((addon) => {
+        const a = addon as CartAddonLine & { image_url?: string | null };
+        const addonImage =
+          (typeof a.imageUrl === 'string' && a.imageUrl.trim()) ||
+          (typeof a.image_url === 'string' && a.image_url.trim()) ||
+          null;
+        return { ...a, imageUrl: addonImage ?? a.imageUrl ?? null };
+      });
+    const base = {
+      ...row,
+      imageUrl: imageUrl ?? row.imageUrl ?? null,
+      productPaise: Number(row.productPaise) || 0,
+      addonsPaise: Number(row.addonsPaise) || 0,
+    };
+    return addons.length ? { ...base, addons } : { ...base, addons: undefined };
+  });
   return {
     id: (c.id as string) ?? null,
     cityId: (c.cityId as string) ?? null,

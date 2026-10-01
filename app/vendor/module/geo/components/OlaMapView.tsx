@@ -2,9 +2,9 @@ import type { MapsSdkConfig } from '@/api/maps.api';
 import { MAP_PIN_IMAGE_URL } from '@/module/geo/components/MapCenterPin';
 import { boundsFromCoordinates } from '@/module/geo/lib/map-bounds';
 import { applyOlaMapAuth } from '@/module/geo/lib/ola-map-auth';
-import { TripCustomerPinView, TripWorkerPinView } from '@/module/geo/components/TripMarkerPin';
+import { FixedLocationPinMarker } from '@/module/geo/components/FixedLocationPinMarker';
+import { LiveLocationDotView } from '@/module/geo/components/LiveLocationDotView';
 import { TRIP_ROUTE_PAINT } from '@/module/geo/lib/trip-map-markers';
-import { tripMarkersToPointCollection } from '@/module/geo/lib/trip-map-points-geojson';
 import {
   Camera,
   type CameraRef,
@@ -45,15 +45,12 @@ const ROUTE_LAYER_ID = 'decory-route-line';
 const FALLBACK_SOURCE_ID = 'decory-route-fallback';
 const FALLBACK_CASING_LAYER_ID = 'decory-route-fallback-casing';
 const FALLBACK_LAYER_ID = 'decory-route-fallback-line';
-const TRIP_POINTS_SOURCE_ID = 'decory-trip-points';
-const TRIP_POINTS_LAYER_ID = 'decory-trip-points-circle';
-
 function TripMarkerContent({ marker }: { marker: MapMarker }) {
   if (marker.variant === 'worker') {
-    return <TripWorkerPinView />;
+    return <LiveLocationDotView />;
   }
   if (marker.variant === 'customer') {
-    return <TripCustomerPinView />;
+    return <FixedLocationPinMarker />;
   }
   if (marker.variant === 'pin') {
     return (
@@ -184,11 +181,6 @@ export function OlaMapView({
     [markers, variant],
   );
 
-  const tripPointsGeoJson = useMemo(
-    () => tripMarkersToPointCollection(tripMarkers),
-    [tripMarkers],
-  );
-
   return (
     <View className={className ?? 'flex-1'}>
       <Map
@@ -243,39 +235,15 @@ export function OlaMapView({
             />
           </GeoJSONSource>
         ) : null}
-        {variant === 'trip' && tripPointsGeoJson.features.length > 0 ? (
-          <GeoJSONSource id={TRIP_POINTS_SOURCE_ID} data={tripPointsGeoJson}>
-            <Layer
-              id={TRIP_POINTS_LAYER_ID}
-              type="circle"
-              paint={{
-                'circle-radius': 12,
-                'circle-color': [
-                  'match',
-                  ['get', 'kind'],
-                  'worker',
-                  '#F5C518',
-                  'customer',
-                  '#1A1A1A',
-                  '#888888',
-                ],
-                'circle-stroke-width': 3,
-                'circle-stroke-color': '#ffffff',
-              }}
-            />
-          </GeoJSONSource>
-        ) : null}
         {tripMarkers.map((marker) => (
           <Marker
             key={marker.id}
             id={marker.id}
             lngLat={[marker.longitude, marker.latitude]}
             anchor={
-              marker.variant === 'pin'
+              marker.variant === 'pin' || marker.variant === 'customer'
                 ? 'bottom'
-                : marker.variant === 'worker' || marker.variant === 'customer'
-                  ? 'center'
-                  : 'center'
+                : 'center'
             }>
             <TripMarkerContent marker={marker} />
           </Marker>

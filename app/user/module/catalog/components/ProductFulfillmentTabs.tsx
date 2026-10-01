@@ -24,7 +24,7 @@ export function ProductFulfillmentTabs({
       <Pressable
         onPress={() => onChange('scheduled')}
         className={cn(
-          'flex-1 items-center border-b-2 px-2 pb-3 pt-1',
+          'flex-1 items-center border-b-2 px-2 pb-2 pt-0.5',
           isScheduled ? 'border-primary' : 'border-transparent',
         )}
         accessibilityRole="button">
@@ -39,7 +39,7 @@ export function ProductFulfillmentTabs({
       <Pressable
         onPress={() => onChange('instant')}
         className={cn(
-          'flex-1 items-center border-b-2 px-2 pb-3 pt-1',
+          'flex-1 items-center border-b-2 px-2 pb-2 pt-0.5',
           isInstant ? 'border-orange-500' : 'border-transparent',
         )}
         accessibilityRole="button">

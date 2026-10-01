@@ -47,6 +47,9 @@ Import `@/modules/geo`:
 
 - `assertServiceable(pincode)` — same rules as resolve; throws `ApiError`
 - `getCityByPincode(pincode)` — `{ id, name, slug, state }`
+- `assertDeliveryLocation({ cityId, pincode })` — used by customer cart, orders, and saved addresses (pin must match allowlist rules for that city)
+
+**Vendor onboarding** (`POST` vendor register / reapply): validates **active `cityId`** (via `getActiveCityById`) and **6-digit pin format** in the DTO only. It does **not** call `assertDeliveryLocation`; shop pincode from the map is stored for ops and is not gated on the pincode allowlist or pin–city table match.
 
 ---
 

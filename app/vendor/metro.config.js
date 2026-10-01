@@ -12,15 +12,22 @@ config.server = {
   port: METRO_PORT,
 };
 
-// Keep Metro from crawling native build trees (large on Windows / OneDrive).
+// Keep Metro from crawling native trees (android/app/build is huge after run:android;
+// Windows FallbackWatcher can hit "Failed to start watch mode" if these are watched).
+const expoBlockList = config.resolver.blockList;
+const blockPatterns = [
+  ...(Array.isArray(expoBlockList)
+    ? expoBlockList
+    : expoBlockList
+      ? [expoBlockList]
+      : []),
+  /[/\\]android[/\\]/,
+  /[/\\]ios[/\\]/,
+];
+
 config.resolver = {
   ...config.resolver,
-  blockList: exclusionList([
-    /[/\\]android[/\\]\.gradle[/\\]/,
-    /[/\\]android[/\\]build[/\\]/,
-    /[/\\]ios[/\\]build[/\\]/,
-    /[/\\]ios[/\\]Pods[/\\]/,
-  ]),
+  blockList: exclusionList(blockPatterns),
   useWatchman: process.platform !== 'win32',
 };
 

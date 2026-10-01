@@ -52,6 +52,24 @@ export class OrderController {
         res.status(200).json(new ApiResponse(200, data, "ok"));
     });
 
+    cancelPendingPayment = asyncHandler(async (req, res) => {
+        if (!req.actor?.id) {
+            throw ApiError.unauthorized("login required");
+        }
+        const id = paramId(req);
+        const data = await this.orders.cancelPendingPaymentForUser(req.actor.id, id);
+        res.status(200).json(new ApiResponse(200, data, "payment cancelled"));
+    });
+
+    resumeCheckout = asyncHandler(async (req, res) => {
+        if (!req.actor?.id) {
+            throw ApiError.unauthorized("login required");
+        }
+        const id = paramId(req);
+        const data = await this.orders.resumeCheckoutForUser(req.actor.id, id);
+        res.status(200).json(new ApiResponse(200, data, "payment required"));
+    });
+
     submitReview = asyncHandler(async (req, res) => {
         if (!req.actor?.id) {
             throw ApiError.unauthorized("login required");

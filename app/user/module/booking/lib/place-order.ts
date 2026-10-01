@@ -1,20 +1,17 @@
-import { createOrder } from '@/api/orders.api';
+import { createOrder, type PublicOrder } from '@/api/orders.api';
 import { verifyPayment } from '@/api/payments.api';
 import { getApiError } from '@/api/client';
 import type { CheckoutCustomerForm, CheckoutDeliveryForm } from '@/module/booking/lib/checkout-form-types';
 import type { CartSnapshot } from '@/module/booking/lib/cart-types';
 import type { CheckoutPaymentMethod } from '@/module/booking/lib/checkout-form-types';
-
-type RazorpayCheckoutPayload = {
-  keyId: string;
-  amountPaise: number;
-  currency?: string;
-  name?: string;
-  description?: string;
-  orderId: string;
-  decoryOrderId: string;
-  provider?: string;
-};
+import {
+  isPaymentCancelledMessage,
+  OnlinePaymentIncompleteError,
+} from '@/module/booking/lib/payment-flow-errors';
+import {
+  openOnlineCheckout,
+  type OnlineCheckoutPayload,
+} from '@/module/booking/lib/online-checkout-native';
 
 export type PlaceOrderInput = {
   customer: CheckoutCustomerForm;
@@ -26,52 +23,18 @@ export type PlaceOrderInput = {
 
 export type PlaceOrderResult = {
   orderId: string;
+  status: PublicOrder['status'];
 };
 
-async function openRazorpayNative(
-  checkout: RazorpayCheckoutPayload,
-  customer: CheckoutCustomerForm,
-): Promise<Record<string, unknown>> {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const RazorpayCheckout = require('react-native-razorpay').default as {
-    open: (options: Record<string, unknown>) => Promise<{
-      razorpay_payment_id: string;
-      razorpay_order_id: string;
-      razorpay_signature: string;
-    }>;
-  };
-
-  const response = await RazorpayCheckout.open({
-    key: checkout.keyId,
-    amount: checkout.amountPaise,
-    currency: checkout.currency || 'INR',
-    name: checkout.name || 'DeccorBuddys',
-    description: checkout.description,
-    order_id: checkout.orderId,
-    prefill: {
-      name: customer.name,
-      email: customer.email,
-      contact: customer.phone.replace(/\D/g, '').slice(-10),
-    },
-  });
-
-  return {
-    provider: 'razorpay',
-    orderId: checkout.decoryOrderId,
-    razorpayOrderId: response.razorpay_order_id,
-    razorpayPaymentId: response.razorpay_payment_id,
-    razorpaySignature: response.razorpay_signature,
-  };
-}
-
-export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResult> {
+function buildCreatePayload(
+  input: Omit<PlaceOrderInput, 'payment' | 'cart'> & {
+    payment: 'cod' | 'online';
+    cart: CartSnapshot;
+  },
+) {
   const { customer, delivery, payment, cart, idempotencyKey } = input;
 
-  if (!delivery.cityId) {
-    throw new Error('Enter a serviceable delivery PIN');
-  }
-
-  const payload = {
+  return {
     customer: {
       name: customer.name.trim(),
       phone: customer.phone.replace(/\D/g, '').slice(-10),
@@ -81,7 +44,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
       pincode: delivery.pincode.replace(/\D/g, '').slice(0, 6),
       address: delivery.address.trim(),
       landmark: delivery.landmark.trim() || undefined,
-      cityId: delivery.cityId,
+      cityId: delivery.cityId!,
       ...(cart.deliveryLatitude != null && cart.deliveryLongitude != null
         ? {
             latitude: cart.deliveryLatitude,
@@ -91,31 +54,62 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
           ? { latitude: delivery.latitude, longitude: delivery.longitude }
           : {}),
     },
-    paymentMethod: payment as 'cod' | 'online',
+    paymentMethod: payment,
     idempotencyKey,
   };
+}
 
-  const result = await createOrder(payload);
-  const order = (result as { order?: { id: string }; id?: string })?.order ?? result;
-  const orderId = (order as { id: string }).id;
-  const checkout = (result as { checkout?: RazorpayCheckoutPayload & { paymentSessionId?: string } })
-    ?.checkout;
+function orderStatus(order: PublicOrder): PublicOrder['status'] {
+  return order.status ?? 'CONFIRMED';
+}
 
-  if (payment === 'online' && checkout) {
-    if (checkout.provider === 'cashfree' || checkout.paymentSessionId) {
-      throw new Error('Cashfree checkout is not available in the app yet. Try cash on delivery.');
+export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResult> {
+  const { customer, delivery, payment, cart, idempotencyKey } = input;
+
+  if (!delivery.cityId) {
+    throw new Error('Enter a serviceable delivery PIN');
+  }
+  if (payment !== 'cod' && payment !== 'online') {
+    throw new Error('Select a payment method');
+  }
+
+  const result = await createOrder(
+    buildCreatePayload({ customer, delivery, payment, cart, idempotencyKey }),
+  );
+  const order = result.order;
+  const orderId = order.id;
+  const rawCheckout = result.checkout as OnlineCheckoutPayload | undefined;
+
+  if (payment === 'online') {
+    if (!rawCheckout) {
+      throw new Error('Online checkout session missing');
     }
+    const checkout = {
+      ...rawCheckout,
+      decoryOrderId: orderId,
+    } as OnlineCheckoutPayload & { decoryOrderId: string };
     try {
-      const verifyPayload = await openRazorpayNative(
-        { ...checkout, decoryOrderId: orderId },
-        customer,
-      );
-      const confirmed = await verifyPayment(verifyPayload);
-      return { orderId: (confirmed as { id?: string })?.id ?? orderId };
+      const verifyPayload = await openOnlineCheckout(checkout, customer);
+      const confirmed = await verifyPayment(verifyPayload) as PublicOrder;
+      const status = orderStatus(confirmed);
+      if (status !== 'CONFIRMED') {
+        throw new OnlinePaymentIncompleteError(
+          orderId,
+          'Payment is still processing. Try again in a moment.',
+        );
+      }
+      return { orderId: confirmed.id ?? orderId, status };
     } catch (err) {
-      throw new Error(getApiError(err));
+      if (err instanceof OnlinePaymentIncompleteError) throw err;
+      const message = getApiError(err);
+      const cancelled = isPaymentCancelledMessage(message);
+      throw new OnlinePaymentIncompleteError(orderId, message, cancelled);
     }
   }
 
-  return { orderId };
+  const status = orderStatus(order);
+  if (status !== 'CONFIRMED') {
+    throw new Error('Order was not confirmed. Try again or choose another payment method.');
+  }
+  return { orderId, status };
 }

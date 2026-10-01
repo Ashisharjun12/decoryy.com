@@ -34,6 +34,29 @@ export type EventPolicy = {
     channels: EventChannelPolicy[];
 };
 
+function pushAndInAppChannels(
+    templateKey: string,
+    type: NotificationTemplateType,
+    priority: NotificationPriority,
+): EventChannelPolicy[] {
+    return [
+        {
+            templateKey,
+            channel: "push",
+            type,
+            priority,
+            required: false,
+        },
+        {
+            templateKey,
+            channel: "in_app",
+            type,
+            priority,
+            required: false,
+        },
+    ];
+}
+
 function phoneChannels(
     templateKey: string,
     type: NotificationTemplateType,
@@ -71,6 +94,7 @@ export const EVENT_POLICIES: Record<NotificationEvent, EventPolicy> = {
                 required: false,
             },
             ...phoneChannels("booking_confirmed", "transactional", "standard"),
+            ...pushAndInAppChannels("booking_confirmed", "transactional", "standard"),
         ],
     },
     BOOKING_ASSIGNED: {
@@ -83,6 +107,7 @@ export const EVENT_POLICIES: Record<NotificationEvent, EventPolicy> = {
                 required: false,
             },
             ...phoneChannels("booking_assigned", "transactional", "standard"),
+            ...pushAndInAppChannels("booking_assigned", "transactional", "standard"),
         ],
     },
     VENDOR_EN_ROUTE: {
@@ -95,6 +120,7 @@ export const EVENT_POLICIES: Record<NotificationEvent, EventPolicy> = {
                 required: false,
             },
             ...phoneChannels("vendor_en_route", "transactional", "standard"),
+            ...pushAndInAppChannels("vendor_en_route", "transactional", "standard"),
         ],
     },
     VENDOR_ON_SITE: {
@@ -107,9 +133,11 @@ export const EVENT_POLICIES: Record<NotificationEvent, EventPolicy> = {
                 required: false,
             },
             ...phoneChannels("vendor_on_site", "transactional", "standard"),
+            ...pushAndInAppChannels("vendor_on_site", "transactional", "standard"),
         ],
     },
     DELIVERY_CODE: {
+        // OTP-style secret: SMS / WhatsApp / email only (vendor sends; customer does not confirm in app).
         channels: [
             {
                 templateKey: "delivery_code",
@@ -131,6 +159,7 @@ export const EVENT_POLICIES: Record<NotificationEvent, EventPolicy> = {
                 required: false,
             },
             ...phoneChannels("booking_completed", "transactional", "standard"),
+            ...pushAndInAppChannels("booking_completed", "transactional", "standard"),
         ],
     },
     VENDOR_NEW_JOB: {

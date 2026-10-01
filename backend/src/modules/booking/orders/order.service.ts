@@ -11,7 +11,11 @@ import { resolveAdminCustomProductId } from "@/modules/booking/orders/admin-cust
 import { AddonRepository } from "@/modules/catalog/addons/addon.repository.js";
 import { CartRepository } from "@/modules/booking/carts/cart.repository.js";
 import type { AdminCreateOrderInput } from "@/modules/booking/orders/order.admin.dto.js";
-import type { AdminOrderListQuery, CreateOrderInput } from "@/modules/booking/orders/order.dto.js";
+import type {
+    AdminOrderListQuery,
+    CreateOrderInput,
+    ListOrdersQuery,
+} from "@/modules/booking/orders/order.dto.js";
 import type { CustomerProvisioner } from "@/modules/identity/users/customer-provisioner.service.js";
 import type {
     AdminOrderListFilter,
@@ -205,10 +209,7 @@ export type CreateOrderResult = {
 };
 
 export interface IOrderService {
-    listForUser(
-        userId: string,
-        query: { page?: unknown; limit?: unknown },
-    ): Promise<Paginated<PublicOrderSummary>>;
+    listForUser(userId: string, query: ListOrdersQuery): Promise<Paginated<PublicOrderSummary>>;
     listAdmin(query: AdminOrderListQuery): Promise<Paginated<PublicAdminOrderSummary>>;
     createFromCart(userId: string, input: CreateOrderInput): Promise<CreateOrderResult>;
     createAdminOrder(adminId: string, input: AdminCreateOrderInput): Promise<CreateOrderResult>;
@@ -221,6 +222,8 @@ export interface IOrderService {
         input: SubmitOrderReviewInput,
     ): Promise<PublicOrderReviewMeta>;
     getForAdmin(orderId: string): Promise<PublicOrder>;
+    cancelPendingPaymentForUser(userId: string, orderId: string): Promise<PublicOrder>;
+    resumeCheckoutForUser(userId: string, orderId: string): Promise<CreateOrderResult>;
     toPublic(order: OrderWithItems): PublicOrder;
     sendBookingConfirmedEmail(userId: string, order: PublicOrder): Promise<void>;
 }
@@ -312,10 +315,11 @@ export class OrderService implements IOrderService {
 
     async listForUser(
         userId: string,
-        query: { page?: unknown; limit?: unknown },
+        query: ListOrdersQuery,
     ): Promise<Paginated<PublicOrderSummary>> {
         const pagination = parsePagination(query);
-        const result = await this.orders.listForUser(userId, pagination);
+        const bucket = query.bucket ?? "all";
+        const result = await this.orders.listForUser(userId, pagination, bucket);
         const reviewsByOrder = this.customerReviews
             ? await this.customerReviews.findByOrderIds(result.items.map((row) => row.id))
             : new Map();
@@ -389,18 +393,25 @@ export class OrderService implements IOrderService {
 
     async createFromCart(userId: string, input: CreateOrderInput): Promise<CreateOrderResult> {
         const existing = await this.orders.findByIdempotency(userId, input.idempotencyKey);
-        if (existing) {
+        if (existing && existing.status !== "CANCELLED") {
             const loaded = await this.orders.loadWithItems(existing.id);
             if (!loaded) throw ApiError.notFound("order not found");
             const order = this.toPublic(loaded);
             if (existing.status === "PENDING_PAYMENT") {
-                if (!this.payments) {
-                    throw ApiError.badRequest("online payment is not available");
+                if (input.paymentMethod === "cod") {
+                    await this.releasePendingPaymentOrder(existing.id, userId);
+                } else if (input.paymentMethod === "online") {
+                    if (!this.payments) {
+                        throw ApiError.badRequest("online payment is not available");
+                    }
+                    const checkout = await this.payments.startCheckout(loaded);
+                    return { order, checkout };
+                } else {
+                    throw ApiError.badRequest("select a payment method");
                 }
-                const checkout = await this.payments.startCheckout(loaded);
-                return { order, checkout };
+            } else {
+                return { order };
             }
-            return { order };
         }
 
         const isOnline = input.paymentMethod === "online";
@@ -776,6 +787,53 @@ export class OrderService implements IOrderService {
         return reviewMeta("COMPLETED", review);
     }
 
+    async cancelPendingPaymentForUser(userId: string, orderId: string): Promise<PublicOrder> {
+        await this.releasePendingPaymentOrder(orderId, userId);
+        const loaded = await this.orders.loadWithItems(orderId);
+        if (!loaded) {
+            throw ApiError.notFound("order not found");
+        }
+        return this.enrichAddonImages(this.toPublic(loaded));
+    }
+
+    async resumeCheckoutForUser(userId: string, orderId: string): Promise<CreateOrderResult> {
+        const order = await this.orders.findByIdForUser(orderId, userId);
+        if (!order) {
+            throw ApiError.notFound("order not found");
+        }
+        if (order.status !== "PENDING_PAYMENT") {
+            throw ApiError.badRequest("order is not awaiting payment");
+        }
+        if (!this.payments) {
+            throw ApiError.badRequest("online payment is not available");
+        }
+        const loaded = await this.orders.loadWithItems(orderId);
+        if (!loaded) {
+            throw ApiError.notFound("order not found");
+        }
+        const checkout = await this.payments.startCheckout(loaded);
+        return { order: this.toPublic(loaded), checkout };
+    }
+
+    private async releasePendingPaymentOrder(orderId: string, userId: string): Promise<void> {
+        const order = await this.orders.findByIdForUser(orderId, userId);
+        if (!order) {
+            throw ApiError.notFound("order not found");
+        }
+        if (order.status !== "PENDING_PAYMENT") {
+            throw ApiError.conflict("order is not awaiting payment");
+        }
+        const updated = await this.orders.cancelPendingPaymentForUser(orderId, userId);
+        if (!updated) {
+            throw ApiError.conflict("order cannot be cancelled in its current state");
+        }
+        await this.payments?.abandonCheckout(orderId);
+        const { closeBookingChatAfterOrderCancelled } = await import(
+            "@/modules/chat/lib/order-booking-chat-lifecycle.js"
+        );
+        await closeBookingChatAfterOrderCancelled(orderId);
+    }
+
     async cancelOrder(orderId: string, userId: string): Promise<PublicOrder> {
         const order = await this.orders.findByIdForUser(orderId, userId);
         if (!order) {
@@ -1071,7 +1129,7 @@ export class OrderService implements IOrderService {
                 data: {
                     customerName: enriched.customer.name,
                     customerPhone: enriched.customer.phone,
-                    orderId: enriched.reference,
+                    orderId: enriched.id,
                     orderRef: enriched.reference,
                     bookingId: enriched.id,
                     trackUrl: bookingTrackUrl(enriched.id),

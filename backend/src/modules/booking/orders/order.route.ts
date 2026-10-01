@@ -15,6 +15,16 @@ export function createOrderRouter(orderController: OrderController) {
     router.get("/", validate(listOrdersQueryDto, "query"), orderController.list);
     router.post("/", validate(createOrderDto), orderController.create);
     router.get("/:id", validate(orderIdParamsDto, "params"), orderController.getById);
+    router.post(
+        "/:id/cancel",
+        validate(orderIdParamsDto, "params"),
+        orderController.cancelPendingPayment,
+    );
+    router.post(
+        "/:id/checkout",
+        validate(orderIdParamsDto, "params"),
+        orderController.resumeCheckout,
+    );
     router.get(
         "/:id/tracking",
         validate(orderIdParamsDto, "params"),

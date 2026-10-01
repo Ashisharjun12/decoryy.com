@@ -8,6 +8,7 @@ import { useDeliveryLocationStore } from '@/store/delivery-location.store';
 import { useLocationStore } from '@/store/location.store';
 import { useAuthStore } from '@/store/auth.store';
 import { SELECT_LOCATION_HREF } from '@/lib/select-location-route';
+import { openCartCheckout } from '@/module/booking/lib/open-cart-checkout';
 import { Href, router } from 'expo-router';
 import { Image } from 'expo-image';
 import { Bell, ChevronDown, ShoppingBag } from 'lucide-react-native';
@@ -55,31 +56,33 @@ export function HomeTopBar({ onLocationPress }: HomeTopBarProps) {
           </Text>
         </View>
       </ScalePressable>
-      <ScalePressable
-        onPress={() => router.push('/(app)/profile/notifications' as Href)}
-        haptic
-        hitSlop={8}
-        accessibilityRole="button"
-        accessibilityLabel="Notifications"
-        className="size-10 items-center justify-center rounded-full border border-border bg-background">
-        <Icon as={Bell} className="text-foreground size-5" />
-      </ScalePressable>
-      <ScalePressable
-        onPress={() => router.push('/(app)/cart' as Href)}
-        haptic
-        hitSlop={8}
-        accessibilityRole="button"
-        accessibilityLabel="Cart"
-        className="relative size-10 items-center justify-center rounded-full border border-border bg-background">
-        <Icon as={ShoppingBag} className="text-foreground size-5" />
-        {itemCount > 0 ? (
-          <View className="absolute -right-0.5 -top-0.5 min-w-[18px] rounded-full bg-primary px-1 py-0.5">
-            <Text className="text-primary-foreground text-center text-[10px] font-bold">
-              {itemCount > 9 ? '9+' : itemCount}
-            </Text>
-          </View>
-        ) : null}
-      </ScalePressable>
+      <View className="shrink-0 flex-row items-center gap-2">
+        <ScalePressable
+          haptic
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Cart"
+          onPress={() => openCartCheckout(user, itemCount)}
+          className="relative size-10 items-center justify-center rounded-full border border-border bg-background">
+          <Icon as={ShoppingBag} className="text-foreground size-5" />
+          {itemCount > 0 ? (
+            <View className="absolute -right-0.5 -top-0.5 min-w-[18px] rounded-full bg-primary px-1 py-0.5">
+              <Text className="text-primary-foreground text-center text-[10px] font-bold">
+                {itemCount > 9 ? '9+' : itemCount}
+              </Text>
+            </View>
+          ) : null}
+        </ScalePressable>
+        <ScalePressable
+          onPress={() => router.push('/(app)/notifications?from=home' as Href)}
+          haptic
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Notifications"
+          className="size-10 items-center justify-center rounded-full border border-border bg-background">
+          <Icon as={Bell} className="text-foreground size-5" />
+        </ScalePressable>
+      </View>
     </View>
   );
 }

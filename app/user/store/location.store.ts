@@ -15,7 +15,7 @@ type LocationState = {
   bootstrapDone: boolean;
   hydrate: () => Promise<void>;
   fetchCities: () => Promise<void>;
-  bootstrapWithGps: () => Promise<void>;
+  bootstrapLocation: () => Promise<void>;
   detectLocationFromGps: () => Promise<boolean>;
   setLocation: (input: {
     city: ServiceCity;
@@ -84,19 +84,10 @@ export const useLocationStore = create<LocationState>((set, get) => ({
     }
   },
 
-  bootstrapWithGps: async () => {
+  bootstrapLocation: async () => {
     if (get().bootstrapDone) return;
     await get().hydrate();
     await get().fetchCities();
-    if (!get().serviceCityId()) {
-      const first = get().cities[0];
-      if (first) {
-        await get().setLocation({ city: first, pincode: null, source: 'default' });
-      }
-    }
-    if (!get().isLocationChosen()) {
-      await get().detectLocationFromGps();
-    }
     set({ bootstrapDone: true });
   },
 

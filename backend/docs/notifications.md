@@ -20,8 +20,14 @@ All SMS `to` addresses are passed through `normalizePhoneForSms()` in `notificat
 
 | Event | Recipient | Channels |
 |-------|-----------|----------|
-| `BOOKING_CONFIRMED` | Customer phone | email + sms |
-| `BOOKING_ASSIGNED` | Customer phone | email + sms |
+| `BOOKING_CONFIRMED` | Customer (`userId` + phone) | email + sms + push + in_app |
+| `BOOKING_ASSIGNED` | Customer | email + sms + push + in_app — on vendor **accept** (`booking-assigned:{orderId}`) and when a **field worker** is assigned/self-assigned (`booking-field-worker:{orderId}:{memberId}`) |
+| `VENDOR_EN_ROUTE` | Customer | email + sms + push + in_app |
+| `VENDOR_ON_SITE` | Customer | email + sms + push + in_app |
+| `DELIVERY_CODE` | Customer phone / email | email + sms (+ whatsapp per prefs) — **no** push / in_app (secret code) |
+| `BOOKING_COMPLETED` | Customer | email + sms + push + in_app |
+| `BOOKING_REMINDER` | Customer | push + in_app (+ email/sms per policy) |
+| `CHAT_MESSAGE` | Customer / vendor | push + in_app |
 | `VENDOR_NEW_JOB` | Vendor phone | push + in_app + sms |
 | `PAYOUT_PAID` | Vendor phone + email | email + sms + push + in_app |
 | `PAYOUT_FAILED` | Vendor phone + email | email + sms + push + in_app |
@@ -42,7 +48,7 @@ Track links in SMS use `WEB_APP_ORIGIN` + `/account/bookings/{orderId}`.
 | `notifications_outbox` | TX-safe handoff to BullMQ |
 | `notification_inbox` | in-app rows |
 
-Seed: `login_otp` (sms + whatsapp), `booking_confirmed` (email + sms + whatsapp), … — run `pnpm db:seed:templates` for whatsapp rows on existing DBs.
+Seed: `login_otp` (sms + whatsapp), `booking_confirmed` (email + sms + push + in_app + whatsapp), customer lifecycle keys with push/in_app — run `pnpm db:seed:templates` (idempotent) after deploy or when adding channels.
 
 Deploy: `pnpm db:migrate` then `pnpm db:seed:templates` (idempotent). Source of truth: `src/db/seeds/notification-templates.seed.ts`. Generate SQL: `pnpm db:seed:templates:sql`.
 

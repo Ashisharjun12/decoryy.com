@@ -1,24 +1,29 @@
 import { WhatsAppIcon } from '@/components/shell/WhatsAppIcon';
+import { ScalePressable } from '@/components/shell';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import type { CustomerAddress } from '@/api/addresses.api';
 import { Screen } from '@/components/shell';
 import { openWhatsAppSupport } from '@/lib/support-actions';
 import { ADD_ADDRESS_HREF } from '@/lib/select-location-route';
+import { LocationAddressListSkeleton } from '@/module/location/components/LocationAddressListSkeleton';
 import { LocationStackHeader } from '@/module/location/components/LocationStackHeader';
+import { resolveAddressDeliveryContext } from '@/module/location/lib/address-delivery-context';
 import { useAddressesQuery } from '@/module/account/hooks/use-addresses-query';
+import { emptyCart } from '@/module/booking/lib/cart-types';
+import { useCartQuery } from '@/module/booking/hooks/use-cart-query';
+import { useAuthStore } from '@/store/auth.store';
+import { emptyAddressForm } from '@/module/account/lib/address-form';
 import { PlacesAddressAutocomplete } from '@/module/geo/components/PlacesAddressAutocomplete';
 import { useAddressFormDraftStore } from '@/store/address-form-draft.store';
 import { useDeliveryLocationStore } from '@/store/delivery-location.store';
 import { useLocationStore } from '@/store/location.store';
-import { emptyAddressForm } from '@/module/account/lib/address-form';
 import { cn } from '@/lib/utils';
-import { Briefcase, Crosshair, Home, MapPin, MoreVertical, Plane, Plus } from 'lucide-react-native';
+import { Briefcase, Check, Crosshair, Home, MapPin, MoreVertical, Plane, Plus } from 'lucide-react-native';
 import { navigateBackOrHome } from '@/lib/navigate-back';
 import { router } from 'expo-router';
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, Keyboard, Pressable, ScrollView, View } from 'react-native';
-import { ScalePressable } from '@/components/shell';
 
 function addressIcon(label: string) {
   const lower = label.toLowerCase();
@@ -34,38 +39,31 @@ function QuickAction({
   iconSlot,
   onPress,
   loading,
-  accent = 'primary',
 }: {
   label: string;
   icon?: typeof Crosshair;
   iconSlot?: ReactNode;
   onPress: () => void;
   loading?: boolean;
-  accent?: 'primary' | 'whatsapp';
 }) {
   return (
     <ScalePressable
       onPress={onPress}
       disabled={loading}
       haptic
-      className="flex-1 items-center rounded-2xl border border-border bg-card px-2 py-4 active:bg-muted/40">
-      <View
-        className={cn(
-          'mb-2 size-11 items-center justify-center rounded-xl',
-          accent === 'whatsapp' ? 'bg-emerald-500/15' : 'bg-primary/10',
-        )}>
+      className="flex-1 items-center rounded-2xl border border-border bg-card px-2 py-3.5 active:bg-muted/40">
+      <View className="mb-2 size-10 items-center justify-center rounded-full bg-muted">
         {loading ? (
           <ActivityIndicator size="small" />
         ) : iconSlot ? (
           iconSlot
         ) : icon ? (
-          <Icon
-            as={icon}
-            className={cn('size-6', accent === 'whatsapp' ? 'text-emerald-600' : 'text-primary')}
-          />
+          <Icon as={icon} className="text-foreground size-5" />
         ) : null}
       </View>
-      <Text className="text-foreground text-center text-xs font-semibold leading-4">{label}</Text>
+      <Text className="text-foreground text-center text-[11px] font-semibold leading-4">
+        {label}
+      </Text>
     </ScalePressable>
   );
 }
@@ -75,9 +73,33 @@ export function SelectLocationScreen() {
   const selectedId = useDeliveryLocationStore((s) => s.selectedAddressId);
   const setFromAddress = useDeliveryLocationStore((s) => s.setFromAddress);
   const setDraft = useAddressFormDraftStore((s) => s.setDraft);
+  const locationCity = useLocationStore((s) => s.city);
+  const deliverySnapshot = useDeliveryLocationStore((s) => s.snapshot);
+  const user = useAuthStore((s) => s.user);
+  const { data: cart = emptyCart } = useCartQuery(Boolean(user));
+
+  const deliveryContext = useMemo(
+    () =>
+      resolveAddressDeliveryContext({
+        cart,
+        delivery: deliverySnapshot,
+        locationCity,
+      }),
+    [cart, deliverySnapshot, locationCity],
+  );
 
   const [searchLine, setSearchLine] = useState('');
   const [locating, setLocating] = useState(false);
+
+  function draftWithServiceCity() {
+    const { contextCityId, contextCityName } = deliveryContext;
+    return {
+      ...emptyAddressForm,
+      cityId: contextCityId,
+      cityName: contextCityName,
+    };
+  }
+
   async function pickAddress(addr: CustomerAddress) {
     if (!addr.cityId) return;
     await setFromAddress(addr);
@@ -101,7 +123,7 @@ export function SelectLocationScreen() {
 
   function openAddAddress() {
     Keyboard.dismiss();
-    setDraft(emptyAddressForm);
+    setDraft(draftWithServiceCity());
     router.push(ADD_ADDRESS_HREF);
   }
 
@@ -117,7 +139,7 @@ export function SelectLocationScreen() {
     longitude: number;
   }) {
     setDraft({
-      ...emptyAddressForm,
+      ...draftWithServiceCity(),
       address,
       pincode: pincode ?? '',
       latitude,
@@ -128,79 +150,98 @@ export function SelectLocationScreen() {
 
   return (
     <Screen scroll={false} edges={['top', 'bottom']} contentClassName="flex-1">
-      <LocationStackHeader title="Select Your Location" onBack={navigateBackOrHome} />
+      <LocationStackHeader title="Select your location" onBack={navigateBackOrHome} />
 
       <ScrollView
         className="flex-1"
-        contentContainerClassName="px-4 pb-8 pt-4"
+        contentContainerClassName="gap-5 px-4 pb-10 pt-3"
         keyboardShouldPersistTaps="always"
         nestedScrollEnabled
         keyboardDismissMode="on-drag"
         onScrollBeginDrag={() => Keyboard.dismiss()}>
-        <View className="relative z-20 mb-4" style={{ zIndex: 20 }}>
+        <Text className="text-muted-foreground px-1 text-sm leading-5">
+          Choose a saved address or add a new delivery location.
+        </Text>
+
+        <View className="relative z-20 rounded-2xl border border-border bg-card p-3" style={{ zIndex: 20 }}>
           <PlacesAddressAutocomplete
             dropdownLayout="inline"
             value={searchLine}
             onChange={setSearchLine}
             onPlaceResolved={onSearchPlaceResolved}
             placeholder="Search an area or address"
-            className="h-12 rounded-2xl"
+            className="h-11 rounded-xl"
           />
         </View>
 
-        <View className="mb-6 flex-row gap-3">
+        <View className="flex-row gap-2.5">
           <QuickAction
-            label="Use Current Location"
+            label="Current location"
             icon={Crosshair}
             onPress={() => void useCurrentLocation()}
             loading={locating}
           />
-          <QuickAction label="Add New Address" icon={Plus} onPress={openAddAddress} />
+          <QuickAction label="Add address" icon={Plus} onPress={openAddAddress} />
           <QuickAction
-            label="Request Address"
-            accent="whatsapp"
-            iconSlot={<WhatsAppIcon size={24} color="#25D366" />}
+            label="WhatsApp"
+            iconSlot={<WhatsAppIcon size={22} color="#25D366" />}
             onPress={() => void openWhatsAppSupport()}
           />
         </View>
 
         {isLoading ? (
-          <ActivityIndicator className="py-8" />
+          <LocationAddressListSkeleton rows={3} />
         ) : addresses.length > 0 ? (
           <View>
-            <Text className="text-muted-foreground mb-3 text-xs font-semibold uppercase tracking-wide">
+            <Text className="text-muted-foreground mb-3 px-1 text-xs font-semibold uppercase tracking-wide">
               Saved addresses
             </Text>
-            <View className="overflow-hidden rounded-2xl border border-border bg-card">
-              {addresses.map((addr, index) => {
+            <View className="gap-2">
+              {addresses.map((addr) => {
                 const IconComponent = addressIcon(addr.label);
                 const selected = selectedId === addr.id;
-                const isLast = index === addresses.length - 1;
                 return (
                   <Pressable
                     key={addr.id}
                     onPress={() => void pickAddress(addr)}
-                    className={cn('border-b border-border px-4 py-4', isLast && 'border-b-0')}>
+                    className={cn(
+                      'rounded-2xl border bg-card px-4 py-4 active:bg-muted/30',
+                      selected ? 'border-foreground/25' : 'border-border',
+                    )}>
                     <View className="flex-row gap-3">
-                      <View className="items-center">
-                        <View className="size-12 items-center justify-center rounded-xl bg-muted">
-                          <Icon as={IconComponent} className="text-muted-foreground size-5" />
-                        </View>
+                      <View
+                        className={cn(
+                          'size-11 items-center justify-center rounded-xl',
+                          selected ? 'bg-foreground' : 'bg-muted',
+                        )}>
+                        <Icon
+                          as={IconComponent}
+                          className={cn(
+                            'size-5',
+                            selected ? 'text-background' : 'text-muted-foreground',
+                          )}
+                        />
                       </View>
                       <View className="min-w-0 flex-1">
                         <View className="flex-row flex-wrap items-center gap-2">
                           <Text className="text-foreground font-semibold">{addr.label}</Text>
                           {selected ? (
-                            <View className="rounded bg-emerald-600 px-1.5 py-0.5">
-                              <Text className="text-[10px] font-bold uppercase text-white">
+                            <View className="flex-row items-center gap-1 rounded-full bg-emerald-600/10 px-2 py-0.5">
+                              <Icon as={Check} className="size-3 text-emerald-700" />
+                              <Text className="text-[10px] font-bold uppercase text-emerald-700">
                                 Selected
                               </Text>
                             </View>
                           ) : null}
                         </View>
-                        <Text className="text-muted-foreground mt-1 text-sm leading-5" numberOfLines={2}>
+                        <Text
+                          className="text-muted-foreground mt-1 text-sm leading-5"
+                          numberOfLines={2}>
                           {addr.address}
-                          {addr.landmark ? `, ${addr.landmark}` : ''}, {addr.cityName} {addr.pincode}
+                          {addr.landmark ? `, ${addr.landmark}` : ''}
+                        </Text>
+                        <Text className="text-muted-foreground mt-0.5 text-xs">
+                          {addr.cityName} · {addr.pincode}
                         </Text>
                       </View>
                       <Pressable
@@ -231,9 +272,14 @@ export function SelectLocationScreen() {
             </View>
           </View>
         ) : (
-          <Text className="text-muted-foreground text-sm leading-6">
-            No saved addresses yet. Add one or use your current location.
-          </Text>
+          <View className="rounded-2xl border border-dashed border-border bg-card px-4 py-8">
+            <Text className="text-foreground text-center text-base font-semibold">
+              No saved addresses
+            </Text>
+            <Text className="text-muted-foreground mt-2 text-center text-sm leading-5">
+              Add an address or use your current location to start ordering.
+            </Text>
+          </View>
         )}
       </ScrollView>
     </Screen>

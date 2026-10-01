@@ -19,6 +19,7 @@ import { processAssignmentReminderJob } from "@/modules/assignment/jobs/assignme
 import { processDispatchJob } from "@/modules/dispatch/jobs/dispatch.job.js";
 import { processDispatchReconcileJob } from "@/modules/dispatch/jobs/dispatch-reconcile.job.js";
 import { processPresenceSweepJob } from "@/modules/dispatch/jobs/presence-sweep.job.js";
+import { processStalePendingPaymentJob } from "@/modules/booking/jobs/stale-pending-payment.job.js";
 import { processSettlementSweepJob } from "@/modules/payments/jobs/settlement.job.js";
 import { logger } from "@/utils/logger.js";
 
@@ -109,6 +110,9 @@ export async function startNotificationWorkers(): Promise<void> {
         });
         void processDispatchReconcileJob().catch((err) => {
             logger.error({ err }, "dispatch reconcile failed");
+        });
+        void processStalePendingPaymentJob().catch((err) => {
+            logger.error({ err }, "stale pending payment sweep failed");
         });
     }, 60_000);
 

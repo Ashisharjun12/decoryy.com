@@ -3,6 +3,8 @@ import type { AuthController } from "@/modules/identity/auth/auth.controller.js"
 import type { UserController } from "@/modules/identity/users/user.controller.js";
 import { linkGoogleDto, linkPhoneDto } from "@/modules/identity/users/user.dto.js";
 import {
+    registerPushDeviceDto,
+    unregisterPushDeviceDto,
     vendorNotificationIdParamsDto,
     vendorNotificationsQueryDto,
 } from "@/modules/notifications/devices/device.dto.js";
@@ -27,6 +29,18 @@ export function createUserRouter(
     router.get("/me", authRequired, authController.me);
     router.post("/link-phone", authRequired, validate(linkPhoneDto), userController.linkPhone);
     router.post("/link-google", authRequired, validate(linkGoogleDto), userController.linkGoogle);
+    router.post(
+        "/devices",
+        authRequired,
+        validate(registerPushDeviceDto),
+        userNotificationController.registerDevice,
+    );
+    router.delete(
+        "/devices",
+        authRequired,
+        validate(unregisterPushDeviceDto),
+        userNotificationController.unregisterDevice,
+    );
     router.get(
         "/notifications",
         authRequired,

@@ -4,8 +4,10 @@ import { installOlaMapBootstrap } from '@/lib/ola-map-bootstrap';
 
 installOlaMapBootstrap();
 
+import { registerAccessTokenGetter, registerPartnerModeGetter } from '@/api/client';
 import { NAV_THEME } from '@/lib/theme';
 import { useNotificationListeners } from '@/hooks/use-notification-listeners';
+import { AuthSessionBridge } from '@/module/auth/components/AuthSessionBridge';
 import { ThemeBootstrap } from '@/module/settings/components/ThemeBootstrap';
 import { QueryProvider } from '@/providers/query-provider';
 import { SocketProvider } from '@/providers/socket-provider';
@@ -39,6 +41,8 @@ export default function RootLayout() {
   const hydratePartnerMode = usePartnerModeStore((s) => s.hydrate);
 
   useEffect(() => {
+    registerAccessTokenGetter(() => useAuthStore.getState().accessToken);
+    registerPartnerModeGetter(() => usePartnerModeStore.getState().mode);
     void Promise.all([hydrate(), hydratePartnerMode()]);
   }, [hydrate, hydratePartnerMode]);
 
@@ -53,6 +57,7 @@ export default function RootLayout() {
             </View>
           ) : (
             <>
+              <AuthSessionBridge />
               <ThemeBootstrap />
               <NotificationListenersHost />
               <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>

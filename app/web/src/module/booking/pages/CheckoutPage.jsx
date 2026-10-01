@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { CheckIcon, ChevronLeftIcon } from "lucide-react";
 import { getApiError } from "@/api/api";
-import { getPaymentMethods, verifyPayment } from "@/api/payments.api";
-import { createOrder } from "@/api/orders.api";
-import { openCashfreeCheckout, openRazorpayCheckout } from "@/module/booking/lib/online-checkout";
+import { getPaymentMethods } from "@/api/payments.api";
+import { OnlinePaymentIncompleteError } from "@/module/booking/lib/payment-flow-errors";
+import { placeCheckoutOrder } from "@/module/booking/lib/place-order";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import {
@@ -122,6 +122,8 @@ export function CheckoutPage() {
   const [payment, setPayment] = useState("");
   const [platformPay, setPlatformPay] = useState({ cod: true, online: false, provider: null });
   const [placing, setPlacing] = useState(false);
+  const [pendingOrderId, setPendingOrderId] = useState(null);
+  const [paymentIncomplete, setPaymentIncomplete] = useState(false);
   const idempotencyKeyRef = useRef(crypto.randomUUID());
 
   useEffect(() => {
@@ -297,31 +299,33 @@ export function CheckoutPage() {
         idempotencyKey: idempotencyKeyRef.current,
       };
 
-      const result = await createOrder(payload);
-      const order = result?.order ?? result;
-      const checkout = result?.checkout;
+      const { orderId, status } = await placeCheckoutOrder({
+        payload,
+        payment,
+        customer: payload.customer,
+      });
 
-      if (payment === "online" && checkout) {
-        const verifyPayload =
-          checkout.provider === "razorpay"
-            ? await openRazorpayCheckout(
-                {
-                  ...checkout,
-                  decoryOrderId: order.id,
-                },
-                payload.customer,
-              )
-            : await openCashfreeCheckout(checkout);
-
-        const confirmed = await verifyPayment(verifyPayload);
-        await load().catch(() => {});
-        navigate(`/checkout/success/${confirmed?.id ?? order.id}`, { replace: true });
-        return;
+      if (status !== "CONFIRMED") {
+        throw new Error("Booking was not confirmed.");
       }
 
+      setPendingOrderId(null);
+      setPaymentIncomplete(false);
       await load().catch(() => {});
-      navigate(`/checkout/success/${order.id}`, { replace: true });
+      navigate(`/checkout/success/${orderId}`, { replace: true });
     } catch (err) {
+      if (err instanceof OnlinePaymentIncompleteError) {
+        setPendingOrderId(err.orderId);
+        setPaymentIncomplete(true);
+        setStep(3);
+        toast.add({
+          title: err.userCancelled ? "Payment cancelled" : "Payment incomplete",
+          description:
+            "Your booking is not confirmed yet. Choose how you would like to pay and try again.",
+          type: "error",
+        });
+        return;
+      }
       toast.add({ title: getApiError(err), type: "error" });
     } finally {
       setPlacing(false);
@@ -396,6 +400,7 @@ export function CheckoutPage() {
                     onChange={setPayment}
                     allowCod={allowCod}
                     allowOnline={allowOnline}
+                    paymentIncomplete={paymentIncomplete && Boolean(pendingOrderId)}
                   />
                 </StepSection>
               </StepperContent>

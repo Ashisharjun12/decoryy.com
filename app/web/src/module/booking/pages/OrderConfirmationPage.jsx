@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { ChevronLeftIcon } from "lucide-react";
 import { getApiError } from "@/api/api";
 import { getOrder } from "@/api/orders.api";
@@ -24,6 +24,47 @@ function ConfirmationTopBar() {
           Home
         </Link>
       </div>
+    </div>
+  );
+}
+
+function PendingPaymentHero() {
+  const navigate = useNavigate();
+  const { orderId } = useParams();
+
+  return (
+    <div className="flex flex-col gap-6 animate-in fade-in duration-300">
+      <div>
+        <h1 className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl">
+          Payment incomplete
+        </h1>
+        <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground">
+          Your booking is not confirmed yet. Return to checkout to choose how you would like to pay
+          and complete your booking.
+        </p>
+      </div>
+      <Button type="button" onClick={() => navigate("/checkout", { replace: true })}>
+        Complete payment
+      </Button>
+      {orderId ? (
+        <p className="text-xs text-muted-foreground">
+          Reference · {String(orderId).slice(0, 8).toUpperCase()}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function CancelledHero() {
+  return (
+    <div className="flex flex-col gap-4">
+      <h1 className="font-heading text-3xl font-semibold tracking-tight">Booking cancelled</h1>
+      <p className="max-w-md text-sm text-muted-foreground">
+        This order was cancelled. You can start a new booking from the catalog.
+      </p>
+      <Button asChild>
+        <Link to="/decorations">Browse decorations</Link>
+      </Button>
     </div>
   );
 }
@@ -90,13 +131,48 @@ export function OrderConfirmationPage() {
     );
   }
 
+  const orderStatus = order.status;
+  const isConfirmed =
+    orderStatus === "CONFIRMED" ||
+    orderStatus === "ASSIGNED" ||
+    orderStatus === "EN_ROUTE" ||
+    orderStatus === "ON_SITE" ||
+    orderStatus === "COMPLETED";
+
+  if (orderStatus === "PENDING_PAYMENT") {
+    return (
+      <div className="flex flex-col">
+        <ConfirmationTopBar />
+        <div className="mx-auto w-full max-w-lg px-6 py-12 lg:px-10">
+          <PendingPaymentHero />
+        </div>
+      </div>
+    );
+  }
+
+  if (orderStatus === "CANCELLED") {
+    return (
+      <div className="flex flex-col">
+        <ConfirmationTopBar />
+        <div className="mx-auto w-full max-w-lg px-6 py-12 lg:px-10">
+          <CancelledHero />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col">
       <ConfirmationTopBar />
 
       <div className="mx-auto grid w-full max-w-[1400px] lg:grid-cols-2">
         <div className="order-1 min-w-0 bg-background px-6 py-8 lg:px-10 lg:py-14">
-          <OrderConfirmationHero order={order} />
+          {isConfirmed ? <OrderConfirmationHero order={order} /> : (
+            <div>
+              <h1 className="font-heading text-3xl font-semibold">Booking update</h1>
+              <p className="mt-2 text-sm text-muted-foreground">Status: {orderStatus}</p>
+            </div>
+          )}
         </div>
         <aside className={SUMMARY_ASIDE_CLASS}>
           <OrderConfirmationReceipt order={order} />

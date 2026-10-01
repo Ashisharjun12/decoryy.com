@@ -1,11 +1,23 @@
+import { attachDevApiLogging } from '@/api/dev-logging';
+import {
+  refreshAccessTokenOnce,
+  SessionRefreshError,
+  shouldAttemptRefresh,
+} from '@/lib/auth-session-refresh';
 import { API_URL } from '@/lib/env';
 import { loadAccessToken } from '@/lib/secure-storage';
-import axios from 'axios';
+import { useAuthStore } from '@/store/auth.store';
+import axios, { AxiosHeaders, type InternalAxiosRequestConfig } from 'axios';
 
 let accessTokenGetter: (() => string | null) | null = null;
+let sessionExpiredHandler: (() => void) | null = null;
 
 export function registerAccessTokenGetter(getter: () => string | null) {
   accessTokenGetter = getter;
+}
+
+export function registerSessionExpiredHandler(handler: (() => void) | null) {
+  sessionExpiredHandler = handler;
 }
 
 export const api = axios.create({
@@ -19,6 +31,10 @@ export const api = axios.create({
 type ApiErrorBody = {
   message?: string;
   errors?: { path?: (string | number)[]; message?: string }[];
+};
+
+type RetryableConfig = InternalAxiosRequestConfig & {
+  _retry?: boolean;
 };
 
 function formatValidationErrors(errors: ApiErrorBody['errors']) {
@@ -61,6 +77,11 @@ export function unwrap<T>(response: { data?: { data?: T } }): T {
   return response.data?.data as T;
 }
 
+async function handleHardSessionFailure() {
+  await useAuthStore.getState().signOut();
+  sessionExpiredHandler?.();
+}
+
 api.interceptors.request.use(async (config) => {
   let token = accessTokenGetter?.() ?? null;
   if (!token) {
@@ -71,3 +92,34 @@ api.interceptors.request.use(async (config) => {
   }
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const original = error.config as RetryableConfig | undefined;
+    if (!original || error.response?.status !== 401 || original._retry) {
+      return Promise.reject(error);
+    }
+    const url = original.url ?? '';
+    if (!shouldAttemptRefresh(url)) {
+      return Promise.reject(error);
+    }
+
+    original._retry = true;
+
+    try {
+      const token = await refreshAccessTokenOnce();
+      const headers = AxiosHeaders.from(original.headers);
+      headers.set('Authorization', `Bearer ${token}`);
+      original.headers = headers;
+      return api(original);
+    } catch (refreshErr) {
+      if (refreshErr instanceof SessionRefreshError && refreshErr.hardLogout) {
+        await handleHardSessionFailure();
+      }
+      return Promise.reject(refreshErr);
+    }
+  },
+);
+
+attachDevApiLogging(api);

@@ -1,10 +1,6 @@
-import { AccountStubScreen } from '@/module/account/components/AccountStubScreen';
+import { Redirect, type Href } from 'expo-router';
 
-export default function ProfileNotificationsRoute() {
-  return (
-    <AccountStubScreen
-      title="Notifications"
-      description="Order updates, offers, and reminders will show here. Push notifications come in a later slice."
-    />
-  );
+/** Legacy path — inbox lives at `/(app)/notifications`. */
+export default function ProfileNotificationsRedirect() {
+  return <Redirect href={'/(app)/notifications?from=profile' as Href} />;
 }

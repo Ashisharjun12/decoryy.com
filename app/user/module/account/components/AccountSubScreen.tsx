@@ -4,8 +4,6 @@ import { useGoBack } from '@/lib/use-go-back';
 import type { ReactNode } from 'react';
 import { View } from 'react-native';
 
-const HORIZONTAL_GUTTER = 20;
-
 type AccountSubScreenProps = {
   title: string;
   children: ReactNode;
@@ -15,20 +13,9 @@ type AccountSubScreenProps = {
 export function AccountSubScreen({ title, children, contentClassName }: AccountSubScreenProps) {
   const onBack = useGoBack();
   return (
-    <Screen scroll={false} edges={['top', 'left', 'right']} contentClassName="flex-1">
-      <TabScreenTitle title={title} showBack onBack={onBack} />
-      <Screen
-        className="flex-1"
-        contentClassName={cn('flex-1', contentClassName)}
-        scrollProps={{
-          contentContainerStyle: {
-            paddingHorizontal: HORIZONTAL_GUTTER,
-            paddingTop: 16,
-            paddingBottom: 32,
-          },
-        }}>
-        <View className="gap-5">{children}</View>
-      </Screen>
+    <Screen edges={['top', 'left', 'right']} gutter contentClassName={cn('pb-10', contentClassName)}>
+      <TabScreenTitle title={title} showBack onBack={onBack} insetFromParentGutter />
+      <View className="mt-4 gap-5">{children}</View>
     </Screen>
   );
 }

@@ -15,12 +15,16 @@ import {
 } from '@/module/home/lib/home-catalog';
 import { type Href, router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useActiveOrderScrollPaddingBottom } from '@/module/home/hooks/use-tab-active-order-bar';
 import { ActivityIndicator, RefreshControl, View } from 'react-native';
 
 const COLS = 4;
 const ALL_PARENTS = '__all__';
 
+const TAB_SCROLL_BASE_BOTTOM = 112;
+
 export function CategoryBrowseScreen() {
+  const scrollBottomPadding = useActiveOrderScrollPaddingBottom(TAB_SCROLL_BASE_BOTTOM);
   const params = useLocalSearchParams<{
     parentSlug?: string;
     childSlug?: string;
@@ -149,7 +153,8 @@ export function CategoryBrowseScreen() {
       />
     <SmoothScrollView
       className="flex-1"
-      contentContainerClassName="gap-5 pt-3 pb-28"
+      contentContainerClassName="gap-5 pt-3"
+      contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} />
       }>

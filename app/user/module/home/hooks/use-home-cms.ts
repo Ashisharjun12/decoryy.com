@@ -1,21 +1,21 @@
 import { getHomeCms } from '@/api/cms.api';
 import { queryKeys } from '@/lib/query-keys';
 import { normalizeHomeCms } from '@/module/home/lib/home-catalog';
+import { useHomeCatalogCityId } from '@/module/home/hooks/use-home-catalog-city-id';
 import { useLocationStore } from '@/store/location.store';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
 export function useHomeCms() {
-  const cityId = useLocationStore((s) => s.serviceCityId());
-  const pincode = useLocationStore((s) => s.pincodeCode());
+  const { catalogCityId, catalogPincode } = useHomeCatalogCityId();
   const status = useLocationStore((s) => s.status);
 
   const query = useQuery({
-    queryKey: queryKeys.cmsHome(cityId ?? null, pincode ?? null),
+    queryKey: queryKeys.cmsHome(catalogCityId ?? null, catalogPincode ?? null),
     queryFn: () =>
       getHomeCms({
-        cityId,
-        pincode,
+        cityId: catalogCityId,
+        pincode: catalogPincode,
         platform: 'android',
       }),
     enabled: status === 'ready',

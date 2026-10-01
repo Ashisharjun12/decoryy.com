@@ -1,15 +1,26 @@
+import {
+  refreshAccessTokenOnce,
+  SessionRefreshError,
+  shouldAttemptRefresh,
+} from '@/lib/auth-session-refresh';
 import { isPlatformAccessPausedError } from '@/module/auth/lib/account-blocked';
 import { API_URL } from '@/lib/env';
 import { loadPartnerMode } from '@/lib/partner-mode';
 import { loadAccessToken } from '@/lib/secure-storage';
-import axios from 'axios';
+import { useAuthStore } from '@/store/auth.store';
+import axios, { AxiosHeaders, type InternalAxiosRequestConfig } from 'axios';
 
 let accessTokenGetter: (() => string | null) | null = null;
 let partnerModeGetter: (() => 'owner' | 'field' | null) | null = null;
 let platformAccessPausedHandler: (() => void) | null = null;
+let sessionExpiredHandler: (() => void) | null = null;
 
 export function registerPlatformAccessPausedHandler(handler: (() => void) | null) {
   platformAccessPausedHandler = handler;
+}
+
+export function registerSessionExpiredHandler(handler: (() => void) | null) {
+  sessionExpiredHandler = handler;
 }
 
 export function registerAccessTokenGetter(getter: () => string | null) {
@@ -27,6 +38,10 @@ export const api = axios.create({
     'ngrok-skip-browser-warning': 'true',
   },
 });
+
+type RetryableConfig = InternalAxiosRequestConfig & {
+  _retry?: boolean;
+};
 
 export function getApiError(err: unknown): string {
   if (axios.isAxiosError(err)) {
@@ -52,6 +67,11 @@ export function unwrap<T>(response: { data?: { data?: T } }): T {
   return response.data?.data as T;
 }
 
+async function handleHardSessionFailure() {
+  await useAuthStore.getState().signOut();
+  sessionExpiredHandler?.();
+}
+
 api.interceptors.request.use(async (config) => {
   let token = accessTokenGetter?.() ?? null;
   if (!token) {
@@ -73,10 +93,35 @@ api.interceptors.request.use(async (config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (isPlatformAccessPausedError(error)) {
       platformAccessPausedHandler?.();
     }
-    return Promise.reject(error);
+
+    const original = error.config as RetryableConfig | undefined;
+    if (!original || error.response?.status !== 401 || original._retry) {
+      return Promise.reject(error);
+    }
+    const url = original.url ?? '';
+    if (!shouldAttemptRefresh(url)) {
+      return Promise.reject(error);
+    }
+
+    original._retry = true;
+
+    try {
+      const token = await refreshAccessTokenOnce();
+      const headers = AxiosHeaders.from(original.headers);
+      headers.set('Authorization', `Bearer ${token}`);
+      original.headers = headers;
+      return api(original);
+    } catch (refreshErr) {
+      if (refreshErr instanceof SessionRefreshError && refreshErr.hardLogout) {
+        await handleHardSessionFailure();
+      } else if (isPlatformAccessPausedError(refreshErr)) {
+        platformAccessPausedHandler?.();
+      }
+      return Promise.reject(refreshErr);
+    }
   },
 );

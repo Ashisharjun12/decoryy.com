@@ -6,20 +6,20 @@ import {
   normalizeProduct,
   type HomeProductSection,
 } from '@/module/home/lib/home-catalog';
+import { useHomeCatalogCityId } from '@/module/home/hooks/use-home-catalog-city-id';
 import { useLocationStore } from '@/store/location.store';
 import { useQuery } from '@tanstack/react-query';
 
 export function useHomeDiscovery() {
-  const cityId = useLocationStore((s) => s.serviceCityId());
-  const pincode = useLocationStore((s) => s.pincodeCode());
+  const { catalogCityId, catalogPincode } = useHomeCatalogCityId();
   const status = useLocationStore((s) => s.status);
 
   const query = useQuery({
-    queryKey: queryKeys.homeSections(cityId ?? null, pincode ?? null),
+    queryKey: queryKeys.homeSections(catalogCityId ?? null, catalogPincode ?? null),
     queryFn: async (): Promise<HomeProductSection[]> => {
       const locationQuery = {
-        cityId,
-        pincode,
+        cityId: catalogCityId,
+        pincode: catalogPincode,
       };
 
       const sectionData = await listSections(locationQuery);
@@ -48,7 +48,7 @@ export function useHomeDiscovery() {
         },
       ];
     },
-    enabled: status === 'ready' && Boolean(cityId || pincode),
+    enabled: status === 'ready' && Boolean(catalogCityId),
     staleTime: 60_000,
     placeholderData: (previous) => previous,
   });

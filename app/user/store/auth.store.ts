@@ -1,9 +1,18 @@
 import type { AuthSessionPayload, CustomerUser } from '@/lib/auth.types';
+import { logoutSession } from '@/api/auth-refresh.api';
+import { useChatStore } from '@/store/chat.store';
+import { clearPushRegistration } from '@/lib/push-registration';
+import {
+  isAccessTokenExpired,
+  refreshAccessTokenOnce,
+  SessionRefreshError,
+} from '@/lib/auth-session-refresh';
 import {
   clearAccessToken,
   clearHasSeenWelcome,
   loadAccessToken,
   loadHasSeenWelcome,
+  loadRefreshToken,
   loadUserProfile,
   saveAccessToken,
   saveHasSeenWelcome,
@@ -32,7 +41,7 @@ type AuthState = {
   resetOnboarding: () => Promise<void>;
 };
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   hydrated: false,
   hasSeenWelcome: false,
   accessToken: null,
@@ -41,15 +50,36 @@ export const useAuthStore = create<AuthState>((set) => ({
   lastDevOtp: null,
 
   hydrate: async () => {
-    const [hasSeenWelcome, accessToken, profile] = await Promise.all([
+    const [hasSeenWelcome, accessToken, profile, refreshToken] = await Promise.all([
       loadHasSeenWelcome(),
       loadAccessToken(),
       loadUserProfile(),
+      loadRefreshToken(),
     ]);
 
     if (!accessToken) {
       set({ hydrated: true, hasSeenWelcome, accessToken: null, user: null });
       return;
+    }
+
+    if (refreshToken && isAccessTokenExpired(accessToken)) {
+      try {
+        await refreshAccessTokenOnce();
+        const { accessToken: nextToken, user } = get();
+        set({
+          hydrated: true,
+          hasSeenWelcome,
+          accessToken: nextToken,
+          user,
+        });
+        return;
+      } catch (err) {
+        if (err instanceof SessionRefreshError && err.hardLogout) {
+          await clearAccessToken();
+        }
+        set({ hydrated: true, hasSeenWelcome, accessToken: null, user: null });
+        return;
+      }
     }
 
     set({
@@ -92,7 +122,18 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   signOut: async () => {
+    const refreshToken = await loadRefreshToken();
+    const accessToken = get().accessToken;
+    await clearPushRegistration(accessToken);
+    if (refreshToken) {
+      try {
+        await logoutSession(refreshToken);
+      } catch {
+        // Best-effort server revoke; always clear locally.
+      }
+    }
     await clearAccessToken();
+    useChatStore.getState().reset();
     set({ accessToken: null, user: null, pendingOtpPhone: null });
   },
 

@@ -359,6 +359,42 @@ export class VendorJobService implements IVendorJobService {
         }
     }
 
+    private async notifyCustomerBookingAssigned(
+        order: PublicOrder,
+        customerUserId: string | null | undefined,
+        options: { vendorName: string; vendorPhone: string; idempotencyKey: string },
+    ) {
+        if (!customerUserId) {
+            logger.warn({ orderId: order.id }, "booking assigned notify skipped — no customer userId");
+            return;
+        }
+        try {
+            await this.notifications.notify({
+                event: "BOOKING_ASSIGNED",
+                userId: customerUserId,
+                recipient: {
+                    email: order.customer.email,
+                    phone: order.customer.phone,
+                },
+                data: {
+                    event: "BOOKING_ASSIGNED",
+                    customerName: order.customer.name,
+                    orderRef: order.reference,
+                    bookingId: order.id,
+                    orderId: order.id,
+                    trackUrl: bookingTrackUrl(order.id),
+                    scheduledAt: formatBookingSchedule(order.scheduledAt),
+                    address: this.formatDeliveryAddress(order),
+                    vendorName: options.vendorName,
+                    vendorPhone: options.vendorPhone,
+                },
+                idempotencyKey: options.idempotencyKey,
+            });
+        } catch (err) {
+            logger.error({ err, orderId: order.id }, "customer booking assigned notify failed");
+        }
+    }
+
     async listJobs(
         partner: PartnerContext,
         filter: "today" | "upcoming" | "completed" | "action" | undefined,
@@ -488,36 +524,11 @@ export class VendorJobService implements IVendorJobService {
         const vendorName = await this.getVendorName(vendorId);
         const vendorPhone = (await this.getVendorPhone(vendorId)) ?? "";
 
-        try {
-            await this.notifications.notify({
-                event: "BOOKING_ASSIGNED",
-                userId: dbOrder?.userId ?? undefined,
-                recipient: {
-                    email: order.customer.email,
-                    phone: order.customer.phone,
-                },
-                data: {
-                    customerName: order.customer.name,
-                    orderRef: order.reference,
-                    bookingId: order.id,
-                    trackUrl: bookingTrackUrl(order.id),
-                    scheduledAt: formatBookingSchedule(order.scheduledAt),
-                    address: [
-                        order.delivery.address,
-                        order.delivery.landmark,
-                        order.delivery.cityName,
-                        order.delivery.pincode,
-                    ]
-                        .filter(Boolean)
-                        .join(", "),
-                    vendorName,
-                    vendorPhone,
-                },
-                idempotencyKey: `booking-assigned:${orderId}`,
-            });
-        } catch (err) {
-            logger.error({ err, orderId }, "booking assigned email failed");
-        }
+        await this.notifyCustomerBookingAssigned(order, dbOrder?.userId, {
+            vendorName,
+            vendorPhone,
+            idempotencyKey: `booking-assigned:${orderId}`,
+        });
 
         try {
             await this.bookingChat?.ensureBookingConversation(orderId);
@@ -806,6 +817,20 @@ export class VendorJobService implements IVendorJobService {
             after: { memberIds: uniqueIds },
         });
         await this.notifyFieldAssignees(partner.vendorId, orderId, rows);
+        if (rows.length > 0) {
+            const customerOrder = await this.reloadOrder(orderId);
+            const dbOrder = await this.orders.findById(orderId);
+            const worker = rows[0];
+            const workerPhone =
+                (await this.resolveWorkerNotifyPhone(partner.vendorId, worker)) ?? "";
+            const workerName =
+                worker.displayName.trim() || (await this.getVendorName(partner.vendorId));
+            await this.notifyCustomerBookingAssigned(customerOrder, dbOrder?.userId, {
+                vendorName: workerName,
+                vendorPhone: workerPhone,
+                idempotencyKey: `booking-field-worker:${orderId}:${worker.memberId}`,
+            });
+        }
         try {
             await this.bookingChat?.syncBookingFieldWorker(orderId, partner.vendorId);
         } catch (err) {

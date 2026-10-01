@@ -12,6 +12,14 @@ export function getOrder(id) {
   return api.get(`/orders/${id}`).then(unwrap);
 }
 
+export function cancelPendingOrder(id) {
+  return api.post(`/orders/${id}/cancel`).then(unwrap);
+}
+
+export function resumeOrderCheckout(id) {
+  return api.post(`/orders/${id}/checkout`).then(unwrap);
+}
+
 export function getOrderTracking(id) {
   return api.get(`/orders/${id}/tracking`).then(unwrap);
 }

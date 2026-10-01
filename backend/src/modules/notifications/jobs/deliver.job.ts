@@ -11,10 +11,28 @@ import type { PushMessage } from "@/infrastructure/push/push.port.js";
 import { logger } from "@/utils/logger.js";
 
 /** Must match app/vendor/lib/notifications.ts ANDROID_CHANNEL_* */
-const ANDROID_CHANNEL_DEFAULT = "vendor-default";
-const ANDROID_CHANNEL_JOBS = "vendor-jobs";
+const ANDROID_CHANNEL_VENDOR_DEFAULT = "vendor-default";
+const ANDROID_CHANNEL_VENDOR_JOBS = "vendor-jobs";
+/** Must match app/user/lib/notifications.ts ANDROID_CHANNEL_* */
+const ANDROID_CHANNEL_CUSTOMER_DEFAULT = "customer-default";
+const ANDROID_CHANNEL_CUSTOMER_ORDERS = "customer-orders";
 
 const URGENT_VENDOR_PUSH_EVENTS = new Set(["VENDOR_NEW_JOB", "VENDOR_JOB_ASSIGNED"]);
+const VENDOR_PUSH_EVENTS = new Set([
+    "VENDOR_NEW_JOB",
+    "VENDOR_JOB_ASSIGNED",
+    "PAYOUT_PAID",
+    "PAYOUT_FAILED",
+]);
+const CUSTOMER_ORDER_PUSH_EVENTS = new Set([
+    "BOOKING_CONFIRMED",
+    "BOOKING_ASSIGNED",
+    "VENDOR_EN_ROUTE",
+    "VENDOR_ON_SITE",
+    "BOOKING_COMPLETED",
+    "BOOKING_REMINDER",
+    "CHAT_MESSAGE",
+]);
 
 function androidPushOptions(event: string | undefined, eventData: Record<string, string>): Pick<
     PushMessage,
@@ -22,9 +40,15 @@ function androidPushOptions(event: string | undefined, eventData: Record<string,
 > {
     const resolved = event ?? eventData.event;
     if (resolved && URGENT_VENDOR_PUSH_EVENTS.has(resolved)) {
-        return { androidChannelId: ANDROID_CHANNEL_JOBS, priority: "high" };
+        return { androidChannelId: ANDROID_CHANNEL_VENDOR_JOBS, priority: "high" };
     }
-    return { androidChannelId: ANDROID_CHANNEL_DEFAULT, priority: "default" };
+    if (resolved && VENDOR_PUSH_EVENTS.has(resolved)) {
+        return { androidChannelId: ANDROID_CHANNEL_VENDOR_DEFAULT, priority: "default" };
+    }
+    if (resolved && CUSTOMER_ORDER_PUSH_EVENTS.has(resolved)) {
+        return { androidChannelId: ANDROID_CHANNEL_CUSTOMER_ORDERS, priority: "high" };
+    }
+    return { androidChannelId: ANDROID_CHANNEL_CUSTOMER_DEFAULT, priority: "default" };
 }
 
 export type DeliverJobData = {

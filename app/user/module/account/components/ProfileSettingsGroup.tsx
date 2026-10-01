@@ -11,11 +11,9 @@ export function ProfileSettingsGroup({ title, children }: ProfileSettingsGroupPr
   return (
     <View className="gap-2">
       {title ? (
-        <Text className="text-muted-foreground px-1 text-xs font-semibold uppercase tracking-wide">
-          {title}
-        </Text>
+        <Text className="text-muted-foreground text-[13px] font-medium tracking-wide">{title}</Text>
       ) : null}
-      <View className="overflow-hidden rounded-2xl border border-border/80 bg-card">{children}</View>
+      <View className="gap-0.5">{children}</View>
     </View>
   );
 }

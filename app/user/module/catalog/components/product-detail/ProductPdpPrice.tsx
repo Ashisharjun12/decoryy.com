@@ -1,7 +1,9 @@
+import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { formatPaise } from '@/lib/format-money';
 import { discountPercent } from '@/lib/product-price';
 import { formatPdpRating } from '@/module/catalog/lib/product-pdp-helpers';
+import { BadgeCheck } from 'lucide-react-native';
 import { View } from 'react-native';
 
 type ProductPdpPriceProps = {
@@ -41,10 +43,10 @@ export function ProductPdpPrice({
           ) : null}
           {reviews ? <Text className="text-muted-foreground text-sm">{reviews} reviews</Text> : null}
           {ratingLabel != null ? (
-            <>
-              <Text className="text-muted-foreground/50 text-sm">·</Text>
-              <Text className="text-muted-foreground text-sm">Verified</Text>
-            </>
+            <View className="flex-row items-center gap-1 rounded-md bg-sky-50 px-1.5 py-0.5 dark:bg-sky-950/40">
+              <Icon as={BadgeCheck} className="size-3.5 text-sky-600 dark:text-sky-400" />
+              <Text className="text-xs font-semibold text-sky-700 dark:text-sky-300">Verified</Text>
+            </View>
           ) : null}
         </View>
       ) : null}

@@ -3,17 +3,20 @@ import { Text } from '@/components/ui/text';
 import { ScalePressable } from '@/components/shell';
 import { formatLocationLabel } from '@/lib/location-label';
 import { HomeBottomSheetModal } from '@/module/home/components/HomeBottomSheetModal';
+import { HomeCityMapIcon } from '@/module/home/components/HomeCityMapIcon';
 import { HomeCityPickerSheet } from '@/module/home/components/HomeCityPickerSheet';
-import { HOME_CITY_MAP_ICON_URI } from '@/module/home/lib/home-assets';
 import { useLocationStore } from '@/store/location.store';
-import { Image } from 'expo-image';
 import { Href, router } from 'expo-router';
 import { Search } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { View } from 'react-native';
 
-export function HomeSearchBar() {
-  const [cityOpen, setCityOpen] = useState(false);
+type HomeSearchBarProps = {
+  cityOpen: boolean;
+  onCityOpenChange: (open: boolean) => void;
+};
+
+export function HomeSearchBar({ cityOpen, onCityOpenChange }: HomeSearchBarProps) {
   const fetchCities = useLocationStore((s) => s.fetchCities);
   const city = useLocationStore((s) => s.city);
   const pincode = useLocationStore((s) => s.pincode);
@@ -44,18 +47,13 @@ export function HomeSearchBar() {
         </ScalePressable>
         <View className="my-2.5 w-px bg-border" />
         <ScalePressable
-          onPress={() => setCityOpen(true)}
+          onPress={() => onCityOpenChange(true)}
           haptic
           hitSlop={4}
           className="max-w-[7.5rem] flex-row items-center justify-center gap-1 px-2.5"
           accessibilityRole="button"
           accessibilityLabel={city ? `City: ${city.name}. Change city` : 'Select city'}>
-          <Image
-            source={{ uri: HOME_CITY_MAP_ICON_URI }}
-            style={{ width: 22, height: 26 }}
-            contentFit="contain"
-            accessibilityIgnoresInvertColors
-          />
+          <HomeCityMapIcon />
           <Text className="text-foreground min-w-0 flex-1 text-xs font-semibold" numberOfLines={1}>
             {city?.name ?? 'City'}
           </Text>
@@ -64,10 +62,10 @@ export function HomeSearchBar() {
 
       <HomeBottomSheetModal
         visible={cityOpen}
-        onClose={() => setCityOpen(false)}
+        onClose={() => onCityOpenChange(false)}
         closeAccessibilityLabel="Close city picker">
         <HomeCityPickerSheet
-          onClose={() => setCityOpen(false)}
+          onClose={() => onCityOpenChange(false)}
           currentLabel={cityLabel}
         />
       </HomeBottomSheetModal>

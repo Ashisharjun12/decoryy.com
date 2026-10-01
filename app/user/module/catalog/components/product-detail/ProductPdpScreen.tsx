@@ -1,4 +1,5 @@
 import { getApiError } from '@/api/client';
+import { catalogLocationErrorMessage } from '@/lib/catalog-location';
 import { Text } from '@/components/ui/text';
 import { useGoBack } from '@/lib/use-go-back';
 import { cartLocationBody } from '@/lib/catalog-location';
@@ -18,6 +19,9 @@ import {
   productImageUrls,
   type CatalogProductDetail,
 } from '@/module/catalog/lib/product-detail';
+import { queryClient } from '@/lib/query-client';
+import { goToCheckoutAfterAdd } from '@/module/booking/lib/open-cart-checkout';
+import { syncCartQueryCache } from '@/module/booking/hooks/use-cart-query';
 import { useAuthStore } from '@/store/auth.store';
 import { useCartStore } from '@/store/cart.store';
 import { useLocationStore } from '@/store/location.store';
@@ -49,7 +53,14 @@ type ProductPdpScreenProps = {
 
 export function ProductPdpScreen({ productId }: ProductPdpScreenProps) {
   const { hasLocation } = useProductDetailLocation();
-  const { data: product, isLoading, isError, error } = useProductDetailQuery(productId);
+  const {
+    data: product,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useProductDetailQuery(productId);
   const city = useLocationStore((s) => s.city);
   const pincode = useLocationStore((s) => s.pincode);
   const addItem = useCartStore((s) => s.addItem);
@@ -117,7 +128,7 @@ export function ProductPdpScreen({ productId }: ProductPdpScreenProps) {
 
       setBooking(true);
       try {
-        await addItem({
+        const cart = await addItem({
           productId: product.id,
           quantity: 1,
           addons: addonSelections.length ? addonSelections : undefined,
@@ -125,12 +136,14 @@ export function ProductPdpScreen({ productId }: ProductPdpScreenProps) {
           scheduledAt: isInstantBooking ? null : scheduledAt || undefined,
           fulfillmentType: isInstantBooking ? 'instant' : 'scheduled',
         });
+        syncCartQueryCache(queryClient, cart);
+        resetAddonSelection();
         setSheetOpen(false);
         if (!user) {
           router.push('/(onboarding)/login' as Href);
           return;
         }
-        router.push('/(app)/cart' as Href);
+        goToCheckoutAfterAdd(user);
       } catch (err) {
         if (axios.isAxiosError(err) && err.response?.status === 401) {
           router.push('/(onboarding)/login' as Href);
@@ -141,7 +154,7 @@ export function ProductPdpScreen({ productId }: ProductPdpScreenProps) {
         setBooking(false);
       }
     },
-    [product?.id, pincode, city, isInstantBooking, scheduledAt, addItem, user],
+    [product?.id, pincode, city, isInstantBooking, scheduledAt, addItem, user, resetAddonSelection],
   );
 
   const onBookNow = useCallback(() => {
@@ -196,7 +209,11 @@ export function ProductPdpScreen({ productId }: ProductPdpScreenProps) {
     return (
       <View className="flex-1 bg-background">
         <ProductDetailHeader onBack={onBack} variant="solid" />
-        <ProductDetailError message={getApiError(error)} onBack={onBack} />
+        <ProductDetailError
+          message={catalogLocationErrorMessage(error)}
+          onBack={onBack}
+          onRetry={isFetching ? undefined : () => void refetch()}
+        />
       </View>
     );
   }
@@ -248,9 +265,7 @@ export function ProductPdpScreen({ productId }: ProductPdpScreenProps) {
             onScheduledAtChange={onScheduledAtChange}
           />
 
-          <View className="rounded-2xl border border-border bg-card p-4">
-            <ProductPdpOffers productId={detail.id} categoryId={detail.categoryId} />
-          </View>
+          <ProductPdpOffers productId={detail.id} categoryId={detail.categoryId} />
 
           <ProductPdpDetailsTabs
             includes={detail.includes}
@@ -271,14 +286,9 @@ export function ProductPdpScreen({ productId }: ProductPdpScreenProps) {
       </ScrollView>
 
       <View
-        className="absolute inset-x-0 bottom-0 border-t border-border bg-background/95 px-3 pt-2.5"
+        className="absolute inset-x-0 bottom-0 border-t border-border/60 bg-background px-5 pt-3"
         style={{
-          paddingBottom: Math.max(insets.bottom, 10),
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.08,
-          shadowRadius: 12,
-          elevation: 8,
+          paddingBottom: Math.max(insets.bottom, 12),
         }}>
         <ProductPdpBookingActions
           booking={booking}

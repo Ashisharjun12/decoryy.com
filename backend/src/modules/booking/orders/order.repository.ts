@@ -1,4 +1,18 @@
-import { and, asc, count, desc, eq, exists, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
+import {
+    and,
+    asc,
+    count,
+    desc,
+    eq,
+    exists,
+    ilike,
+    inArray,
+    lt,
+    notInArray,
+    or,
+    sql,
+    type SQL,
+} from "drizzle-orm";
 import { db } from "@/db/postgres-client.js";
 import { paginationOffset, type PaginationQuery } from "@/shared/http/pagination.js";
 import { assignments } from "@/modules/assignment/assignments/assignment.schema.js";
@@ -51,6 +65,8 @@ export type OrderInsertPayload = Omit<
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+export type UserOrderListBucket = "all" | "upcoming" | "completed" | "cancelled";
+
 export interface IOrderRepository {
     findById(id: string): Promise<Order | undefined>;
     findByIdForUser(id: string, userId: string): Promise<Order | undefined>;
@@ -59,6 +75,7 @@ export interface IOrderRepository {
     listForUser(
         userId: string,
         pagination: PaginationQuery,
+        bucket?: UserOrderListBucket,
     ): Promise<{ items: OrderListRow[]; total: number }>;
     listAdmin(
         filter: AdminOrderListFilter,
@@ -83,6 +100,12 @@ export interface IOrderRepository {
     markConfirmed(orderId: string, tx?: DbTx): Promise<Order | undefined>;
     markCompleted(orderId: string, tx?: DbTx): Promise<Order | undefined>;
     markCancelled(orderId: string, tx?: DbTx): Promise<Order | undefined>;
+    cancelPendingPaymentForUser(
+        orderId: string,
+        userId: string,
+        tx?: DbTx,
+    ): Promise<Order | undefined>;
+    listStalePendingPaymentOrderIds(olderThan: Date, limit: number): Promise<string[]>;
     clearCart(cartId: string): Promise<void>;
 }
 
@@ -129,8 +152,18 @@ export class OrderRepository implements IOrderRepository {
     async listForUser(
         userId: string,
         pagination: PaginationQuery,
+        bucket: UserOrderListBucket = "all",
     ): Promise<{ items: OrderListRow[]; total: number }> {
-        return this.listRows(eq(orders.userId, userId), pagination, "scheduled_at");
+        const conditions: SQL[] = [eq(orders.userId, userId)];
+        if (bucket === "completed") {
+            conditions.push(eq(orders.status, "COMPLETED"));
+        } else if (bucket === "cancelled") {
+            conditions.push(eq(orders.status, "CANCELLED"));
+        } else if (bucket === "upcoming") {
+            conditions.push(notInArray(orders.status, ["COMPLETED", "CANCELLED"]));
+        }
+        const where = conditions.length === 1 ? conditions[0] : and(...conditions);
+        return this.listRows(where, pagination, "scheduled_at");
     }
 
     async listAdmin(
@@ -466,6 +499,42 @@ export class OrderRepository implements IOrderRepository {
             )
             .returning();
         return row;
+    }
+
+    async cancelPendingPaymentForUser(
+        orderId: string,
+        userId: string,
+        tx?: DbTx,
+    ): Promise<Order | undefined> {
+        const client = tx ?? db;
+        const [row] = await client
+            .update(orders)
+            .set({
+                status: "CANCELLED",
+                idempotencyKey: null,
+                updatedAt: new Date(),
+            })
+            .where(
+                and(
+                    eq(orders.id, orderId),
+                    eq(orders.userId, userId),
+                    eq(orders.status, "PENDING_PAYMENT"),
+                ),
+            )
+            .returning();
+        if (!row) return undefined;
+        await client.delete(couponRedemptions).where(eq(couponRedemptions.orderId, orderId));
+        return row;
+    }
+
+    async listStalePendingPaymentOrderIds(olderThan: Date, limit: number): Promise<string[]> {
+        const rows = await db
+            .select({ id: orders.id })
+            .from(orders)
+            .where(and(eq(orders.status, "PENDING_PAYMENT"), lt(orders.createdAt, olderThan)))
+            .orderBy(asc(orders.createdAt))
+            .limit(limit);
+        return rows.map((row) => row.id);
     }
 
     async clearCart(cartId: string): Promise<void> {

@@ -1,5 +1,6 @@
 import { addCartItem, type AddCartItemBody } from '@/api/cart.api';
 import { getApiError } from '@/api/client';
+import type { CartSnapshot } from '@/module/booking/lib/cart-types';
 import { create } from 'zustand';
 
 type CartState = {
@@ -8,7 +9,7 @@ type CartState = {
   error: string;
   setItemCount: (count: number) => void;
   loadFromApi: () => Promise<void>;
-  addItem: (body: AddCartItemBody) => Promise<void>;
+  addItem: (body: AddCartItemBody) => Promise<CartSnapshot>;
 };
 
 export const useCartStore = create<CartState>((set, get) => ({
@@ -31,6 +32,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     try {
       const cart = await addCartItem(body);
       set({ itemCount: cart.itemCount ?? get().itemCount, status: 'ready', error: '' });
+      return cart;
     } catch (err) {
       set({ status: 'error', error: getApiError(err) });
       throw err;

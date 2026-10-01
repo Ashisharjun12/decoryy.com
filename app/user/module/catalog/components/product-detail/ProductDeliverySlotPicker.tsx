@@ -3,7 +3,7 @@ import { Text } from '@/components/ui/text';
 import { ScalePressable } from '@/components/shell';
 import { TIME_SLOTS } from '@/module/catalog/lib/time-slots';
 import { cn } from '@/lib/utils';
-import { Flame } from 'lucide-react-native';
+import { Clock } from 'lucide-react-native';
 import { View } from 'react-native';
 
 type ProductDeliverySlotPickerProps = {
@@ -14,8 +14,13 @@ type ProductDeliverySlotPickerProps = {
 export function ProductDeliverySlotPicker({ slotId, onSlotChange }: ProductDeliverySlotPickerProps) {
   return (
     <View className="gap-2">
-      <Text className="text-muted-foreground text-xs font-medium uppercase">Select time</Text>
-      <View className="flex-row flex-wrap gap-2">
+      <View className="flex-row items-center gap-2">
+        <View className="size-7 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950/30">
+          <Icon as={Clock} className="size-3.5 text-amber-700 dark:text-amber-400" />
+        </View>
+        <Text className="text-foreground text-xs font-semibold">Time slot</Text>
+      </View>
+      <View className="flex-row flex-wrap gap-1.5">
         {TIME_SLOTS.map((item) => {
           const selected = slotId === item.id;
           return (
@@ -24,36 +29,19 @@ export function ProductDeliverySlotPicker({ slotId, onSlotChange }: ProductDeliv
               haptic
               onPress={() => onSlotChange(item.id)}
               className={cn(
-                'min-w-[30%] flex-1 items-center rounded-2xl border px-1 py-2.5',
-                selected ? 'border-primary bg-primary' : 'border-border bg-background',
+                'min-w-[30%] flex-1 items-center rounded-lg border px-1 py-2',
+                selected
+                  ? 'border-primary bg-primary'
+                  : 'border-border bg-background active:bg-primary/5',
               )}
               accessibilityRole="button">
               <Text
                 className={cn(
-                  'text-center text-[11px] font-semibold',
-                  selected ? 'text-primary-foreground' : 'text-foreground',
+                  'text-center text-[10px] font-semibold leading-tight',
+                  selected ? 'text-primary-foreground' : 'text-muted-foreground',
                 )}>
                 {item.label}
               </Text>
-              {'fillingFast' in item && item.fillingFast ? (
-                <View
-                  className={cn(
-                    'mt-1 flex-row items-center gap-0.5 rounded-full px-1.5 py-0.5',
-                    selected ? 'bg-white/20' : 'bg-rose-600',
-                  )}>
-                  <Icon
-                    as={Flame}
-                    className={cn('size-2.5', selected ? 'text-primary-foreground' : 'text-white')}
-                  />
-                  <Text
-                    className={cn(
-                      'text-[8px] font-bold uppercase',
-                      selected ? 'text-primary-foreground' : 'text-white',
-                    )}>
-                    Fast
-                  </Text>
-                </View>
-              ) : null}
             </ScalePressable>
           );
         })}

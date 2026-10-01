@@ -22,6 +22,7 @@ export type CheckoutPayload = {
 export interface IPaymentIntentService {
     startCheckout(order: OrderWithItems): Promise<CheckoutPayload>;
     verifyAndConfirm(userId: string, input: VerifyPaymentInput): Promise<PublicOrder>;
+    abandonCheckout(orderId: string): Promise<void>;
 }
 
 export class PaymentIntentService implements IPaymentIntentService {
@@ -157,5 +158,9 @@ export class PaymentIntentService implements IPaymentIntentService {
             logger.error({ err, orderId: order.id }, "booking confirmed email failed");
         }
         return publicOrder;
+    }
+
+    async abandonCheckout(orderId: string): Promise<void> {
+        await this.intents.markFailed(orderId);
     }
 }

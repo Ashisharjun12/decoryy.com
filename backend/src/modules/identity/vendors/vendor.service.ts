@@ -1,6 +1,6 @@
 import { ApiError } from "@/shared/errors/apiError.js";
 import { parsePagination } from "@/shared/http/pagination.js";
-import { assertDeliveryLocation, getActiveCityById } from "@/modules/geo/index.js";
+import { getActiveCityById } from "@/modules/geo/index.js";
 import type { IMediaService } from "@/modules/upload/media/media.service.js";
 import { displayUrl } from "@/modules/upload/media/media.public.js";
 import { normalizePhone } from "@/modules/identity/auth/phone.js";
@@ -112,7 +112,6 @@ export class VendorService implements IVendorService {
     async validateRegisterInput(input: VendorRegisterInput) {
         const phone = normalizePhone(input.phone);
         await getActiveCityById(input.cityId);
-        await assertDeliveryLocation({ cityId: input.cityId, pincode: input.pincode });
 
         if (input.shopImageUploadId) {
             await this.media.getCompleted(input.shopImageUploadId);
@@ -325,7 +324,6 @@ export class VendorService implements IVendorService {
         }
 
         await getActiveCityById(input.cityId);
-        await assertDeliveryLocation({ cityId: input.cityId, pincode: input.pincode });
 
         if (input.shopImageUploadId) {
             await this.media.getCompleted(input.shopImageUploadId);

@@ -10,6 +10,7 @@ export interface IPaymentIntentRepository {
     findByOrderId(orderId: string): Promise<PaymentIntent | undefined>;
     create(input: NewPaymentIntent): Promise<PaymentIntent>;
     markPaid(orderId: string, providerPaymentId: string): Promise<PaymentIntent | undefined>;
+    markFailed(orderId: string): Promise<PaymentIntent | undefined>;
 }
 
 export class PaymentIntentRepository implements IPaymentIntentRepository {
@@ -34,6 +35,18 @@ export class PaymentIntentRepository implements IPaymentIntentRepository {
             .set({
                 status: "paid",
                 providerPaymentId,
+                updatedAt: new Date(),
+            })
+            .where(eq(paymentIntents.orderId, orderId))
+            .returning();
+        return row;
+    }
+
+    async markFailed(orderId: string): Promise<PaymentIntent | undefined> {
+        const [row] = await db
+            .update(paymentIntents)
+            .set({
+                status: "failed",
                 updatedAt: new Date(),
             })
             .where(eq(paymentIntents.orderId, orderId))

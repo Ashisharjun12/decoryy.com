@@ -27,10 +27,16 @@ export const orderIdParamsDto = z.object({
     id: z.string().uuid(),
 });
 
+export const userOrderListBucketEnum = z.enum(["all", "upcoming", "completed", "cancelled"]);
+
 export const listOrdersQueryDto = z.object({
     page: z.coerce.number().int().positive().optional(),
     limit: z.coerce.number().int().positive().max(100).optional(),
+    bucket: userOrderListBucketEnum.optional(),
 });
+
+export type UserOrderListBucket = z.infer<typeof userOrderListBucketEnum>;
+export type ListOrdersQuery = z.infer<typeof listOrdersQueryDto>;
 
 export const adminOrderListQueryDto = z.object({
     page: z.coerce.number().int().positive().optional(),

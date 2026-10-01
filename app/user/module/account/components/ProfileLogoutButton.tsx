@@ -11,7 +11,7 @@ export function ProfileLogoutButton({ onPress }: ProfileLogoutButtonProps) {
   return (
     <Pressable
       onPress={onPress}
-      className="flex-row items-center justify-center gap-2 rounded-full border border-border bg-card py-3.5 active:bg-muted/40"
+      className="mt-2 flex-row items-center justify-center gap-2 py-4 active:opacity-70"
       accessibilityRole="button"
       accessibilityLabel="Sign out">
       <Icon as={LogOut} className="text-destructive size-5" />

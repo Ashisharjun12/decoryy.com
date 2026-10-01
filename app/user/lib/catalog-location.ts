@@ -1,5 +1,7 @@
 import { getApiError } from '@/api/client';
 import { getProduct, listProducts } from '@/api/products.api';
+import { API_URL } from '@/lib/env';
+import axios from 'axios';
 
 type ListProductsParams = {
   pincode?: string;
@@ -87,9 +89,35 @@ export async function listProductsForCatalogLocation(
   );
 }
 
-export function catalogLocationErrorMessage(err: unknown): string {
-  if (isPincodeNotServiceableError(err)) {
-    return 'This pincode is not serviceable yet. Showing setups for your delivery city instead, or update your delivery location.';
+function friendlyCatalogMessage(raw: string): string | null {
+  const msg = raw.toLowerCase();
+  if (msg.includes('pincode') && msg.includes('serviceable')) {
+    return 'This pincode is not serviceable yet. Try another city or pincode from the location bar.';
   }
-  return getApiError(err);
+  if (msg.includes('not priced')) {
+    return 'This setup is not offered in your selected city. Pick another city from the search bar on Home.';
+  }
+  if (msg.includes('product not found')) {
+    return 'This setup is not available here. It may be inactive or not priced for your city.';
+  }
+  if (msg.includes('pincode or cityid is required')) {
+    return 'Choose your delivery city first, then open this setup again.';
+  }
+  return null;
+}
+
+export function catalogLocationErrorMessage(err: unknown): string {
+  const raw = getApiError(err);
+  const friendly = friendlyCatalogMessage(raw);
+  if (friendly) return friendly;
+
+  if (axios.isAxiosError(err) && !err.response) {
+    if (__DEV__) {
+      return API_URL
+        ? `${raw}\n\nDev API: ${API_URL}`
+        : `${raw}\n\nSet EXPO_PUBLIC_API_URL in app/user/.env and restart Metro.`;
+    }
+  }
+
+  return raw;
 }

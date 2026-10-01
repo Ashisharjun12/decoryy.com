@@ -1,3 +1,4 @@
+import { logoutSession, refreshSession } from '@/api/auth-refresh.api';
 import { api, unwrap } from '@/api/client';
 import type { AuthSessionPayload, AuthUser } from '@/lib/auth.types';
 import type { PartnerLoginIntent } from '@/lib/login-intent';
@@ -41,15 +42,9 @@ export function me() {
 }
 
 export function refresh(refreshToken: string) {
-  return api
-    .post('/auth/refresh', {
-      refreshToken,
-      clientType: 'mobile',
-      device: Platform.OS === 'ios' ? 'ios' : 'android',
-    })
-    .then(unwrap<AuthSessionPayload>);
+  return refreshSession(refreshToken);
 }
 
 export function logout(refreshToken: string) {
-  return api.post('/auth/logout', { refreshToken }).then(unwrap<null>);
+  return logoutSession(refreshToken).then(() => null as null);
 }

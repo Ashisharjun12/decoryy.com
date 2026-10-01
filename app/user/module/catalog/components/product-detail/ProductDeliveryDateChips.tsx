@@ -6,7 +6,6 @@ import { addDays, format, startOfToday } from 'date-fns';
 import { CalendarDays } from 'lucide-react-native';
 import { useMemo } from 'react';
 import { View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 export type DeliveryDateMode = 'today' | 'tomorrow' | 'later';
 
@@ -27,28 +26,29 @@ export function ProductDeliveryDateChips({
   const tomorrow = useMemo(() => addDays(today, 1), [today]);
 
   return (
-    <View className="gap-3">
-      <Text className="text-foreground text-base font-semibold">Choose delivery date</Text>
-      <View className="flex-row gap-2">
+    <View className="gap-2">
+      <View className="flex-row items-center gap-2">
+        <View className="size-7 items-center justify-center rounded-lg bg-sky-50 dark:bg-sky-950/40">
+          <Icon as={CalendarDays} className="size-3.5 text-sky-600 dark:text-sky-400" />
+        </View>
+        <Text className="text-foreground text-xs font-semibold">Delivery date</Text>
+      </View>
+      <View className="flex-row gap-1.5">
         <DateChip
           label="Today"
-          sub={format(today, 'do MMM')}
+          sub={format(today, 'd MMM')}
           selected={mode === 'today'}
-          onPress={() => {
-            onSelectMode('today');
-          }}
+          onPress={() => onSelectMode('today')}
         />
         <DateChip
           label="Tomorrow"
-          sub={format(tomorrow, 'do MMM')}
+          sub={format(tomorrow, 'd MMM')}
           selected={mode === 'tomorrow'}
-          onPress={() => {
-            onSelectMode('tomorrow');
-          }}
+          onPress={() => onSelectMode('tomorrow')}
         />
         <DateChip
           label="Later"
-          sub={mode === 'later' ? format(selectedDate, 'do MMM') : 'Pick'}
+          sub={mode === 'later' ? format(selectedDate, 'd MMM') : 'Pick'}
           selected={mode === 'later'}
           icon
           onPress={onOpenLater}
@@ -71,26 +71,30 @@ function DateChip({
   onPress: () => void;
   icon?: boolean;
 }) {
-  const progress = useSharedValue(selected ? 1 : 0);
-
-  progress.value = withTiming(selected ? 1 : 0, { duration: 180 });
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    borderColor: progress.value > 0.5 ? '#FACC15' : 'hsl(48 15% 90%)',
-    backgroundColor: progress.value > 0.5 ? 'hsl(48 40% 95%)' : 'hsl(0 0% 100%)',
-  }));
-
   return (
-    <Animated.View style={[{ flex: 1, borderRadius: 16, borderWidth: 1 }, animatedStyle]}>
-      <ScalePressable
-        haptic
-        onPress={onPress}
-        className="items-center rounded-2xl px-2 py-3"
-        accessibilityRole="button">
-        {icon ? <Icon as={CalendarDays} className="text-muted-foreground mb-1 size-5" /> : null}
-        <Text className="text-foreground text-sm font-semibold">{label}</Text>
-        <Text className="text-muted-foreground text-xs">{sub}</Text>
-      </ScalePressable>
-    </Animated.View>
+    <ScalePressable
+      haptic
+      onPress={onPress}
+      className={cn(
+        'min-h-[52px] flex-1 items-center justify-center rounded-xl border px-1 py-2',
+        selected
+          ? 'border-primary/50 bg-primary/15'
+          : 'border-border bg-background active:bg-muted/30',
+      )}
+      accessibilityRole="button">
+      {icon ? (
+        <Icon
+          as={CalendarDays}
+          className={cn(
+            'mb-0.5 size-3.5',
+            selected ? 'text-primary' : 'text-sky-600 dark:text-sky-400',
+          )}
+        />
+      ) : null}
+      <Text className="text-foreground text-xs font-semibold">{label}</Text>
+      <Text className={cn('text-[10px]', selected ? 'text-foreground/70' : 'text-muted-foreground')}>
+        {sub}
+      </Text>
+    </ScalePressable>
   );
 }

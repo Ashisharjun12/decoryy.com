@@ -3,9 +3,27 @@ import { ApiError } from "@/shared/errors/apiError.js";
 import { asyncHandler } from "@/shared/middlewares/asyncHandler.js";
 import type { NotificationRepository } from "@/modules/notifications/notification.repository.js";
 import { parsePagination } from "@/shared/http/pagination.js";
+import type { IPushDeviceService } from "@/modules/notifications/devices/device.service.js";
 
 export class UserNotificationController {
-    constructor(private readonly notifications: NotificationRepository) {}
+    constructor(
+        private readonly devices: IPushDeviceService,
+        private readonly notifications: NotificationRepository,
+    ) {}
+
+    registerDevice = asyncHandler(async (req, res) => {
+        const userId = req.actor?.id;
+        if (!userId) throw ApiError.unauthorized();
+        await this.devices.register(userId, req.body);
+        res.status(200).json(new ApiResponse(200, { ok: true }, "device registered"));
+    });
+
+    unregisterDevice = asyncHandler(async (req, res) => {
+        const userId = req.actor?.id;
+        if (!userId) throw ApiError.unauthorized();
+        await this.devices.unregister(userId, req.body);
+        res.status(200).json(new ApiResponse(200, { ok: true }, "device unregistered"));
+    });
 
     listInbox = asyncHandler(async (req, res) => {
         const userId = req.actor?.id;

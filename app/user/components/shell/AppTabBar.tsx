@@ -1,6 +1,12 @@
 import { Text } from '@/components/ui/text';
+import {
+  BOTTOM_TAB_ROUTE_NAMES,
+  TAB_BAR_VISIBLE_ROUTE_NAMES,
+  TAB_ROOT_HREFS,
+} from '@/lib/tab-roots';
 import { cn } from '@/lib/utils';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { type Href, router } from 'expo-router';
 import { Home, LayoutGrid, ShoppingBag, User, Zap } from 'lucide-react-native';
 import { lightImpact } from '@/lib/light-haptic';
 import { BRAND_PRIMARY_HEX, INSTANT_TAB_HEX } from '@/lib/theme';
@@ -15,7 +21,7 @@ const INACTIVE_ICON = '#A3A3A3';
 const ACTIVE_LABEL = '#1A1A1A';
 const INACTIVE_LABEL = '#A3A3A3';
 
-const VISIBLE_TABS = new Set(['index', 'category', 'explore', 'instant', 'profile']);
+const VISIBLE_TABS = BOTTOM_TAB_ROUTE_NAMES;
 
 const TAB_LABELS: Record<string, string> = {
   index: 'Home',
@@ -88,7 +94,7 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
   const insets = useSafeAreaInsets();
   const focusedRoute = state.routes[state.index];
   const focusedHidden =
-    !VISIBLE_TABS.has(focusedRoute.name) ||
+    !TAB_BAR_VISIBLE_ROUTE_NAMES.has(focusedRoute.name) ||
     isTabBarHidden(descriptors, focusedRoute.key);
 
   if (focusedHidden) {
@@ -121,10 +127,17 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
               target: route.key,
               canPreventDefault: true,
             });
-            if (!focused && !event.defaultPrevented) {
-              lightImpact();
-              navigation.navigate(route.name);
+            if (event.defaultPrevented) return;
+
+            lightImpact();
+            if (focused) {
+              const root = TAB_ROOT_HREFS[route.name];
+              if (root) {
+                router.navigate(root as Href);
+              }
+              return;
             }
+            navigation.navigate(route.name);
           };
 
           return (

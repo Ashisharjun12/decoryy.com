@@ -18,11 +18,13 @@ Living brief for the customer mobile app (`app/user`). Update this file when eac
 
 | Field | Value |
 |-------|--------|
-| Name | Home feed web parity |
-| Status | done |
-| Home UI | Banner → CMS android `layoutBlocks` when configured; else catalog discovery (categories + section/product rails) like web; city sheet on search bar; no full-screen location gate |
-| APIs | CMS home (when `status=ready`), sections/catalog discovery fallback, cart CRUD + coupon, orders/payments, addresses, geo |
-| Location | Tab bootstrap: hydrate → `fetchCities` → default first city (`source: default`) → optional GPS upgrade; header / city sheet / select-location voluntary; no auto push to location on home |
+| Name | Order booking chat (vendor parity) |
+| Status | shipped — Socket.IO realtime, attachments, typing/read receipts, vendor-style keyboard + composer |
+| Home UI | Browse feed without city + compact “Please select city” banner; auto city sheet |
+| Bag / checkout | No My bag screen — bag icon / add-to-bag → `/(app)/checkout` (Confirm booking → Payment); offers + address sub-routes |
+| APIs | Cart, coupons, orders (create/cancel/resume, `GET /orders?bucket&page`, `GET /orders/:id`), `POST /payments/verify`; Cashfree UPI Intent Android |
+| Payment QA | Online fail → stay on Payment, banner, retry same order; user picks COD → confirmed only if `CONFIRMED`; success screen gates status; My orders → Complete payment + order detail |
+| Location | Tab bootstrap + `useCatalogLocationGate` on PDP/home catalog |
 | Parity | Normalization from web `home-catalog` / home CMS hero slides |
 | Bottom nav | Home → Category → **Explore** → Instant → Profile; Instant tab orange (`INSTANT_TAB_HEX`); other tabs yellow primary |
 
@@ -35,15 +37,20 @@ Living brief for the customer mobile app (`app/user`). Update this file when eac
 | `module/location/` | `SelectLocationScreen`, `AddAddressScreen`, `ConfirmAddressMapScreen` (web-style form → Ola map + pin) |
 | `module/geo/` | `OlaPinMapView`, `MapCenterPin`, `use-maps-sdk-config`, Ola auth (MapLibre) |
 | `module/geo/` | `PlacesAddressAutocomplete` (maps API) |
-| `module/booking/` | `CartScreen`, `CheckoutScreen`, cart/checkout components, `use-cart-query`, `place-order.ts`, `cart-types`, `proceed-to-checkout.ts`, `coupon-preview.ts` |
+| `module/booking/` | `checkout/*`, `CashfreePaymentGatewayHost`, `cashfree-payment-bridge.ts`, `online-checkout-native.ts`, `place-order.ts` |
 | `module/catalog/` | PLP + `ProductPdpScreen` (gallery chrome, breadcrumb, price, location, schedule/instant, coupon ticket rail, PDP details tabs, `ProductSimilarRail` + `ProductOtherCategoriesRail`, reviews API, WhatsApp + Book sticky CTA, customize sheet); hooks `use-product-detail-query`, `use-product-reviews-preview-query`, `use-similar-products-query`, `use-other-category-products-query`, `use-available-coupons` |
 | `module/promotions/` | `CouponTicketCard` (rail/stack), `CouponOffersRail`, `CouponDetailSheet`, `CouponOffersFilterSheet`, `OffersScreen`; PDP horizontal coupons + `app/(app)/offers` (stacked tickets, filter, load more) |
-| `module/account/` | Profile hub, `AddressFormSheet`, `use-addresses-query`, `AddressesScreen` (API) |
+| `module/account/` | Profile hub, orders list/detail; `order-detail/*` tracking map, contact, details sheet; `use-order-tracking-query`, `use-active-order-for-home` |
+| `module/chat/` | `BookingChatScreen`, `use-booking-chat-thread`, attachments, typing; `SocketProvider` + `chat.store` in root layout → `profile/orders/[id]/chat` |
+| `module/geo/` | `OlaTrackingMapView`, trip pins, `map-bounds` |
+| `module/notifications/` | Inbox list (`use-user-notifications`, `NotificationRow`), tap routing (`resolve-notification-target`), query invalidation on push |
 | `module/permissions/` | Post-login `enable-location` → `enable-notifications`; `use-permissions-setup-prompt` |
-| `lib/notifications.ts`, `lib/location.ts`, `lib/camera.ts` | OS permission helpers (vendor-aligned) |
+| `lib/notifications.ts`, `lib/push-registration.ts`, `lib/location.ts`, `lib/camera.ts`, `hooks/use-push-registration.ts`, `hooks/use-notification-listeners.ts` | Permissions, Expo push token sync, foreground handler + tap/receive listeners, location/camera helpers |
+| `api/notifications.api.ts` | `POST/DELETE /user/devices`, `GET/PATCH /user/notifications` |
 | `components/shell/SmoothScrollView.tsx` | Native smooth scroll defaults; web uses `lib/lenis-web` |
-| `api/` | `client.ts`, `auth.api.ts`, `addresses.api.ts`, `maps.api.ts`, `cms.api.ts`, `products.api.ts`, `reviews.api.ts`, `promotions.api.ts`, `geo.api.ts`, `cart.api.ts`, `orders.api.ts`, `payments.api.ts` |
-| `module/auth/` | `consumer-session`, `google-auth.service`, `link-google.service` |
+| `api/` | `client.ts` (401 → refresh + retry), `auth.api.ts`, `auth-refresh.api.ts`, `addresses.api.ts`, `notifications.api.ts`, … |
+| `module/auth/` | `consumer-session`, `AuthSessionBridge`, `NotificationListenersHost` (push register + listeners), `google-auth.service`, `link-google.service` |
+| `lib/auth-session-refresh.ts` | JWT exp check, single-flight `POST /auth/refresh` for mobile |
 | `module/onboarding/lib/otp-verify-errors.ts` | OTP_EXPIRED / INVALID / ATTEMPTS mapping |
 | `lib/env.ts` | `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` |
 | `lib/query-client.ts`, `lib/query-keys.ts` | Shared React Query client + home query keys |
@@ -52,6 +59,7 @@ Living brief for the customer mobile app (`app/user`). Update this file when eac
 | `store/location.store.ts` | Backend cities, pincode, hydrate + persist |
 | `store/delivery-location.store.ts` | Selected delivery address + header subtitle; applies to location store |
 | `store/cart.store.ts` | Cart item count from `GET /cart` when authenticated |
+| `store/checkout.store.ts` | Customer + delivery snapshot for confirm/pay |
 | `lib/mock/` | PDP products, legacy home mocks (unused on home path), addresses, support URLs |
 | `lib/support-actions.ts` | Open WhatsApp / tel fallback |
 | `components/shell/` | `Screen`, `ScreenBackButton`, `TabScreenTitle`, `AppTabBar`, `LoadingPlaceholder` |
@@ -73,19 +81,22 @@ Living brief for the customer mobile app (`app/user`). Update this file when eac
 - [x] `app/(app)/instant` — instant-only catalog (`GET /catalog/products?instant=1`), sort/price toolbar, infinite scroll + pull-to-refresh
 - [x] `app/(app)/explore` — web `/explore` parity: category rail + city-wide or filtered product grid (sort/price, load more)
 - [x] `whatsapp` (FAB action)
-- [x] `app/(app)/profile` tab — settings-style grouped cards, OS notification toggle, log out pill; stack routes account, orders, addresses, returns, notifications, settings, help
-- [x] Home header notifications bell → `profile/notifications`; bag → `app/(app)/cart`
+- [x] `app/(app)/profile` tab — settings-style grouped cards, OS notification toggle, notification inbox row, log out pill; stack routes account, orders, addresses, returns, notifications, settings, help
+- [x] `app/(app)/notifications` — inbox (hidden tab route); back → home or profile by `from`; bottom tabs stay visible; re-tap tab → tab root (`lib/tab-roots.ts`)
+- [x] `app/(app)/profile/orders` — All / Upcoming / Completed / Cancelled (horizontal pills), infinite scroll + load more, `OrderListCard` CTAs (payment, view, review)
+- [x] `app/(app)/profile/orders/[id]` — tracking layout (map ~58%, contact call/chat, timeline, details sheet) or classic hero for completed/payment
+- [x] `app/(app)/profile/orders/[id]/chat` — in-app decorator chat
+- [x] Home `HomeActiveOrderBar` — ASSIGNED / EN_ROUTE / ON_SITE above tab bar
+- [x] Home header notifications bell → `/(app)/notifications`; bag → checkout
 - [x] `app/(app)/account` (redirect → profile/account), `search`, `product/[id]` (hidden from tab bar)
 - [x] Product PDP — web mobile parity: `ProductPdpScreen`, reviews + coupons APIs, dual sticky CTA, add-to-bag → cart
 - [x] `app/(app)/offers` — stacked ticket cards, product filter sheet, client load more; ticket rail on PDP above What's included
-- [x] `app/(app)/cart` — bag list, promo, totals, proceed to checkout
-- [x] `app/(app)/checkout` — customer, delivery, payment, summary, place order (COD + Razorpay), success sheet
+- [x] `app/(app)/checkout` — Confirm booking + Payment (mock parity); `checkout/offers`; address handled by `/(app)/location`; no separate My bag route
 
 ### Planned (later)
 - [ ] Search pagination / full PLP from search
-- [ ] Bookings list + live map tracking
-- [ ] Notifications API + push
-- [ ] Access-token refresh interceptor (refresh token stored only)
+- [ ] Bookings live map tracking (list + detail shipped; web parity on buckets)
+- [x] Access-token refresh interceptor (401 retry + hydrate proactive refresh; silent redirect on hard failure)
 
 ## Design references
 
@@ -103,6 +114,31 @@ Living brief for the customer mobile app (`app/user`). Update this file when eac
 ## History (newest first)
 
 ```text
+2026-10-01 — Live tracking — GET /orders/:id/tracking, map-first detail, Home active-order bar, order chat API + screen
+2026-10-01 — Order tracking map — `GET /orders/:id/route` black polyline + vendor→home fallback; ImageKit delivery pin; bottom-left Open in Google Maps chip
+2026-10-01 — User trip map parity — trimRouteAhead + route refetch (75m/15s); stale GPS keeps last pin/line; location.png + blue live dot on tracking map
+2026-10-01 — Tab + inbox nav — notifications off profile stack; tab re-tap pops to root; back from inbox respects `from=home|profile`
+2026-10-01 — Customer assign alerts — `BOOKING_ASSIGNED` push/inbox on vendor accept + field worker/self-assign; payload includes `orderId` for deep link
+2026-10-01 — Push + inbox — `module/notifications`, `profile/notifications`, listeners host; order lifecycle push + in_app; completion code SMS/WhatsApp/email only (vendor sends, not inbox)
+2026-10-01 — My Orders UI — backend `bucket` on GET /orders; mobile horizontal filter tabs + paginated list + order detail route; web BookingsPage server-side buckets + load more
+2026-10-01 — Expo push — google-services.json + EAS projectId; token sync via POST /user/devices; FCM upload on expo.dev still manual
+2026-09-30 — Profile tab UI — borderless sections, larger header avatar, soft row press states, plain log out
+2026-09-30 — Cashfree Android UPI — official `react-native-cashfree-pg-sdk`; native only when `CashfreePgApi` linked (`expo run:android`); else WebView fallback; iOS WebView
+2026-09-30 — Booking confirmed screen — full-page success after pay/COD with ImageKit tick, Browse products + View order
+2026-09-30 — Home browse without city — CMS/rails load (browse city fallback); slim select-city banner replaces blocking prompt
+2026-09-30 — Home city sheet — auto-open when no city after bootstrap; picker rows use `HOME_CITY_MAP_ICON_URI` (search bar parity)
+2026-10-01 — Booking confirmed route — `/(app)/checkout/success/:orderId` (native path, not web domain); ImageKit tick + `confirmedOrderId` until user leaves screen
+2026-10-01 — Payment failure flow — `PENDING_PAYMENT` cancel/resume APIs; no auto-COD; mobile Payment banner + success gate; web checkout/confirmation parity; My orders list
+2026-10-01 — Profile account — `GET /user/me` sync, read-only account fields, gutter-aligned profile stack; removed dev reset + link phone/Google promo UI
+2026-09-30 — Auth silent refresh — 401 interceptor, proactive hydrate refresh, server logout on sign-out, AuthSessionBridge redirect
+2026-09-30 — Select location + add address — card UI, address list skeleton, city-scoped PIN resolve (web parity), shared AddressFormFields + pin validation hook
+2026-09-30 — Checkout minimal pass — product-only price on line card (add-ons sum to item total), green item total, solid sticky bar, price-free Proceed CTA, address → select-location
+2026-09-30 — Confirm + Payment UI — mock parity confirm/pay screens; bag/add-to-bag → checkout; addon skip = package-only display; Cashfree WebView + Razorpay
+2026-09-30 — Bag/checkout UI removed — deleted cart + checkout routes and screen components for redesign; cart API + header badge unchanged
+2026-09-29 — Two-stage checkout — bag slim; confirm → offers/address → pay stack; checkout store; Cashfree WebView + Razorpay native; retired monolithic CheckoutScreen
+2026-09-29 — Bag + checkout redesign — shared order line/addon UI (web parity); payment methods RQ + retry banner; full-row pay online/COD; primary proceed/pay bars
+2026-09-29 — PDP catalog gate — `useCatalogLocationGate` (chosen city, same as home/Instant); friendly `catalogLocationErrorMessage` + Try again; location prompt copy
+2026-09-29 — Location web parity — tab bootstrap hydrate + cities only (no default city / auto GPS); home CMS/discovery when `isLocationChosen`; `HomeLocationPrompt`; GPS pincode only if deliverable (`detect-gps-location`, `isPincodeDeliverable`)
 2026-09-28 — PDP other-categories rail — “Explore other categories” horizontal rail (city catalog minus current category); app `useOtherCategoryProductsQuery` + web `ProductOtherCategoriesRail`
 2026-09-28 — PDP similar rail — “You may also like” header + amber ‹ ›; ~38% width cards (`HomeProductCard` compact); web `ProductRelatedRail` + `PRODUCT_RAIL_PDP_SIMILAR_ITEM_CLASS`
 2026-09-28 — Cart + checkout — `/(app)/cart`, checkout screen, promo/qty, COD + Razorpay place-order, success sheet
@@ -139,6 +175,10 @@ Living brief for the customer mobile app (`app/user`). Update this file when eac
 2026-09-25 — Home polish — product stack route fix; tab/card press scale + light haptics; expo-keep-awake + WAKE_LOCK for dev keep-awake errors
 2026-09-25 — Home UI + API feed — TopBar/search layout; CMS mobile hero + sections/products; geo location; cart badge; React Query — api/cms+geo+cart, module/home/hooks, store/location+cart
 2026-09-25 — Dev Metro — fixed ports (user 8081, vendor 8080), `scripts/expo-dev.js`, metro blockList for native build dirs
+2026-10-01 — Booking chat realtime — user app Socket.IO (`SocketProvider`, focus/blur, poll fallback offline), vendor-parity UI (keyboard lift, + attachments, typing, read ticks), `chat.api` presign/upload — `module/chat/*`, `providers/socket-provider.tsx`
+2026-10-01 — Dev Metro — blockList excludes full `android/` + `ios/` (fixes Windows watch timeout on `android/app/build` after native builds)
+2026-10-01 — Dev Expo CLI — `scripts/expo-dev.js` sets default `EXPO_NO_CACHE=1` (dual-app start / shared `~/.expo` API cache "Body already read" crash)
+2026-10-01 — Order chat route — `profile/orders/[id].tsx` + `[id]/chat` (vendor-style); fix chat icon navigation (`user:///` unmatched)
 2026-09-25 — Unified consumer identity — consumer-session (vendor/staff OK); backend eligibility, self-dealing, shop-block staff; web parity
 2026-09-25 — OTP hardening + account linking — verify debounce, otp-verify-errors, resend cooldown; `user.api` + Account link phone/Google
 2026-09-25 — Phone OTP (API) — `auth.api` request/verify, `otp.service`, customer-session guard, Android SMS autofill; mock OTP removed

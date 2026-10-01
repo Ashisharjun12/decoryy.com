@@ -127,7 +127,14 @@ export function ProductCustomizeSheet({
           <Button
             className="flex-1 rounded-full bg-primary"
             disabled={submitting}
-            onPress={() => onProceed(buildSelections())}>
+            onPress={() => {
+              const selections = buildSelections();
+              if (selections.length === 0) {
+                onSkip();
+                return;
+              }
+              onProceed(selections);
+            }}>
             <Text className="text-primary-foreground font-bold">
               {submitting ? 'Adding…' : 'Add to bag'}
             </Text>

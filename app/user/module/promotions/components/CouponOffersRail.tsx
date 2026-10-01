@@ -9,9 +9,14 @@ export const PDP_COUPON_PREVIEW_LIMIT = 8;
 type CouponOffersRailProps = {
   coupons: CouponLike[];
   limit?: number;
+  cardVariant?: 'ticket' | 'minimal';
 };
 
-export function CouponOffersRail({ coupons, limit = PDP_COUPON_PREVIEW_LIMIT }: CouponOffersRailProps) {
+export function CouponOffersRail({
+  coupons,
+  limit = PDP_COUPON_PREVIEW_LIMIT,
+  cardVariant = 'ticket',
+}: CouponOffersRailProps) {
   const visible = coupons.slice(0, limit);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selected, setSelected] = useState<CouponLike | null>(null);
@@ -34,6 +39,7 @@ export function CouponOffersRail({ coupons, limit = PDP_COUPON_PREVIEW_LIMIT }: 
             key={String(coupon.code)}
             coupon={coupon}
             index={index}
+            variant={cardVariant}
             onPress={() => openCoupon(coupon)}
           />
         ))}

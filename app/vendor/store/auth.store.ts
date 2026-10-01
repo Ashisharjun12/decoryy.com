@@ -1,6 +1,10 @@
 import { me, refresh } from '@/api/auth.api';
+import {
+  isAccessTokenExpired,
+  refreshAccessTokenOnce,
+  SessionRefreshError,
+} from '@/lib/auth-session-refresh';
 import { isPlatformAccessPausedError } from '@/module/auth/lib/account-blocked';
-import { registerAccessTokenGetter, registerPartnerModeGetter } from '@/api/client';
 import type { PartnerLoginIntent } from '@/lib/login-intent';
 import { usePartnerModeStore } from '@/store/partner-mode.store';
 import { clearPushRegistration } from '@/lib/push-registration';
@@ -8,6 +12,7 @@ import type { AuthSessionPayload, AuthUser, VendorProfile } from '@/lib/auth.typ
 import {
   clearHasSeenWelcome,
   clearTokens,
+  loadAccessToken,
   loadHasSeenWelcome,
   loadRefreshToken,
   saveHasSeenWelcome,
@@ -100,29 +105,69 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   platformAccessPaused: false,
 
   hydrate: async () => {
-    const [hasSeenWelcome, refreshToken] = await Promise.all([
+    const [hasSeenWelcome, accessToken, refreshToken] = await Promise.all([
       loadHasSeenWelcome(),
+      loadAccessToken(),
       loadRefreshToken(),
     ]);
 
     if (!refreshToken) {
-      set({ hydrated: true, hasSeenWelcome });
+      set({ hydrated: true, hasSeenWelcome, accessToken: null, refreshToken: null, user: null });
       return;
     }
 
+    if (accessToken && !isAccessTokenExpired(accessToken)) {
+      set({ accessToken, refreshToken });
+      try {
+        const user = await me();
+        await usePartnerModeStore.getState().resetForUser(user);
+        set({
+          hydrated: true,
+          hasSeenWelcome,
+          accessToken,
+          refreshToken,
+          user,
+          platformAccessPaused: user.vendor?.onboardingStatus === 'BLOCKED',
+        });
+        return;
+      } catch (err) {
+        if (isPlatformAccessPausedError(err)) {
+          set({
+            hydrated: true,
+            hasSeenWelcome,
+            accessToken,
+            refreshToken,
+            user: null,
+            platformAccessPaused: true,
+          });
+          return;
+        }
+      }
+    }
+
     try {
-      const payload = await refresh(refreshToken);
-      await saveTokens(payload.accessToken, payload.refreshToken);
-      await usePartnerModeStore.getState().resetForUser(payload.user);
+      await refreshAccessTokenOnce();
+      const { accessToken: nextAccess, refreshToken: nextRefresh, user } = get();
       set({
         hydrated: true,
         hasSeenWelcome,
-        accessToken: payload.accessToken,
-        refreshToken: payload.refreshToken ?? refreshToken,
-        user: payload.user,
-        platformAccessPaused: payload.user.vendor?.onboardingStatus === 'BLOCKED',
+        accessToken: nextAccess,
+        refreshToken: nextRefresh ?? refreshToken,
+        user,
+        platformAccessPaused: user?.vendor?.onboardingStatus === 'BLOCKED',
       });
     } catch (err) {
+      if (err instanceof SessionRefreshError && !err.hardLogout) {
+        set({
+          hydrated: true,
+          hasSeenWelcome,
+          accessToken,
+          refreshToken,
+          user: get().user,
+          platformAccessPaused: true,
+        });
+        return;
+      }
       await clearTokens();
       set({
         hydrated: true,
@@ -364,6 +409,3 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
   },
 }));
-
-registerAccessTokenGetter(() => useAuthStore.getState().accessToken);
-registerPartnerModeGetter(() => usePartnerModeStore.getState().mode);

@@ -1,6 +1,8 @@
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { ScalePressable, ScreenBackButton } from '@/components/shell';
+import { openCartCheckout } from '@/module/booking/lib/open-cart-checkout';
+import { useAuthStore } from '@/store/auth.store';
 import { useCartStore } from '@/store/cart.store';
 import { Href, router } from 'expo-router';
 import { Search, ShoppingBag } from 'lucide-react-native';
@@ -14,6 +16,7 @@ type ProductDetailHeaderProps = {
 
 export function ProductDetailHeader({ onBack, variant = 'overlay' }: ProductDetailHeaderProps) {
   const insets = useSafeAreaInsets();
+  const user = useAuthStore((s) => s.user);
   const itemCount = useCartStore((s) => s.itemCount);
   const overlay = variant === 'overlay';
 
@@ -44,8 +47,8 @@ export function ProductDetailHeader({ onBack, variant = 'overlay' }: ProductDeta
           <Icon as={Search} className={overlay ? 'size-5 text-white' : 'text-foreground size-5'} />
         </ScalePressable>
         <ScalePressable
-          onPress={() => router.push('/(app)/cart' as Href)}
           haptic
+          onPress={() => openCartCheckout(user, itemCount)}
           className={
             overlay
               ? 'size-10 items-center justify-center rounded-full bg-black/35'

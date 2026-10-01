@@ -9,6 +9,7 @@ type AuthMethodButtonProps = PressableProps & {
   icon?: ReactNode;
   loading?: boolean;
   loadingLabel?: string;
+  tone?: 'default' | 'primary';
 };
 
 export function AuthMethodButton({
@@ -17,14 +18,24 @@ export function AuthMethodButton({
   loading,
   loadingLabel = 'Loading…',
   disabled,
+  tone = 'default',
   className,
   ...props
 }: AuthMethodButtonProps) {
+  const isPrimary = tone === 'primary';
+  const labelClass = cn(
+    'text-[15px] font-semibold',
+    isPrimary ? 'text-primary-foreground' : 'text-foreground',
+  );
+
   return (
     <Pressable
       disabled={disabled || loading}
       className={cn(
-        'h-12 w-full flex-row items-center justify-center gap-2.5 rounded-2xl border border-border bg-background active:bg-muted/50',
+        'h-12 w-full flex-row items-center justify-center gap-2.5 rounded-full',
+        isPrimary
+          ? 'border-0 bg-primary active:bg-primary/90'
+          : 'border border-border bg-background active:bg-muted/50',
         disabled && !loading && 'opacity-60',
         className,
       )}
@@ -34,12 +45,12 @@ export function AuthMethodButton({
       {loading ? (
         <View className="w-full flex-row items-center justify-center gap-2.5">
           <AppSpinner size="sm" />
-          <Text className="text-foreground text-[15px] font-semibold">{loadingLabel}</Text>
+          <Text className={labelClass}>{loadingLabel}</Text>
         </View>
       ) : (
         <View className="flex-row items-center justify-center gap-2.5">
           {icon}
-          <Text className="text-foreground text-[15px] font-semibold">{label}</Text>
+          <Text className={labelClass}>{label}</Text>
         </View>
       )}
     </Pressable>

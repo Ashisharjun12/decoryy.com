@@ -1,4 +1,4 @@
-import { getApiError } from '@/api/client';
+import { registerGeoErrorMessage } from '@/lib/register-geo-error';
 import { OnboardingButton } from '@/module/onboarding/components/OnboardingButton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -136,7 +136,7 @@ export default function RegisterLocationScreen() {
         completeReapply(result.user);
         router.replace('/(gate)/pending' as Href);
       } catch (err) {
-        setSubmitError(getApiError(err));
+        setSubmitError(registerGeoErrorMessage(err));
       }
       return;
     }
@@ -169,7 +169,7 @@ export default function RegisterLocationScreen() {
       });
       router.push('/(onboarding)/verify-otp' as Href);
     } catch (err) {
-      setSubmitError(getApiError(err));
+      setSubmitError(registerGeoErrorMessage(err));
     }
   }
 

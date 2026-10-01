@@ -5,6 +5,12 @@ import { installOlaMapBootstrap } from '@/lib/ola-map-bootstrap';
 installOlaMapBootstrap();
 
 import { registerAccessTokenGetter } from '@/api/client';
+import { AuthSessionBridge } from '@/module/auth/components/AuthSessionBridge';
+import { ChatSocketBridge } from '@/module/auth/components/ChatSocketBridge';
+import { NotificationListenersHost } from '@/module/auth/components/NotificationListenersHost';
+import { SocketProvider } from '@/providers/socket-provider';
+import { CashfreeCheckoutHost } from '@/module/booking/components/checkout/CashfreeCheckoutHost';
+import { CashfreePaymentGatewayHost } from '@/module/booking/components/checkout/CashfreePaymentGatewayHost';
 import { LoadingPlaceholder } from '@/components/shell';
 import { GOOGLE_WEB_CLIENT_ID } from '@/lib/env';
 import { queryClient } from '@/lib/query-client';
@@ -43,11 +49,18 @@ export default function RootLayout() {
 
   const appTree = (
     <QueryClientProvider client={queryClient}>
+      <SocketProvider>
       <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
+        <AuthSessionBridge />
+        <ChatSocketBridge />
+        <NotificationListenersHost />
+        <CashfreePaymentGatewayHost />
+        <CashfreeCheckoutHost />
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
         <Stack screenOptions={{ headerShown: false }} />
         <PortalHost />
       </ThemeProvider>
+      </SocketProvider>
     </QueryClientProvider>
   );
 

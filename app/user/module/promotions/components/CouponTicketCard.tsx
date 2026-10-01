@@ -22,6 +22,7 @@ type CouponTicketCardProps = {
   index: number;
   onPress: () => void;
   layout?: 'rail' | 'stack';
+  variant?: 'ticket' | 'minimal';
 };
 
 export function CouponTicketCard({
@@ -29,18 +30,56 @@ export function CouponTicketCard({
   index,
   onPress,
   layout = 'rail',
+  variant = 'ticket',
 }: CouponTicketCardProps) {
   const code = resolveCouponCode(coupon);
   const preview = buildCouponPreviewFromApplied({ ...coupon, code: code || coupon.code });
   if (!code || !preview) return null;
 
-  const tone = TICKET_TONES[index % TICKET_TONES.length];
   const title = String(coupon.name ?? coupon.title ?? preview.label).trim();
   const subtitle =
     preview.subtitle ||
     (preview.badge ? preview.badge.toLowerCase() : 'Special offer');
 
   const isStack = layout === 'stack';
+
+  if (variant === 'minimal') {
+    return (
+      <ScalePressable
+        haptic
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`Coupon ${preview.code}`}
+        className={cn(layout === 'stack' ? 'w-full self-stretch' : 'mr-3 w-[168px]')}>
+        <View
+          className={cn(
+            'rounded-2xl border border-border bg-card',
+            isStack ? 'px-4 py-3.5' : 'px-3.5 py-3',
+          )}>
+          <View className="flex-row items-start gap-2.5">
+            <View className="size-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 dark:bg-sky-950/40">
+              <Icon as={TicketPercent} className="size-4 text-sky-600 dark:text-sky-400" />
+            </View>
+            <View className="min-w-0 flex-1">
+              <Text className="text-foreground text-sm font-semibold leading-snug" numberOfLines={2}>
+                {preview.discount}
+              </Text>
+              {title ? (
+                <Text className="text-muted-foreground mt-1 text-xs leading-snug" numberOfLines={2}>
+                  {title}
+                </Text>
+              ) : null}
+              <Text className="text-foreground mt-2 text-xs font-semibold tracking-wide" numberOfLines={1}>
+                {code}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </ScalePressable>
+    );
+  }
+
+  const tone = TICKET_TONES[index % TICKET_TONES.length];
 
   return (
     <ScalePressable

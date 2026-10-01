@@ -21,4 +21,7 @@ export const vendorNotificationController = new VendorNotificationController(
     pushDeviceService,
     notificationRepository,
 );
-export const userNotificationController = new UserNotificationController(notificationRepository);
+export const userNotificationController = new UserNotificationController(
+    pushDeviceService,
+    notificationRepository,
+);

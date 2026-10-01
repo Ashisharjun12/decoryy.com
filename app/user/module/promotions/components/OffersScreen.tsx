@@ -16,7 +16,9 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { ListFilter } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { CouponTicketListSkeleton } from '@/module/promotions/components/CouponTicketListSkeleton';
+import { Skeleton } from '@/components/ui/skeleton';
+import { View } from 'react-native';
 
 const PAGE_SIZE = 12;
 
@@ -73,10 +75,14 @@ export function OffersScreen() {
       />
 
       <View className="mt-3 flex-row items-center justify-between gap-3">
-        <Text className="text-muted-foreground text-sm">
-          {coupons.length > 0 ? `${filteredCoupons.length} offers` : ''}
-        </Text>
-        {showProductFilters ? (
+        {isPending ? (
+          <Skeleton className="h-4 w-24 rounded-md" />
+        ) : (
+          <Text className="text-muted-foreground text-sm">
+            {coupons.length > 0 ? `${filteredCoupons.length} offers` : ''}
+          </Text>
+        )}
+        {showProductFilters && !isPending ? (
           <ScalePressable
             haptic
             onPress={() => setFilterOpen(true)}
@@ -88,11 +94,15 @@ export function OffersScreen() {
               {couponOffersFilterLabel(filter)}
             </Text>
           </ScalePressable>
+        ) : showProductFilters && isPending ? (
+          <Skeleton className="h-8 w-28 rounded-full" />
         ) : null}
       </View>
 
       {isPending ? (
-        <ActivityIndicator className="mt-10" />
+        <View className="mt-6">
+          <CouponTicketListSkeleton count={4} variant="ticket" />
+        </View>
       ) : coupons.length === 0 ? (
         <View className="mt-10 rounded-3xl border border-dashed border-border px-6 py-14">
           <Text className="text-foreground text-center text-lg font-semibold">No offers right now</Text>
