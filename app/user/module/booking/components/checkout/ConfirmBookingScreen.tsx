@@ -11,7 +11,7 @@ import { ConfirmOfferRow } from '@/module/booking/components/checkout/ConfirmOff
 import { ConfirmBookingSkeleton } from '@/module/booking/components/checkout/ConfirmBookingSkeleton';
 import { ConfirmProductCard } from '@/module/booking/components/checkout/ConfirmProductCard';
 import { DeliveryAddressCard } from '@/module/booking/components/checkout/DeliveryAddressCard';
-import { useCartData, useCartQuery } from '@/module/booking/hooks/use-cart-query';
+import { useCartData, useCartMutations, useCartQuery } from '@/module/booking/hooks/use-cart-query';
 import { useCartStore } from '@/store/cart.store';
 import {
   customerFormValid,
@@ -31,7 +31,9 @@ export function ConfirmBookingScreen() {
   const onBack = useGoBack({ orHome: true });
   const insets = useSafeAreaInsets();
   const { cart, isLoading, isFetching } = useCartData();
+  const { remove: removeCartLine } = useCartMutations();
   useCartQuery(Boolean(user));
+  const [removingLineId, setRemovingLineId] = useState<string | null>(null);
 
   const customer = useCheckoutStore((s) => s.customer);
   const delivery = useCheckoutStore((s) => s.delivery);
@@ -132,6 +134,14 @@ export function ConfirmBookingScreen() {
                 params: { id: item.productId },
               } as Href)
             }
+            onRemove={() => {
+              setRemovingLineId(item.id);
+              void removeCartLine
+                .mutateAsync(item.id)
+                .catch(() => undefined)
+                .finally(() => setRemovingLineId(null));
+            }}
+            removing={removingLineId === item.id}
           />
         ))}
         <ConfirmOfferRow

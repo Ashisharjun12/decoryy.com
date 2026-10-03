@@ -119,6 +119,7 @@ Living brief for the customer mobile app (`app/user`). Update this file when eac
 ## History (newest first)
 
 ```text
+2026-10-03 — Checkout cart lines — Remove on Confirm booking (`DELETE /cart/items/:id`, web cart parity)
 2026-10-03 — Home CMS banners — restore `getHomeCms` in `api/cms.api.ts` (`platform=android`) so admin Android hero banners load on home carousel
 2026-10-03 — Mock/placeholder cleanup — removed `lib/mock/`; support via site-shell brand; dropped Settings screen; PDP empty tabs show no-data copy
 2026-10-03 — Online payment abandon — cancel `PENDING_PAYMENT` on gateway exit/fail; simple “Order not placed” alert; no retry banner; `abandon-incomplete-online-payment.ts`

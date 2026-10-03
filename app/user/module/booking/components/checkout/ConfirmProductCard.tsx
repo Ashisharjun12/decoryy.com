@@ -33,6 +33,8 @@ type ConfirmProductCardProps = {
   cityId?: string | null;
   pincode?: string | null;
   onEdit?: () => void;
+  onRemove?: () => void;
+  removing?: boolean;
 };
 
 function useCheckoutLineProduct(
@@ -98,6 +100,8 @@ export function ConfirmProductCard({
   cityId,
   pincode,
   onEdit,
+  onRemove,
+  removing = false,
 }: ConfirmProductCardProps) {
   const slotLabel = formatCartSlotLabel(scheduledAt);
   const addons = (item.addons ?? []).filter((a) => (a.quantity ?? 0) > 0);
@@ -153,7 +157,7 @@ export function ConfirmProductCard({
           </View>
         ) : null}
 
-        {slotLabel || onEdit ? (
+        {slotLabel || onEdit || onRemove ? (
           <View className="flex-row items-center justify-between gap-3">
             {slotLabel ? (
               <View className="flex-row items-center gap-2 rounded-lg bg-sky-50 px-2.5 py-1.5 dark:bg-sky-950/40">
@@ -163,18 +167,40 @@ export function ConfirmProductCard({
             ) : (
               <View className="flex-1" />
             )}
-            {onEdit ? (
-              <ScalePressable
-                haptic
-                onPress={onEdit}
-                accessibilityRole="button"
-                accessibilityLabel="Edit package or time slot"
-                hitSlop={8}
-                className="flex-row items-center gap-1.5 py-1.5">
-                <Icon as={Pencil} className="text-foreground size-3.5" />
-                <Text className="text-foreground text-sm font-semibold">Edit</Text>
-              </ScalePressable>
-            ) : null}
+            <View className="flex-row items-center gap-4">
+              {onRemove ? (
+                <ScalePressable
+                  haptic
+                  onPress={onRemove}
+                  disabled={removing}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remove from cart"
+                  hitSlop={8}
+                  className="py-1.5">
+                  <Text
+                    className={
+                      removing
+                        ? 'text-muted-foreground text-sm font-semibold'
+                        : 'text-destructive text-sm font-semibold'
+                    }>
+                    {removing ? 'Removing…' : 'Remove'}
+                  </Text>
+                </ScalePressable>
+              ) : null}
+              {onEdit ? (
+                <ScalePressable
+                  haptic
+                  onPress={onEdit}
+                  disabled={removing}
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit package or time slot"
+                  hitSlop={8}
+                  className="flex-row items-center gap-1.5 py-1.5">
+                  <Icon as={Pencil} className="text-foreground size-3.5" />
+                  <Text className="text-foreground text-sm font-semibold">Edit</Text>
+                </ScalePressable>
+              ) : null}
+            </View>
           </View>
         ) : null}
       </View>
