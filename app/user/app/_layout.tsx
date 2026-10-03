@@ -25,6 +25,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'nativewind';
 import { configureForegroundNotifications } from '@/lib/notifications';
 import { LenisProvider } from '@/lib/lenis-web';
+import { ThemeBootstrap } from '@/module/settings/components/ThemeBootstrap';
 import { useEffect } from 'react';
 import { Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -51,6 +52,7 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <SocketProvider>
       <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
+        <ThemeBootstrap />
         <AuthSessionBridge />
         <ChatSocketBridge />
         <NotificationListenersHost />

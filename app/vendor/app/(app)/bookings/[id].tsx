@@ -31,7 +31,6 @@ import {
   hasCollectionQrDisplay,
   isCollectionSessionExpired,
 } from '@/module/bookings/lib/booking-format';
-import { logCollectFlow } from '@/module/bookings/lib/collect-flow-debug';
 import {
   useCollectCash,
   useCollectOnline,
@@ -298,25 +297,17 @@ export default function BookingDetailScreen() {
   const advanceAfterOnlinePayment = useCallback(() => {
     if (autoSendCodeRef.current || sendCodeMutation.isPending) return;
     autoSendCodeRef.current = true;
-    logCollectFlow('advance', { orderId, action: 'send_delivery_code_start' });
     void sendCodeMutation
       .mutateAsync()
       .then(() => {
-        logCollectFlow('advance', { orderId, action: 'send_delivery_code_success' });
         triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
         InteractionManager.runAfterInteractions(() => {
           bookingScrollRef.current?.scrollTo({ y: 0, animated: true });
-          logCollectFlow('open_complete_sheet', { orderId });
           setCompleteOpen(true);
         });
       })
       .catch((err: unknown) => {
         autoSendCodeRef.current = false;
-        logCollectFlow('advance', {
-          orderId,
-          action: 'send_delivery_code_fail',
-          message: getApiError(err),
-        });
         Alert.alert('Payment received', getApiError(err));
       });
   }, [orderId, sendCodeMutation]);
@@ -330,22 +321,6 @@ export default function BookingDetailScreen() {
       }
     },
   });
-
-  useEffect(() => {
-    if (!booking) return;
-    logCollectFlow('job_detail', {
-      orderId,
-      status: booking.status,
-      collectionStatus: booking.collectionStatus,
-      deliveryCodeSent: booking.deliveryCodeSent,
-    });
-  }, [
-    orderId,
-    booking?.status,
-    booking?.collectionStatus,
-    booking?.deliveryCodeSent,
-    booking,
-  ]);
 
   useEffect(() => {
     if (!booking) return;

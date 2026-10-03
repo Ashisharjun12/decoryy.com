@@ -18,8 +18,8 @@ Living brief for the customer mobile app (`app/user`). Update this file when eac
 
 | Field | Value |
 |-------|--------|
-| Name | Profile hub — web account parity (mobile UI) |
-| Status | shipped — Personal info (link phone/Google), refunds API screen, help/support chat; placeholder Settings removed |
+| Name | Profile preferences — appearance (light default) |
+| Status | shipped — Profile → Appearance (light/dark, SecureStore); `ThemeBootstrap` ignores system dark until user picks dark |
 | Home UI | Browse feed without city + compact “Please select city” banner; auto city sheet; CMS/discovery rails match web View all + badge colors |
 | Bag / checkout | No My bag screen — bag icon / add-to-bag → `/(app)/checkout` (Confirm booking → Payment); offers + address sub-routes |
 | APIs | Cart, coupons, orders (create/cancel/resume, `GET /orders?bucket&page`, `GET /orders/:id`), `POST /payments/verify`; Cashfree UPI Intent Android |
@@ -43,6 +43,7 @@ Living brief for the customer mobile app (`app/user`). Update this file when eac
 | `module/catalog/` | PLP + `ProductPdpScreen` (gallery Share + Home, `ProductShareSheet`, web `/p/{id}` share URL, breadcrumb, price, location, schedule/instant, coupon ticket rail, `ProductPdpAddonsSection`, About accordion, details tabs, rails, reviews, `ProductPdpMobileBookingBar`); hooks `use-product-detail-query`, `use-product-reviews-preview-query`, `use-similar-products-query`, `use-other-category-products-query`, `use-available-coupons` |
 | `module/promotions/` | `CouponTicketCard` (rail/stack), `CouponOffersRail`, `CouponDetailSheet`, `CouponOffersFilterSheet`, `OffersScreen`; PDP horizontal coupons + `app/(app)/offers` (stacked tickets, filter, load more) |
 | `module/account/` | `ProfileTabScreen`, `AccountScreen` (Personal info), `RefundsScreen`, `HelpScreen`, link phone/Google sheets; orders list/detail; `order-detail/*`; `account-nav`, `profile-menu` |
+| `module/settings/` | `ThemeBootstrap`, `AppThemeOptions`, `use-app-theme`; light/dark preference (default light, not system) |
 | `module/chat/` | `BookingChatScreen`, `SupportTopicChatScreen`, `use-booking-chat-thread`, `use-support-topic-chat-thread`, `help-topics`; order + support chat routes |
 | `module/geo/` | `OlaTrackingMapView`, trip pins, `map-bounds` |
 | `module/notifications/` | Inbox list (`use-user-notifications`, `NotificationRow`), tap routing (`resolve-notification-target`), query invalidation on push |
@@ -83,6 +84,7 @@ Living brief for the customer mobile app (`app/user`). Update this file when eac
 - [x] `app/(app)/explore` — web `/explore` parity: category rail + city-wide or filtered product grid (sort/price, load more)
 - [x] `whatsapp` (FAB action)
 - [x] `app/(app)/profile` tab — web `AccountNav` labels; push toggle + Notifications row; Personal info / orders / addresses / refunds / help stack
+- [x] `app/(app)/profile/appearance` — Light / Dark theme (vendor parity); default light on boot
 - [x] `app/(app)/profile/account` — Personal info, avatar initials, link phone (sheet) + link Google (sheet)
 - [x] `app/(app)/profile/returns` — refunds list + summary (`GET /user/refunds`)
 - [x] `app/(app)/profile/settings` — redirect to profile (placeholder Settings removed)
@@ -119,6 +121,9 @@ Living brief for the customer mobile app (`app/user`). Update this file when eac
 ## History (newest first)
 
 ```text
+2026-10-03 — Checkout address picker — Confirm booking Change opens bottom sheet to select saved address (`CheckoutAddressPickerSheet`)
+2026-10-03 — Personal info UI — name + avatar header, contact card (email/phone); removed intro copy, upload stub, sign-in row
+2026-10-03 — Profile appearance — Preferences → Appearance screen; `ThemeBootstrap` + SecureStore; default light (not system)
 2026-10-03 — Checkout cart lines — Remove on Confirm booking (`DELETE /cart/items/:id`, web cart parity)
 2026-10-03 — Home CMS banners — restore `getHomeCms` in `api/cms.api.ts` (`platform=android`) so admin Android hero banners load on home carousel
 2026-10-03 — Mock/placeholder cleanup — removed `lib/mock/`; support via site-shell brand; dropped Settings screen; PDP empty tabs show no-data copy

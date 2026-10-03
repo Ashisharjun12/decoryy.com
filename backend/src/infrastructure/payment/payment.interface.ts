@@ -35,6 +35,8 @@ export type CreateCollectQrInput = {
         phone: string;
         email?: string;
     };
+    /** Session / Cashfree transaction expiry (minutes). */
+    sessionTtlMinutes?: number;
 };
 
 export type CreateCollectQrResult = {
@@ -70,6 +72,11 @@ export type VerifyClientPaymentResult = {
     providerRef: string;
 };
 
+export type SyncCollectPaymentResult = {
+    paid: boolean;
+    providerPaymentId?: string;
+};
+
 /**
  * Stable payment API. Razorpay today, Cashfree later — do not delete these methods.
  * COD is NOT a provider; it is an order payment_method + ledger lines.
@@ -80,5 +87,14 @@ export interface IPaymentProvider {
     createCollectQr(input: CreateCollectQrInput): Promise<CreateCollectQrResult>;
     verifyClientPayment(input: VerifyClientPaymentInput): Promise<VerifyClientPaymentResult>;
     verifyWebhook(headers: Record<string, string | string[] | undefined>, rawBody: Buffer | string): Promise<WebhookEvent>;
+    /** Poll Cashfree/Razorpay for COD collect session payment (webhook complement). */
+    syncCollectPayment(
+        providerRef: string,
+        expectedAmountPaise: number,
+    ): Promise<SyncCollectPaymentResult>;
+    /** Resolve COD collect session ref from ambiguous Cashfree webhook payloads (e.g. CFPay_* order ids). */
+    resolveCollectionWebhook?(
+        raw: unknown,
+    ): Promise<{ providerRef: string; providerPaymentId: string } | null>;
     refund(input: RefundInput): Promise<void>;
 }

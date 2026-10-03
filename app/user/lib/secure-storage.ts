@@ -10,6 +10,7 @@ const HAS_SEEN_WELCOME_KEY = 'deccorbuddys_user_has_seen_welcome';
 const NOTIFICATION_PROMPT_KEY = 'deccorbuddys_user_notification_prompt_done';
 const LOCATION_PROMPT_KEY = 'deccorbuddys_user_location_prompt_done';
 const PERMISSIONS_SETUP_KEY = 'deccorbuddys_user_permissions_setup_done';
+const APP_THEME_KEY = 'decoryy_user_app_theme';
 
 export async function loadAccessToken() {
   return SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
@@ -102,4 +103,12 @@ export async function savePermissionsSetupCompleted() {
   await SecureStore.setItemAsync(PERMISSIONS_SETUP_KEY, '1');
   await SecureStore.setItemAsync(NOTIFICATION_PROMPT_KEY, '1');
   await SecureStore.setItemAsync(LOCATION_PROMPT_KEY, '1');
+}
+
+export async function loadAppTheme() {
+  return SecureStore.getItemAsync(APP_THEME_KEY);
+}
+
+export async function saveAppTheme(theme: 'light' | 'dark') {
+  await SecureStore.setItemAsync(APP_THEME_KEY, theme);
 }

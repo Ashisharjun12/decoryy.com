@@ -22,7 +22,7 @@ export class CollectionController {
 
     status = asyncHandler(async (req: Request, res) => {
         const orderId = String(req.params.orderId);
-        const data = await this.collections.getStatus(orderId);
+        const data = await this.collections.getStatusForVendor(orderId);
         res.status(200).json(new ApiResponse(200, data, "ok"));
     });
 

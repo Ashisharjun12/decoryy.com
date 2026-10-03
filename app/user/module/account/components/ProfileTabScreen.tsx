@@ -13,22 +13,30 @@ import {
   type ProfileMenuItem,
 } from '@/module/account/lib/profile-menu';
 import { useCurrentUserQuery } from '@/module/account/hooks/use-current-user-query';
+import { useAppTheme } from '@/module/settings/hooks/use-app-theme';
 import { useNotificationPermissionStatus } from '@/module/permissions/hooks/use-notification-permission-status';
 import { useAuthStore } from '@/store/auth.store';
 import { Href, router } from 'expo-router';
 import { useCallback } from 'react';
 import { Linking, ScrollView, View } from 'react-native';
 
-function renderMenuItem(item: ProfileMenuItem, isLast: boolean, itemKey: string) {
+function renderMenuItem(
+  item: ProfileMenuItem,
+  isLast: boolean,
+  itemKey: string,
+  appearanceSubtitle?: string,
+) {
   if (item.type === 'notification-toggle') {
     return null;
   }
   if (item.type === 'route') {
+    const subtitle =
+      item.id === 'appearance' ? appearanceSubtitle ?? item.subtitle : item.subtitle;
     return (
       <ProfileMenuRow
         key={itemKey}
         label={item.label}
-        subtitle={item.subtitle}
+        subtitle={subtitle}
         icon={item.icon}
         isLast={isLast}
         onPress={() => router.push(item.href)}
@@ -54,6 +62,7 @@ export function ProfileTabScreen() {
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const { notificationStatus, refresh } = useNotificationPermissionStatus();
   const notificationsOn = notificationStatus === 'granted';
+  const { themeLabel } = useAppTheme();
 
   async function handleSignOut() {
     await signOut();
@@ -109,7 +118,7 @@ export function ProfileTabScreen() {
                     />
                   );
                 }
-                return renderMenuItem(item, isLast, itemKey);
+                return renderMenuItem(item, isLast, itemKey, themeLabel);
               })}
             </ProfileSettingsGroup>
           ))}

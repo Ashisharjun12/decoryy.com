@@ -1,4 +1,5 @@
 import { Text } from '@/components/ui/text';
+import { cn } from '@/lib/utils';
 import { ScalePressable } from '@/components/shell';
 import type { ReactNode } from 'react';
 import { View } from 'react-native';
@@ -9,6 +10,7 @@ type AccountInfoRowProps = {
   action?: ReactNode;
   onActionPress?: () => void;
   actionLabel?: string;
+  isLast?: boolean;
 };
 
 export function AccountInfoRow({
@@ -17,6 +19,7 @@ export function AccountInfoRow({
   action,
   onActionPress,
   actionLabel,
+  isLast = false,
 }: AccountInfoRowProps) {
   const trailing =
     action ??
@@ -27,7 +30,11 @@ export function AccountInfoRow({
     ) : null);
 
   return (
-    <View className="flex-row items-start justify-between gap-4 border-b border-border py-5">
+    <View
+      className={cn(
+        'flex-row items-start justify-between gap-4 py-4',
+        !isLast && 'border-b border-border',
+      )}>
       <View className="min-w-0 flex-1">
         <Text className="text-foreground text-sm font-semibold">{label}</Text>
         <Text className="text-muted-foreground mt-1 text-sm leading-snug">{value}</Text>

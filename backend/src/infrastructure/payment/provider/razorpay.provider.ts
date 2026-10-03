@@ -15,6 +15,7 @@ import type {
     IPaymentProvider,
     RefundInput,
     VerifyClientPaymentInput,
+    SyncCollectPaymentResult,
     VerifyClientPaymentResult,
     WebhookEvent,
 } from "@/infrastructure/payment/payment.interface.js";
@@ -283,6 +284,17 @@ export class RazorpayProvider implements IPaymentProvider {
             kind: eventName === "qr_code.credited" ? "collection" : "checkout",
             raw: payload,
         };
+    }
+
+    async syncCollectPayment(
+        _providerRef: string,
+        _expectedAmountPaise: number,
+    ): Promise<SyncCollectPaymentResult> {
+        return { paid: false };
+    }
+
+    async resolveCollectionWebhook(_raw: unknown): Promise<null> {
+        return null;
     }
 
     async refund(input: RefundInput): Promise<void> {

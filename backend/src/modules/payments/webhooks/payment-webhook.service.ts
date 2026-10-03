@@ -4,6 +4,7 @@ import { CartRepository } from "@/modules/booking/carts/cart.repository.js";
 import { OrderRepository } from "@/modules/booking/orders/order.repository.js";
 import { collectionService } from "@/modules/payments/collections/collection.service.js";
 import { PaymentIntentRepository } from "@/modules/payments/intents/payment-intent.repository.js";
+import { isDecoryOrderUuid } from "@/infrastructure/payment/provider/cashfree-cod.helpers.js";
 import { ledgerService } from "@/modules/payments/ledger/ledger.service.js";
 import { logger } from "@/utils/logger.js";
 
@@ -25,10 +26,21 @@ export class PaymentWebhookService {
         }
 
         if (event.kind === "collection") {
-            await collectionService.handleQrPayment(
-                event.providerRef,
-                event.providerPaymentId,
-                event.amountPaise,
+            await collectionService.handleWebhookCollectionEvent(event);
+            return;
+        }
+
+        if (!isDecoryOrderUuid(event.orderId)) {
+            const settled = await collectionService.handleWebhookCollectionEvent({
+                ...event,
+                kind: "collection",
+            });
+            if (settled) {
+                return;
+            }
+            logger.warn(
+                { orderId: event.orderId, provider: event.provider },
+                "payment webhook ignored: not a Decory order id",
             );
             return;
         }

@@ -1,6 +1,5 @@
 import { collectCash, collectOnline, getCollectionStatus } from '@/api/collect.api';
 import { vendorJobsKeys } from '@/module/bookings/hooks/use-vendor-jobs';
-import { logCollectFlow } from '@/module/bookings/lib/collect-flow-debug';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 
@@ -41,23 +40,11 @@ export function useCollectionStatus(
   });
 
   useEffect(() => {
-    const data = query.data;
-    if (!data) return;
-    logCollectFlow('poll_status', {
-      orderId,
-      collectionStatus: data.collectionStatus,
-      hasActiveSession: Boolean(data.activeSession),
-      expiresAt: data.activeSession?.expiresAt ?? null,
-    });
-  }, [orderId, query.data]);
-
-  useEffect(() => {
     const status = query.data?.collectionStatus;
     if (!status || status === 'pending' || !SETTLED_COLLECTION_STATUSES.has(status)) return;
     if (collectedHandledRef.current) return;
     collectedHandledRef.current = true;
 
-    logCollectFlow('advance', { orderId, collectionStatus: status });
     void queryClient.invalidateQueries({ queryKey: vendorJobsKeys.detail(orderId) });
     onCollectedRef.current?.(status);
   }, [query.data?.collectionStatus, orderId, queryClient]);

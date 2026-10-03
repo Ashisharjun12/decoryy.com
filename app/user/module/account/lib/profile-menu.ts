@@ -5,6 +5,7 @@ import {
   LifeBuoy,
   MapPin,
   Package,
+  Palette,
   RotateCcw,
   UserRound,
 } from 'lucide-react-native';
@@ -90,6 +91,13 @@ export const PROFILE_MENU_SECTIONS: ProfileMenuSection[] = [
     id: 'preferences',
     title: 'Preferences',
     items: [
+      {
+        type: 'route',
+        id: 'appearance',
+        label: 'Appearance',
+        href: '/(app)/profile/appearance',
+        icon: Palette,
+      },
       {
         type: 'notification-toggle',
         id: 'push-notifications',

@@ -4,8 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { PRIMARY_CTA_BUTTON_CLASS, PRIMARY_CTA_BUTTON_TEXT_CLASS } from '@/lib/primary-cta-button';
 import { useGoBack } from '@/lib/use-go-back';
-import { SELECT_LOCATION_HREF } from '@/lib/select-location-route';
-import { beginLocationFlowForCheckout } from '@/store/location-flow.store';
+import { CheckoutAddressPickerSheet } from '@/module/booking/components/checkout/CheckoutAddressPickerSheet';
 import { BillDetailsCard } from '@/module/booking/components/checkout/BillDetailsCard';
 import { CheckoutContactEditSheet } from '@/module/booking/components/checkout/CheckoutContactEditSheet';
 import { ConfirmOfferRow } from '@/module/booking/components/checkout/ConfirmOfferRow';
@@ -54,6 +53,7 @@ export function ConfirmBookingScreen() {
   const queryClient = useQueryClient();
   const { data: addresses = [] } = useAddressesQuery(Boolean(user));
   const [contactSheetOpen, setContactSheetOpen] = useState(false);
+  const [addressSheetOpen, setAddressSheetOpen] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -78,11 +78,6 @@ export function ConfirmBookingScreen() {
     }, [deliveryHydrated, selectedAddressId, deliverySnapshot, addresses, queryClient]),
   );
 
-  function openLocationForCheckout() {
-    beginLocationFlowForCheckout();
-    router.push(SELECT_LOCATION_HREF);
-  }
-
   useFocusEffect(
     useCallback(() => {
       if (suppressEmptyCartExit) return;
@@ -103,7 +98,7 @@ export function ConfirmBookingScreen() {
 
   function goPayment() {
     if (!addressReady) {
-      openLocationForCheckout();
+      setAddressSheetOpen(true);
       return;
     }
     if (!customerReady) {
@@ -160,7 +155,7 @@ export function ConfirmBookingScreen() {
           label={deliveryLabel}
           addressLine={addressLine}
           hasServiceableAddress={addressReady}
-          onPress={openLocationForCheckout}
+          onPress={() => setAddressSheetOpen(true)}
         />
       </SmoothScrollView>
       <View
@@ -180,6 +175,10 @@ export function ConfirmBookingScreen() {
             router.push('/(app)/checkout/payment' as Href);
           }
         }}
+      />
+      <CheckoutAddressPickerSheet
+        visible={addressSheetOpen}
+        onClose={() => setAddressSheetOpen(false)}
       />
     </Screen>
   );
