@@ -39,6 +39,7 @@ type DeliveryLocationState = {
   hydrate: () => Promise<void>;
   setFromAddress: (addr: CustomerAddress) => Promise<void>;
   setFromSnapshot: (snapshot: DeliverySnapshot, addressId?: string | null) => Promise<void>;
+  clearSelection: () => Promise<void>;
   applyToLocationStore: () => Promise<void>;
   headerSubtitle: (fallbackCityPincode: string) => string;
 };
@@ -95,6 +96,20 @@ export const useDeliveryLocationStore = create<DeliveryLocationState>((set, get)
       snapshot,
     });
     await get().applyToLocationStore();
+  },
+
+  clearSelection: async () => {
+    set({
+      selectedAddressId: null,
+      displayLine: '',
+      snapshot: null,
+      hydrated: true,
+    });
+    await savePersistedDelivery({
+      selectedAddressId: null,
+      displayLine: '',
+      snapshot: null,
+    });
   },
 
   applyToLocationStore: async () => {

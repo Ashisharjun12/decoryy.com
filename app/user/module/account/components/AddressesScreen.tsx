@@ -7,9 +7,12 @@ import { ADD_ADDRESS_HREF } from '@/lib/select-location-route';
 import { useAddressFormDraftStore } from '@/store/address-form-draft.store';
 import { emptyAddressForm } from '@/module/account/lib/address-form';
 import { router } from 'expo-router';
+import { AddressOptionsSheet } from '@/module/account/components/AddressOptionsSheet';
+import { useDeleteAddress } from '@/module/account/hooks/use-delete-address';
 import { useAddressMutations, useAddressesQuery } from '@/module/account/hooks/use-addresses-query';
 import { cn } from '@/lib/utils';
-import { Briefcase, Home, MapPin, Plane } from 'lucide-react-native';
+import { Briefcase, Home, MapPin, MoreVertical, Plane } from 'lucide-react-native';
+import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, View } from 'react-native';
 
 function addressIcon(label: string) {
@@ -23,6 +26,8 @@ function addressIcon(label: string) {
 export function AddressesScreen() {
   const { data: addresses = [], isLoading, isError, error } = useAddressesQuery();
   const { setDefault } = useAddressMutations();
+  const { deleteAddress, isDeleting } = useDeleteAddress(addresses);
+  const [menuAddress, setMenuAddress] = useState<CustomerAddress | null>(null);
   const setDraft = useAddressFormDraftStore((s) => s.setDraft);
 
   function openAdd() {
@@ -89,7 +94,6 @@ export function AddressesScreen() {
                 <Pressable
                   key={addr.id}
                   onPress={() => void makeDefault(addr)}
-                  onLongPress={() => openEdit(addr)}
                   className={cn('border-b border-border', isLast && 'border-b-0')}>
                   <View className="flex-row gap-3 py-4">
                     <View className="w-11 shrink-0 items-center">
@@ -112,10 +116,14 @@ export function AddressesScreen() {
                         {addr.address}
                         {addr.landmark ? `, ${addr.landmark}` : ''}, {addr.cityName} {addr.pincode}
                       </Text>
-                      <Text className="text-muted-foreground mt-1 text-xs">
-                        Tap to set default · Long press to edit
-                      </Text>
+                      <Text className="text-muted-foreground mt-1 text-xs">Tap to set default</Text>
                     </View>
+                    <Pressable
+                      hitSlop={8}
+                      accessibilityLabel="Address options"
+                      onPress={() => setMenuAddress(addr)}>
+                      <Icon as={MoreVertical} className="text-muted-foreground size-5" />
+                    </Pressable>
                   </View>
                 </Pressable>
               );
@@ -124,6 +132,14 @@ export function AddressesScreen() {
         </View>
       )}
 
+      <AddressOptionsSheet
+        address={menuAddress}
+        open={menuAddress != null}
+        onClose={() => setMenuAddress(null)}
+        onEdit={openEdit}
+        onDelete={(addr) => void deleteAddress(addr)}
+        deleting={isDeleting}
+      />
     </AccountSubScreen>
   );
 }

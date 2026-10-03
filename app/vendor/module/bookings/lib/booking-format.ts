@@ -29,3 +29,39 @@ export function collectionStatusTone(status: string): 'amber' | 'emerald' | 'mut
   if (status === 'collected_cash' || status === 'collected_online') return 'emerald';
   return 'muted';
 }
+
+export function formatCollectionSessionExpiry(iso: string) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat('en-IN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
+}
+
+export function isCollectionSessionExpired(iso: string) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return false;
+  return date.getTime() < Date.now();
+}
+
+type CollectionQrSession = {
+  qrImageUrl?: string;
+  qrBase64?: string;
+};
+
+/** Image `uri` for COD collect QR (handles URL, data-uri, or raw base64). */
+export function collectionQrImageUri(session: CollectionQrSession): string | null {
+  const imageUrl = session.qrImageUrl?.trim();
+  if (imageUrl) return imageUrl;
+
+  const raw = session.qrBase64?.trim();
+  if (!raw) return null;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (raw.startsWith('data:image/')) return raw;
+  return `data:image/png;base64,${raw}`;
+}
+
+export function hasCollectionQrDisplay(session: CollectionQrSession): boolean {
+  return collectionQrImageUri(session) != null;
+}

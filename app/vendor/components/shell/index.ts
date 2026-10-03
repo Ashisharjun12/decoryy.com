@@ -1,3 +1,4 @@
+export { VendorTabBar } from './VendorTabBar';
 export { LoadingPlaceholder } from './LoadingPlaceholder';
 export { Screen } from './Screen';
 export { ScreenHeader } from './ScreenHeader';

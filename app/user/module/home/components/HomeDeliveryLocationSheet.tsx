@@ -6,6 +6,8 @@ import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
 import { cn } from '@/lib/utils';
 import { AddressFormSheet } from '@/module/account/components/AddressFormSheet';
+import { AddressOptionsSheet } from '@/module/account/components/AddressOptionsSheet';
+import { useDeleteAddress } from '@/module/account/hooks/use-delete-address';
 import { useAddressesQuery } from '@/module/account/hooks/use-addresses-query';
 import { PlacesAddressAutocomplete } from '@/module/geo/components/PlacesAddressAutocomplete';
 import {
@@ -15,7 +17,7 @@ import {
 } from '@/store/delivery-location.store';
 import { useAuthStore } from '@/store/auth.store';
 import { useKeyboardInset } from '@/lib/use-keyboard-inset';
-import { ChevronDown, Pencil, Plus } from 'lucide-react-native';
+import { ChevronDown, MoreVertical, Plus } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { ScalePressable } from '@/components/shell';
@@ -51,6 +53,8 @@ export function HomeDeliveryLocationSheet({ onClose }: HomeDeliveryLocationSheet
   const persistedId = useDeliveryLocationStore((s) => s.selectedAddressId);
 
   const { data: addresses = [], isLoading } = useAddressesQuery();
+  const { deleteAddress, isDeleting } = useDeleteAddress(addresses);
+  const [menuAddress, setMenuAddress] = useState<CustomerAddress | null>(null);
 
   const [selectedId, setSelectedId] = useState<string | null>(persistedId);
   const [draftLine, setDraftLine] = useState('');
@@ -264,10 +268,10 @@ export function HomeDeliveryLocationSheet({ onClose }: HomeDeliveryLocationSheet
                             </View>
                           </View>
                           <ScalePressable
-                            onPress={() => openEditForm(addr)}
+                            onPress={() => setMenuAddress(addr)}
                             hitSlop={8}
-                            accessibilityLabel="Edit address">
-                            <Icon as={Pencil} className="text-muted-foreground size-4" />
+                            accessibilityLabel="Address options">
+                            <Icon as={MoreVertical} className="text-muted-foreground size-4" />
                           </ScalePressable>
                         </View>
                         <Text className="text-muted-foreground mt-1.5 text-sm leading-5">
@@ -302,6 +306,15 @@ export function HomeDeliveryLocationSheet({ onClose }: HomeDeliveryLocationSheet
         onClose={() => setAddressFormOpen(false)}
         editAddress={editTarget}
         onSaved={onAddressSaved}
+      />
+
+      <AddressOptionsSheet
+        address={menuAddress}
+        open={menuAddress != null}
+        onClose={() => setMenuAddress(null)}
+        onEdit={openEditForm}
+        onDelete={(addr) => void deleteAddress(addr)}
+        deleting={isDeleting}
       />
     </>
   );

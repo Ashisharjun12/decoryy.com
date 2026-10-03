@@ -9,6 +9,8 @@ import { ADD_ADDRESS_HREF } from '@/lib/select-location-route';
 import { LocationAddressListSkeleton } from '@/module/location/components/LocationAddressListSkeleton';
 import { LocationStackHeader } from '@/module/location/components/LocationStackHeader';
 import { resolveAddressDeliveryContext } from '@/module/location/lib/address-delivery-context';
+import { AddressOptionsSheet } from '@/module/account/components/AddressOptionsSheet';
+import { useDeleteAddress } from '@/module/account/hooks/use-delete-address';
 import { useAddressesQuery } from '@/module/account/hooks/use-addresses-query';
 import { emptyCart } from '@/module/booking/lib/cart-types';
 import { useCartQuery } from '@/module/booking/hooks/use-cart-query';
@@ -20,8 +22,12 @@ import { useDeliveryLocationStore } from '@/store/delivery-location.store';
 import { useLocationStore } from '@/store/location.store';
 import { cn } from '@/lib/utils';
 import { Briefcase, Check, Crosshair, Home, MapPin, MoreVertical, Plane, Plus } from 'lucide-react-native';
+import { finishLocationFlow } from '@/lib/location-flow-navigation';
 import { navigateBackOrHome } from '@/lib/navigate-back';
-import { router } from 'expo-router';
+import { useLocationFlowStore } from '@/store/location-flow.store';
+import { applySelectedDeliveryAddress } from '@/module/location/lib/apply-selected-delivery-address';
+import { type Href, router } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, Keyboard, Pressable, ScrollView, View } from 'react-native';
 
@@ -69,9 +75,11 @@ function QuickAction({
 }
 
 export function SelectLocationScreen() {
+  const queryClient = useQueryClient();
   const { data: addresses = [], isLoading } = useAddressesQuery();
+  const { deleteAddress, isDeleting } = useDeleteAddress(addresses);
+  const [menuAddress, setMenuAddress] = useState<CustomerAddress | null>(null);
   const selectedId = useDeliveryLocationStore((s) => s.selectedAddressId);
-  const setFromAddress = useDeliveryLocationStore((s) => s.setFromAddress);
   const setDraft = useAddressFormDraftStore((s) => s.setDraft);
   const locationCity = useLocationStore((s) => s.city);
   const deliverySnapshot = useDeliveryLocationStore((s) => s.snapshot);
@@ -91,6 +99,15 @@ export function SelectLocationScreen() {
   const [searchLine, setSearchLine] = useState('');
   const [locating, setLocating] = useState(false);
 
+  function onBackFromSelect() {
+    if (useLocationFlowStore.getState().returnTarget === 'checkout') {
+      useLocationFlowStore.getState().clearReturn();
+      router.replace('/(app)/checkout' as Href);
+      return;
+    }
+    navigateBackOrHome();
+  }
+
   function draftWithServiceCity() {
     const { contextCityId, contextCityName } = deliveryContext;
     return {
@@ -102,8 +119,8 @@ export function SelectLocationScreen() {
 
   async function pickAddress(addr: CustomerAddress) {
     if (!addr.cityId) return;
-    await setFromAddress(addr);
-    navigateBackOrHome();
+    await applySelectedDeliveryAddress(addr, queryClient);
+    finishLocationFlow();
   }
 
   async function useCurrentLocation() {
@@ -126,6 +143,25 @@ export function SelectLocationScreen() {
     setDraft(draftWithServiceCity());
     router.push(ADD_ADDRESS_HREF);
   }
+
+  function openEditAddress(addr: CustomerAddress) {
+    setDraft(
+      {
+        label: addr.label,
+        address: addr.address,
+        landmark: addr.landmark ?? '',
+        pincode: addr.pincode,
+        cityName: addr.cityName,
+        cityId: addr.cityId,
+        isDefault: addr.isDefault,
+        latitude: addr.latitude,
+        longitude: addr.longitude,
+      },
+      addr.id,
+    );
+    router.push(ADD_ADDRESS_HREF);
+  }
+
 
   function onSearchPlaceResolved({
     address,
@@ -150,7 +186,7 @@ export function SelectLocationScreen() {
 
   return (
     <Screen scroll={false} edges={['top', 'bottom']} contentClassName="flex-1">
-      <LocationStackHeader title="Select your location" onBack={navigateBackOrHome} />
+      <LocationStackHeader title="Select your location" onBack={onBackFromSelect} />
 
       <ScrollView
         className="flex-1"
@@ -246,23 +282,8 @@ export function SelectLocationScreen() {
                       </View>
                       <Pressable
                         hitSlop={8}
-                        onPress={() => {
-                          setDraft(
-                            {
-                              label: addr.label,
-                              address: addr.address,
-                              landmark: addr.landmark ?? '',
-                              pincode: addr.pincode,
-                              cityName: addr.cityName,
-                              cityId: addr.cityId,
-                              isDefault: addr.isDefault,
-                              latitude: addr.latitude,
-                              longitude: addr.longitude,
-                            },
-                            addr.id,
-                          );
-                          router.push(ADD_ADDRESS_HREF);
-                        }}>
+                        accessibilityLabel="Address options"
+                        onPress={() => setMenuAddress(addr)}>
                         <Icon as={MoreVertical} className="text-muted-foreground size-5" />
                       </Pressable>
                     </View>
@@ -282,6 +303,15 @@ export function SelectLocationScreen() {
           </View>
         )}
       </ScrollView>
+
+      <AddressOptionsSheet
+        address={menuAddress}
+        open={menuAddress != null}
+        onClose={() => setMenuAddress(null)}
+        onEdit={openEditAddress}
+        onDelete={(addr) => void deleteAddress(addr)}
+        deleting={isDeleting}
+      />
     </Screen>
   );
 }

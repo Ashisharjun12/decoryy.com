@@ -27,6 +27,7 @@ type Props = {
   layout?: 'compact' | 'trip';
   followVendor?: boolean;
   refetchRouteOnMove?: boolean;
+  showMap?: boolean;
   onOpenExternalMaps?: () => void;
   onRouteLoaded?: (summary: RouteSummary | null) => void;
 };
@@ -39,6 +40,7 @@ export function JobTrackingMap({
   layout = 'compact',
   followVendor = false,
   refetchRouteOnMove = false,
+  showMap = true,
   onOpenExternalMaps,
   onRouteLoaded,
 }: Props) {
@@ -269,6 +271,19 @@ export function JobTrackingMap({
         <View className="rounded-2xl bg-muted px-4 py-3">
           <Text className="text-sm text-muted-foreground">Map view is off for this account.</Text>
         </View>
+      </View>
+    );
+  }
+
+  if (!showMap) {
+    return (
+      <View
+        className={
+          isTrip
+            ? 'flex-1 items-center justify-center rounded-2xl bg-muted'
+            : 'h-48 items-center justify-center rounded-2xl bg-muted'
+        }>
+        <AppSpinner size="sm" />
       </View>
     );
   }

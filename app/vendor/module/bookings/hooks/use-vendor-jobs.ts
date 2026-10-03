@@ -14,6 +14,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useEnRouteTripStore } from '@/store/en-route-trip.store';
 import { selectIsFieldShell, usePartnerModeStore } from '@/store/partner-mode.store';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { InteractionManager } from 'react-native';
 
 function endEnRouteTripIfActive(orderId: string) {
   const active = useEnRouteTripStore.getState().activeOrderId;
@@ -26,7 +27,11 @@ function beginEnRouteTripIfFieldWorker(orderId: string) {
   const user = useAuthStore.getState().user;
   const mode = usePartnerModeStore.getState().mode;
   if (!selectIsFieldShell(mode, user)) return;
-  void useEnRouteTripStore.getState().beginTrip(orderId);
+  void useEnRouteTripStore.getState().beginTrip(orderId).then(() => {
+    InteractionManager.runAfterInteractions(() => {
+      void useEnRouteTripStore.getState().ensureBackgroundSharing();
+    });
+  });
 }
 
 export const vendorJobsKeys = {

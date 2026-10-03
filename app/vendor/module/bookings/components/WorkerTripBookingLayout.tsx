@@ -47,6 +47,7 @@ type Props = {
   destination: { latitude: number; longitude: number } | null;
   vendorFix: { latitude: number; longitude: number } | null;
   followVendor: boolean;
+  showMap?: boolean;
   onOpenMaps: () => void;
   actions: ReactNode;
 };
@@ -71,6 +72,7 @@ export function WorkerTripBookingLayout({
   destination,
   vendorFix,
   followVendor,
+  showMap = true,
   onOpenMaps,
   actions,
 }: Props) {
@@ -78,6 +80,10 @@ export function WorkerTripBookingLayout({
   const [routeSummary, setRouteSummary] = useState<RouteSummary | null>(null);
   const [tab, setTab] = useState<TripScreenTab>('onTheWay');
   const [mapFullscreen, setMapFullscreen] = useState(false);
+
+  useEffect(() => {
+    if (!showMap) setMapFullscreen(false);
+  }, [showMap]);
 
   const headerSummary =
     routeSummary != null
@@ -169,6 +175,7 @@ export function WorkerTripBookingLayout({
               vendor={vendorFix}
               followVendor={followVendor}
               refetchRouteOnMove={followVendor}
+              showMap={showMap}
               onOpenExternalMaps={onOpenMaps}
               onRouteLoaded={setRouteSummary}
             />
@@ -280,7 +287,7 @@ export function WorkerTripBookingLayout({
       )}
 
       <TripMapFullscreenModal
-        visible={mapFullscreen}
+        visible={mapFullscreen && showMap}
         onClose={() => setMapFullscreen(false)}
         orderId={orderId}
         destination={destination}

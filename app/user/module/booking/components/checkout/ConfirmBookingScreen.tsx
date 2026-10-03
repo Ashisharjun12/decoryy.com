@@ -5,6 +5,7 @@ import { Text } from '@/components/ui/text';
 import { PRIMARY_CTA_BUTTON_CLASS, PRIMARY_CTA_BUTTON_TEXT_CLASS } from '@/lib/primary-cta-button';
 import { useGoBack } from '@/lib/use-go-back';
 import { SELECT_LOCATION_HREF } from '@/lib/select-location-route';
+import { beginLocationFlowForCheckout } from '@/store/location-flow.store';
 import { BillDetailsCard } from '@/module/booking/components/checkout/BillDetailsCard';
 import { CheckoutContactEditSheet } from '@/module/booking/components/checkout/CheckoutContactEditSheet';
 import { ConfirmOfferRow } from '@/module/booking/components/checkout/ConfirmOfferRow';
@@ -20,8 +21,10 @@ import {
 import { useAddressesQuery } from '@/module/account/hooks/use-addresses-query';
 import { useAuthStore } from '@/store/auth.store';
 import { useCheckoutStore } from '@/store/checkout.store';
+import { syncCheckoutDeliveryFromStores } from '@/module/booking/lib/sync-checkout-delivery';
 import { useDeliveryLocationStore } from '@/store/delivery-location.store';
 import { type Href, router, useFocusEffect } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -39,16 +42,16 @@ export function ConfirmBookingScreen() {
   const delivery = useCheckoutStore((s) => s.delivery);
   const deliveryLabel = useCheckoutStore((s) => s.deliveryLabel);
   const setCustomer = useCheckoutStore((s) => s.setCustomer);
-  const setFromAddress = useCheckoutStore((s) => s.setFromAddress);
-  const setFromSnapshot = useCheckoutStore((s) => s.setFromSnapshot);
   const hydrateCustomerFromUser = useCheckoutStore((s) => s.hydrateCustomerFromUser);
   const suppressEmptyCartExit = useCheckoutStore((s) => s.suppressEmptyCartExit);
   const cartItemCount = useCartStore((s) => s.itemCount);
 
+  const deliveryHydrated = useDeliveryLocationStore((s) => s.hydrated);
+  const selectedAddressId = useDeliveryLocationStore((s) => s.selectedAddressId);
   const deliverySnapshot = useDeliveryLocationStore((s) => s.snapshot);
   const hydrateDelivery = useDeliveryLocationStore((s) => s.hydrate);
-  const setDeliveryFromAddress = useDeliveryLocationStore((s) => s.setFromAddress);
 
+  const queryClient = useQueryClient();
   const { data: addresses = [] } = useAddressesQuery(Boolean(user));
   const [contactSheetOpen, setContactSheetOpen] = useState(false);
 
@@ -58,23 +61,27 @@ export function ConfirmBookingScreen() {
       return;
     }
     hydrateCustomerFromUser(user);
-    void hydrateDelivery();
+    if (!useDeliveryLocationStore.getState().hydrated) {
+      void hydrateDelivery();
+    }
   }, [user, hydrateCustomerFromUser, hydrateDelivery]);
 
   useEffect(() => {
-    if (deliverySnapshot?.cityId) {
-      setFromSnapshot(deliverySnapshot);
-    }
-  }, [deliverySnapshot, setFromSnapshot]);
+    if (!deliveryHydrated) return;
+    void syncCheckoutDeliveryFromStores(addresses, queryClient);
+  }, [deliveryHydrated, selectedAddressId, deliverySnapshot, addresses, queryClient]);
 
-  useEffect(() => {
-    if (delivery.cityId || !addresses.length) return;
-    const preferred = addresses.find((a) => a.isDefault) ?? addresses[0];
-    if (preferred?.cityId) {
-      setFromAddress(preferred);
-      void setDeliveryFromAddress(preferred);
-    }
-  }, [addresses, delivery.cityId, setFromAddress, setDeliveryFromAddress]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!deliveryHydrated) return;
+      void syncCheckoutDeliveryFromStores(addresses, queryClient);
+    }, [deliveryHydrated, selectedAddressId, deliverySnapshot, addresses, queryClient]),
+  );
+
+  function openLocationForCheckout() {
+    beginLocationFlowForCheckout();
+    router.push(SELECT_LOCATION_HREF);
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -96,7 +103,7 @@ export function ConfirmBookingScreen() {
 
   function goPayment() {
     if (!addressReady) {
-      router.push(SELECT_LOCATION_HREF);
+      openLocationForCheckout();
       return;
     }
     if (!customerReady) {
@@ -153,7 +160,7 @@ export function ConfirmBookingScreen() {
           label={deliveryLabel}
           addressLine={addressLine}
           hasServiceableAddress={addressReady}
-          onPress={() => router.push(SELECT_LOCATION_HREF)}
+          onPress={openLocationForCheckout}
         />
       </SmoothScrollView>
       <View

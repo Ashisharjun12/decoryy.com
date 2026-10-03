@@ -16,10 +16,12 @@ import { INDIA_CENTER, isInsideIndiaBounds } from '@/module/geo/lib/india-map';
 import { LocationStackHeader } from '@/module/location/components/LocationStackHeader';
 import { PlacesAddressAutocomplete } from '@/module/geo/components/PlacesAddressAutocomplete';
 import { useAddressFormDraftStore } from '@/store/address-form-draft.store';
-import { useDeliveryLocationStore } from '@/store/delivery-location.store';
 import { MapPin, Search } from 'lucide-react-native';
-import { navigateBackOrHome, navigateToAppHome } from '@/lib/navigate-back';
-import { router } from 'expo-router';
+import { cancelLocationFlowStep, finishLocationFlow } from '@/lib/location-flow-navigation';
+import { navigateBackOrHome } from '@/lib/navigate-back';
+import { applySelectedDeliveryAddress } from '@/module/location/lib/apply-selected-delivery-address';
+import { useLocationFlowStore } from '@/store/location-flow.store';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Keyboard, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,7 +33,8 @@ export function ConfirmAddressMapScreen() {
   const form = useAddressFormDraftStore((s) => s.form);
   const editAddressId = useAddressFormDraftStore((s) => s.editAddressId);
   const clearDraft = useAddressFormDraftStore((s) => s.clear);
-  const setFromAddress = useDeliveryLocationStore((s) => s.setFromAddress);
+  const queryClient = useQueryClient();
+  const returnTarget = useLocationFlowStore((s) => s.returnTarget);
 
   const { create, update } = useAddressMutations();
   const { config: sdkConfig, loading: sdkLoading, error: sdkError, retry } = useMapsSdkConfig();
@@ -107,10 +110,19 @@ export function ConfirmAddressMapScreen() {
   useEffect(() => {
     if (!form.address && !form.cityId) {
       Alert.alert('Address', 'Fill in your address first.', [
-        { text: 'OK', onPress: navigateBackOrHome },
+        {
+          text: 'OK',
+          onPress: () => {
+            if (returnTarget === 'checkout') {
+              cancelLocationFlowStep();
+            } else {
+              navigateBackOrHome();
+            }
+          },
+        },
       ]);
     }
-  }, [form.address, form.cityId]);
+  }, [form.address, form.cityId, returnTarget]);
 
   async function useCurrentLocation() {
     Keyboard.dismiss();
@@ -179,9 +191,9 @@ export function ConfirmAddressMapScreen() {
       } else {
         saved = await create.mutateAsync(body);
       }
-      await setFromAddress(saved);
+      await applySelectedDeliveryAddress(saved, queryClient);
       clearDraft();
-      navigateToAppHome();
+      finishLocationFlow();
     } catch (err) {
       Alert.alert('Could not save address', getApiError(err));
     } finally {

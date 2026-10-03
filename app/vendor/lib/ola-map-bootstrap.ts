@@ -1,14 +1,11 @@
 import { applyOlaMapAuth } from '@/module/geo/lib/ola-map-auth';
-import {
-  invalidateMapsSdkConfig,
-  loadMapsSdkConfig,
-} from '@/module/geo/hooks/use-maps-sdk-config';
+import { loadMapsSdkConfig } from '@/module/geo/hooks/use-maps-sdk-config';
 import { LogManager, NetworkManager } from '@maplibre/maplibre-react-native';
 import { AppState, type AppStateStatus } from 'react-native';
 
 let installed = false;
 
-function suppressTransientGlyphDnsLogs() {
+function suppressNoisyMapLogs() {
   LogManager.onLog((log) => {
     const message = log.message ?? '';
     if (
@@ -16,6 +13,31 @@ function suppressTransientGlyphDnsLogs() {
       (message.includes('Unable to resolve host') ||
         message.includes('No address associated with hostname'))
     ) {
+      return true;
+    }
+    if (
+      message.includes('Failed to load source') &&
+      (message.includes('Unable to resolve host') ||
+        message.includes('No address associated with hostname'))
+    ) {
+      return true;
+    }
+    if (message.includes('openmaptiles') && message.includes('Unable to resolve host')) {
+      return true;
+    }
+    if (message.includes('openmaptiles') && message.includes('No address associated with hostname')) {
+      return true;
+    }
+    if (message.includes('stream was reset: CANCEL')) {
+      return true;
+    }
+    if (message.includes('openmaptiles') && message.includes('timeout')) {
+      return true;
+    }
+    if (message.includes('Failed to load source') && message.includes('timeout')) {
+      return true;
+    }
+    if (message.includes('line dasharray requires at least two elements')) {
       return true;
     }
     return false;
@@ -33,7 +55,7 @@ export function installOlaMapBootstrap() {
     // iOS: no-op
   }
 
-  suppressTransientGlyphDnsLogs();
+  suppressNoisyMapLogs();
 
   void loadMapsSdkConfig()
     .then((config) => {
@@ -43,9 +65,9 @@ export function installOlaMapBootstrap() {
       // maps screens will retry via useMapsSdkConfig
     });
 
+  // Re-apply auth when returning to foreground without invalidating cache (avoids map tile CANCEL).
   AppState.addEventListener('change', (state: AppStateStatus) => {
     if (state !== 'active') return;
-    invalidateMapsSdkConfig();
     void loadMapsSdkConfig()
       .then((config) => {
         applyOlaMapAuth(config);

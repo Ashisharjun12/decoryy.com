@@ -24,9 +24,14 @@ import {
 } from '@/module/bookings/components/SwipeToConfirmButton';
 import {
   collectionStatusTone,
+  collectionQrImageUri,
+  formatCollectionSessionExpiry,
   formatCollectionStatus,
   formatInr,
+  hasCollectionQrDisplay,
+  isCollectionSessionExpired,
 } from '@/module/bookings/lib/booking-format';
+import { logCollectFlow } from '@/module/bookings/lib/collect-flow-debug';
 import {
   useCollectCash,
   useCollectOnline,
@@ -39,6 +44,7 @@ import {
   useMarkOnSite,
   useSendDeliveryCode,
   useVendorJob,
+  vendorJobsKeys,
 } from '@/module/bookings/hooks/use-vendor-jobs';
 import { useVendorDuty } from '@/module/duty/hooks/use-vendor-duty';
 import { useNotificationJobPreview } from '@/module/notifications/hooks/use-notification-job-preview';
@@ -48,7 +54,7 @@ import { JobAssignSection } from '@/module/team/components/JobAssignSection';
 import { EN_ROUTE_FGS_NOTIFICATION } from '@/lib/en-route-notification-copy';
 import { useEnRouteTripStore } from '@/store/en-route-trip.store';
 import { selectIsFieldShell, usePartnerModeStore } from '@/store/partner-mode.store';
-import { Href, router, useLocalSearchParams } from 'expo-router';
+import { Href, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import {
   ArrowLeft,
   CreditCard,
@@ -57,10 +63,12 @@ import {
   Phone,
   User,
 } from 'lucide-react-native';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Alert,
   Image,
+  InteractionManager,
   Linking,
   Platform,
   ScrollView,
@@ -233,6 +241,7 @@ function AssignedJobFallback({
 export default function BookingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const orderId = String(id ?? '');
+  const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const preview = useNotificationJobPreview(orderId);
   const { data: booking, isLoading, isError } = useVendorJob(orderId);
@@ -248,39 +257,112 @@ export default function BookingDetailScreen() {
   const collectCashMutation = useCollectCash(orderId);
   const collectOnlineMutation = useCollectOnline(orderId);
   const autoSendCodeRef = useRef(false);
+  const bookingScrollRef = useRef<ScrollView>(null);
+  const scrollToCollectQrAfterGenRef = useRef(false);
+  const [packageOpen, setPackageOpen] = useState(false);
+  const [completeOpen, setCompleteOpen] = useState(false);
+  const [declineOpen, setDeclineOpen] = useState(false);
+  const [declineError, setDeclineError] = useState<string | null>(null);
+  const [cashCollectOpen, setCashCollectOpen] = useState(false);
+  const [cashCollectError, setCashCollectError] = useState<string | null>(null);
+  const [jobCompletedOpen, setJobCompletedOpen] = useState(false);
+  const [completedSnapshot, setCompletedSnapshot] = useState<{
+    paymentMethod: string;
+    collectionMethod: string | null;
+    vendorSharePaise: number | null;
+  } | null>(null);
 
   useEffect(() => {
     autoSendCodeRef.current = false;
   }, [orderId]);
 
+  const codOnSite =
+    booking?.paymentMethod === 'COD' && booking?.status === 'ON_SITE';
+  const shouldFetchCollection =
+    codOnSite &&
+    (booking?.collectionStatus === 'pending' ||
+      (booking?.collectionStatus === 'collected_online' && !booking?.deliveryCodeSent));
   const shouldPollCollection =
-    booking?.paymentMethod === 'COD' &&
-    booking?.collectionStatus === 'pending' &&
-    booking?.status === 'ON_SITE';
+    codOnSite && booking?.collectionStatus === 'pending';
 
-  const onOnlinePaymentCollected = useCallback(() => {
+  useFocusEffect(
+    useCallback(() => {
+      if (!orderId) return;
+      void queryClient.invalidateQueries({ queryKey: vendorJobsKeys.detail(orderId) });
+      void queryClient.invalidateQueries({
+        queryKey: [...vendorJobsKeys.detail(orderId), 'collection'],
+      });
+    }, [orderId, queryClient]),
+  );
+
+  const advanceAfterOnlinePayment = useCallback(() => {
     if (autoSendCodeRef.current || sendCodeMutation.isPending) return;
     autoSendCodeRef.current = true;
+    logCollectFlow('advance', { orderId, action: 'send_delivery_code_start' });
     void sendCodeMutation
       .mutateAsync()
       .then(() => {
+        logCollectFlow('advance', { orderId, action: 'send_delivery_code_success' });
         triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+        InteractionManager.runAfterInteractions(() => {
+          bookingScrollRef.current?.scrollTo({ y: 0, animated: true });
+          logCollectFlow('open_complete_sheet', { orderId });
+          setCompleteOpen(true);
+        });
       })
       .catch((err: unknown) => {
         autoSendCodeRef.current = false;
+        logCollectFlow('advance', {
+          orderId,
+          action: 'send_delivery_code_fail',
+          message: getApiError(err),
+        });
         Alert.alert('Payment received', getApiError(err));
       });
-  }, [sendCodeMutation]);
+  }, [orderId, sendCodeMutation]);
 
   const { data: collectionStatus } = useCollectionStatus(orderId, {
-    enabled: shouldPollCollection,
+    enabled: shouldFetchCollection,
     poll: shouldPollCollection,
     onCollected: (status) => {
       if (status === 'collected_online') {
-        onOnlinePaymentCollected();
+        advanceAfterOnlinePayment();
       }
     },
   });
+
+  useEffect(() => {
+    if (!booking) return;
+    logCollectFlow('job_detail', {
+      orderId,
+      status: booking.status,
+      collectionStatus: booking.collectionStatus,
+      deliveryCodeSent: booking.deliveryCodeSent,
+    });
+  }, [
+    orderId,
+    booking?.status,
+    booking?.collectionStatus,
+    booking?.deliveryCodeSent,
+    booking,
+  ]);
+
+  useEffect(() => {
+    if (!booking) return;
+    if (booking.paymentMethod !== 'COD' || booking.status !== 'ON_SITE') return;
+    if (booking.collectionStatus !== 'collected_online') return;
+    if (booking.deliveryCodeSent) return;
+    autoSendCodeRef.current = false;
+    advanceAfterOnlinePayment();
+  }, [
+    booking?.id,
+    booking?.paymentMethod,
+    booking?.status,
+    booking?.collectionStatus,
+    booking?.deliveryCodeSent,
+    advanceAfterOnlinePayment,
+    booking,
+  ]);
   const { isOnDuty, setOnDuty, isUpdating: dutyUpdating } = useVendorDuty();
   /** Live map + GPS pings only while en route; hide after worker marks on site. */
   const trackTrip = booking?.status === 'EN_ROUTE';
@@ -314,9 +396,8 @@ export default function BookingDetailScreen() {
 
   useEffect(() => {
     if (!booking || booking.status === 'EN_ROUTE') return;
-    if (useEnRouteTripStore.getState().activeOrderId === orderId) {
-      void endEnRouteTrip();
-    }
+    if (useEnRouteTripStore.getState().activeOrderId !== orderId) return;
+    void endEnRouteTrip();
   }, [booking?.status, orderId, endEnRouteTrip, booking]);
 
   useEffect(() => {
@@ -347,18 +428,30 @@ export default function BookingDetailScreen() {
       [{ text: 'OK' }],
     );
   }, [enRouteOnly, backgroundSharing, orderId]);
-  const [packageOpen, setPackageOpen] = useState(false);
-  const [completeOpen, setCompleteOpen] = useState(false);
-  const [declineOpen, setDeclineOpen] = useState(false);
-  const [declineError, setDeclineError] = useState<string | null>(null);
-  const [cashCollectOpen, setCashCollectOpen] = useState(false);
-  const [cashCollectError, setCashCollectError] = useState<string | null>(null);
-  const [jobCompletedOpen, setJobCompletedOpen] = useState(false);
-  const [completedSnapshot, setCompletedSnapshot] = useState<{
-    paymentMethod: string;
-    collectionMethod: string | null;
-    vendorSharePaise: number | null;
-  } | null>(null);
+
+  useEffect(() => {
+    if (!scrollToCollectQrAfterGenRef.current) return;
+    if (!booking) return;
+
+    const needsCodCollection =
+      booking.paymentMethod === 'COD' && booking.collectionStatus === 'pending';
+    const session = collectionStatus?.activeSession ?? null;
+    if (!needsCodCollection || !session) return;
+
+    const qrUri = collectionQrImageUri(session);
+    const hasQr = hasCollectionQrDisplay(session);
+    const canShowCollectUi = (hasQr && qrUri != null) || Boolean(session.shareUrl);
+    if (!canShowCollectUi) return;
+
+    scrollToCollectQrAfterGenRef.current = false;
+    const timeout = setTimeout(() => {
+      InteractionManager.runAfterInteractions(() => {
+        bookingScrollRef.current?.scrollToEnd({ animated: true });
+      });
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [booking, collectionStatus?.activeSession]);
 
   if (isLoading) {
     return (
@@ -374,7 +467,9 @@ export default function BookingDetailScreen() {
 
   const paymentLabel =
     booking.paymentMethod === 'COD' ? 'Cash on delivery' : 'Paid online';
-  const collectionTone = collectionStatusTone(booking.collectionStatus);
+  const effectiveCollectionStatus =
+    collectionStatus?.collectionStatus ?? booking.collectionStatus;
+  const collectionTone = collectionStatusTone(effectiveCollectionStatus);
   const collectionChipClass =
     collectionTone === 'amber'
       ? 'bg-amber-500/15'
@@ -451,10 +546,12 @@ export default function BookingDetailScreen() {
 
   async function onSwipePayOnline() {
     try {
+      scrollToCollectQrAfterGenRef.current = true;
       await collectOnlineMutation.mutateAsync();
       triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
     } catch (err) {
-      Alert.alert('Could not create payment link', getApiError(err));
+      scrollToCollectQrAfterGenRef.current = false;
+      Alert.alert('Could not create payment QR', getApiError(err));
     }
   }
 
@@ -470,8 +567,17 @@ export default function BookingDetailScreen() {
     collectOnlineMutation.isPending;
 
   const needsCollection =
-    booking.paymentMethod === 'COD' && booking.collectionStatus === 'pending';
+    booking.paymentMethod === 'COD' && effectiveCollectionStatus === 'pending';
   const collectionSettled = !needsCollection;
+  const activeCollectSession =
+    needsCollection ? (collectionStatus?.activeSession ?? null) : null;
+  const collectQrUri =
+    activeCollectSession != null ? collectionQrImageUri(activeCollectSession) : null;
+  const hasActiveCollectQr =
+    activeCollectSession != null && hasCollectionQrDisplay(activeCollectSession);
+  const collectSessionLive =
+    activeCollectSession != null &&
+    !isCollectionSessionExpired(activeCollectSession.expiresAt);
   const delivery = booking.delivery;
 
   function openMaps() {
@@ -538,8 +644,12 @@ export default function BookingDetailScreen() {
           </Text>
           <SwipeToConfirmButton
             variant="accept"
-            label="Swipe — Customer pays online"
-            loadingLabel="Creating link…"
+            label={
+              hasActiveCollectQr && collectSessionLive
+                ? 'Swipe to regenerate QR'
+                : 'Swipe — Customer pays online'
+            }
+            loadingLabel={hasActiveCollectQr ? 'Regenerating QR…' : 'Creating QR…'}
             loading={collectOnlineMutation.isPending}
             disabled={tripBusy || cashCollectOpen}
             onConfirm={() => void onSwipePayOnline()}
@@ -656,6 +766,7 @@ export default function BookingDetailScreen() {
           destination={tripDestination}
           vendorFix={vendorFix}
           followVendor={booking.status === 'EN_ROUTE'}
+          showMap={!onSiteMutation.isPending}
           onOpenMaps={openMaps}
           actions={fieldTripActions}
         />
@@ -667,6 +778,7 @@ export default function BookingDetailScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <ScrollView
+        ref={bookingScrollRef}
         className="flex-1"
         contentContainerClassName="gap-5 px-5 pt-4"
         contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
@@ -780,7 +892,7 @@ export default function BookingDetailScreen() {
                   {booking.paymentMethod === 'COD' ? (
                     <View className={cn('mt-2 self-start rounded-full px-3 py-1', collectionChipClass)}>
                       <Text className={cn('text-xs font-medium', collectionTextClass)}>
-                        {formatCollectionStatus(booking.collectionStatus)}
+                        {formatCollectionStatus(effectiveCollectionStatus)}
                       </Text>
                     </View>
                   ) : null}
@@ -815,38 +927,33 @@ export default function BookingDetailScreen() {
           />
         </FadeInView>
 
-        {needsCollection && collectionStatus?.activeSession ? (
+        {needsCollection && activeCollectSession ? (
           <FadeInView delay={220}>
             <Surface className="gap-4 p-5 shadow-none">
-              {collectionStatus.activeSession.qrImageUrl ||
-              collectionStatus.activeSession.qrBase64 ? (
+              {hasActiveCollectQr && collectQrUri ? (
                 <>
                   <Text className="text-foreground text-center text-base font-semibold">
-                    Scan to pay
+                    Scan UPI QR to pay
                   </Text>
-                  <Text className="text-muted-foreground text-center text-sm">
-                    Customer scans this code on your phone to pay{' '}
+                  <Text className="text-muted-foreground text-center text-sm leading-5">
+                    Pay on delivery — customer scans with any UPI app for{' '}
                     {formatInr(booking.subtotalPaise)}
                   </Text>
-                  {collectionStatus.activeSession.qrImageUrl ? (
-                    <Image
-                      source={{ uri: collectionStatus.activeSession.qrImageUrl }}
-                      className="mx-auto h-56 w-56 rounded-xl bg-white p-2"
-                      resizeMode="contain"
-                      accessibilityLabel="Payment QR code"
-                    />
-                  ) : (
-                    <Image
-                      source={{
-                        uri: `data:image/png;base64,${collectionStatus.activeSession.qrBase64}`,
-                      }}
-                      className="mx-auto h-56 w-56 rounded-xl bg-white p-2"
-                      resizeMode="contain"
-                      accessibilityLabel="Payment QR code"
-                    />
-                  )}
+                  {formatCollectionSessionExpiry(activeCollectSession.expiresAt) ? (
+                    <Text className="text-muted-foreground text-center text-xs">
+                      {isCollectionSessionExpired(activeCollectSession.expiresAt)
+                        ? 'This QR has expired. Swipe to regenerate QR.'
+                        : `Valid until ${formatCollectionSessionExpiry(activeCollectSession.expiresAt)}`}
+                    </Text>
+                  ) : null}
+                  <Image
+                    source={{ uri: collectQrUri }}
+                    className="mx-auto h-56 w-56 rounded-xl bg-white p-2"
+                    resizeMode="contain"
+                    accessibilityLabel="Payment QR code"
+                  />
                 </>
-              ) : collectionStatus.activeSession.shareUrl ? (
+              ) : activeCollectSession.shareUrl ? (
                 <>
                   <Text className="text-foreground text-center text-base font-semibold">
                     Payment link ready
@@ -856,9 +963,7 @@ export default function BookingDetailScreen() {
                   </Text>
                   <Button
                     className="h-12 rounded-full"
-                    onPress={() =>
-                      void Linking.openURL(collectionStatus.activeSession!.shareUrl!)
-                    }>
+                    onPress={() => void Linking.openURL(activeCollectSession.shareUrl!)}>
                     <Text className="font-semibold">Open payment link</Text>
                   </Button>
                   <Button
@@ -866,8 +971,8 @@ export default function BookingDetailScreen() {
                     variant="outline"
                     onPress={() =>
                       void Share.share({
-                        message: `Pay ${formatInr(booking.subtotalPaise)} for your Decoryy booking: ${collectionStatus.activeSession!.shareUrl}`,
-                        url: collectionStatus.activeSession!.shareUrl!,
+                        message: `Pay ${formatInr(booking.subtotalPaise)} for your Decoryy booking: ${activeCollectSession.shareUrl}`,
+                        url: activeCollectSession.shareUrl!,
                       })
                     }>
                     <Text>Share link with customer</Text>
