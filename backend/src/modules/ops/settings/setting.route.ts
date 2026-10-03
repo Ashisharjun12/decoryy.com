@@ -3,6 +3,7 @@ import { aiSettingsRouter } from "@/modules/ai/index.js";
 import type { SettingController } from "@/modules/ops/settings/setting.controller.js";
 import {
     patchBookingPolicyDto,
+    patchDemoAuthDto,
     patchInstantDispatchDto,
     patchInstantMapsDto,
     patchInstantMarketplaceDto,
@@ -56,6 +57,8 @@ export function createSettingsAdminRouter(controller: SettingController) {
         controller.patchInstantMarketplace,
     );
     router.get("/message-service/catalog", controller.getMessageServiceCatalog);
+    router.get("/demo-auth", controller.getDemoAuth);
+    router.patch("/demo-auth", validate(patchDemoAuthDto), controller.patchDemoAuth);
     router.use("/ai", aiSettingsRouter);
     return router;
 }

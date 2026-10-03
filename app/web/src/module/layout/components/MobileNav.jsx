@@ -1,14 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { MenuIcon } from "lucide-react";
-import { categoryPath } from "@/lib/catalog-path";
-import {
-  listTopLevelCategories,
-  resolveCategoryIcon,
-} from "@/lib/category-icons";
+import { listTopLevelCategories } from "@/lib/category-icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sheet,
   SheetContent,
@@ -16,8 +11,8 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { HomeCategoryTile } from "@/module/home/components/HomeCategoryTile";
 import { LocationPicker } from "@/module/layout/components/LocationPicker";
-import { SearchCommand } from "@/module/layout/components/SearchCommand";
 import { UserMenu } from "@/module/layout/components/UserMenu";
 import { useAuthStore } from "@/store/auth.store";
 import { useCatalogStore } from "@/store/catalog.store";
@@ -31,6 +26,11 @@ export function MobileNav({ triggerClassName }) {
 
   function close() {
     setOpen(false);
+  }
+
+  function openLogin() {
+    close();
+    setLoginOpen(true);
   }
 
   return (
@@ -47,53 +47,71 @@ export function MobileNav({ triggerClassName }) {
         <MenuIcon />
         <span className="sr-only">Open menu</span>
       </SheetTrigger>
-      <SheetContent side="left" className="w-[20rem] p-0">
-        <SheetHeader className="border-b border-border">
-          <SheetTitle>Menu</SheetTitle>
+      <SheetContent
+        side="left"
+        className="flex h-[100dvh] w-[min(100vw,21rem)] max-w-[88vw] flex-col gap-0 p-0 sm:max-w-sm"
+      >
+        <SheetHeader className="shrink-0 border-b border-border px-4 py-3">
+          <SheetTitle className="font-heading text-base">Menu</SheetTitle>
         </SheetHeader>
-        <ScrollArea className="h-[calc(100dvh-5rem)]">
-          <div className="flex flex-col gap-4 p-4">
-            <SearchCommand />
-            <LocationPicker />
-            <nav className="flex flex-col gap-1">
-              {topLevel.map((category) => {
-                const { Icon, iconBg } = resolveCategoryIcon({
-                  iconKey: category.iconKey,
-                  iconTone: category.iconTone,
-                  slug: category.slug,
-                });
-                return (
-                  <Link
-                    key={category.id}
-                    to={categoryPath(category)}
-                    onClick={close}
-                    className="flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium hover:bg-muted"
-                  >
-                    <span
-                      className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${iconBg}`}
-                    >
-                      <Icon className="size-4" strokeWidth={1.75} />
-                    </span>
-                    {category.name}
-                  </Link>
-                );
-              })}
-            </nav>
-            {user ? (
-              <UserMenu variant="sheet" onNavigate={close} />
-            ) : (
+
+        <div className="shrink-0 border-b border-border/70 px-4 py-3">
+          <p className="mb-2 text-xs font-medium text-muted-foreground">Your city</p>
+          <LocationPicker variant="mobileToolbar" className="h-10 w-full max-w-full" />
+        </div>
+
+        <div
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4"
+          data-lenis-prevent
+        >
+          <p className="mb-3 px-1 text-xs font-medium text-muted-foreground">Categories</p>
+          <nav className="grid grid-cols-3 gap-x-2 gap-y-4">
+            {topLevel.map((category) => (
+              <HomeCategoryTile
+                key={category.id}
+                category={category}
+                navigation="link"
+                compact
+                squareImage
+                onNavigate={close}
+              />
+            ))}
+          </nav>
+        </div>
+
+        <div
+          className="shrink-0 border-t border-border bg-background px-4 pt-3"
+          style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+        >
+          {user ? (
+            <UserMenu variant="sheet" onNavigate={close} />
+          ) : (
+            <div className="flex flex-col gap-2">
               <Button
-                className="rounded-full bg-primary text-black hover:bg-primary/85 dark:text-black"
-                onClick={() => {
-                  close();
-                  setLoginOpen(true);
-                }}
+                type="button"
+                className="h-11 w-full rounded-full bg-primary text-base font-semibold text-black hover:bg-primary/85"
+                onClick={openLogin}
               >
-                Sign in
+                Sign up
               </Button>
-            )}
-          </div>
-        </ScrollArea>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 w-full rounded-full text-base font-semibold"
+                onClick={openLogin}
+              >
+                Log in
+              </Button>
+            </div>
+          )}
+          <Link
+            to="/decorations"
+            onClick={close}
+            className="mt-3 block text-center text-sm font-medium text-muted-foreground hover:text-foreground"
+          >
+            Browse all decorations
+          </Link>
+        </div>
       </SheetContent>
     </Sheet>
   );

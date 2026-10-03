@@ -33,6 +33,13 @@ export function getBookingConversation(orderId: string) {
   return api.get(`/user/chat/orders/${orderId}/conversation`).then(unwrap<ChatConversation>);
 }
 
+export function openCustomerSupport(params: { topicKey?: string; subject?: string } = {}) {
+  const { topicKey = 'general', subject } = params;
+  return api
+    .post('/user/chat/support', { topicKey, subject })
+    .then(unwrap<ChatConversation>);
+}
+
 export function listMessages(
   conversationId: string,
   params?: { afterSequence?: number; beforeSequence?: number; limit?: number },

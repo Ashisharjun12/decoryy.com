@@ -24,7 +24,7 @@ export function PermissionStepScreen({
   onSkip,
 }: PermissionStepScreenProps) {
   return (
-    <Screen scroll={false} contentClassName="flex-1 justify-between pb-8">
+    <Screen scroll={false} contentClassName="flex-1 justify-between px-4 pb-8">
       <View className="flex-1 items-center justify-center gap-6 px-2">
         <IconWell icon={icon} size="lg" className={accentClassName} />
         <View className="gap-2">

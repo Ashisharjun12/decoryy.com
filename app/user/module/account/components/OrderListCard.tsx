@@ -11,6 +11,8 @@ import { useCheckoutStore } from '@/store/checkout.store';
 import { Image } from 'expo-image';
 import { type Href, router } from 'expo-router';
 import { Clock, MapPin } from 'lucide-react-native';
+import { OrderReviewSheet } from '@/module/account/components/order-review/OrderReviewSheet';
+import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 type OrderListCardProps = {
@@ -24,8 +26,10 @@ function deliveryLine(order: PublicOrderSummary): string {
 }
 
 export function OrderListCard({ order }: OrderListCardProps) {
+  const [reviewOpen, setReviewOpen] = useState(false);
   const setPendingOrderId = useCheckoutStore((s) => s.setPendingOrderId);
   const setPaymentIncomplete = useCheckoutStore((s) => s.setPaymentIncomplete);
+  const setPaymentUserCancelled = useCheckoutStore((s) => s.setPaymentUserCancelled);
 
   const title = orderCardTitle(order.primaryName, order.itemCount);
   const inProgress = order.status !== 'COMPLETED' && order.status !== 'CANCELLED';
@@ -35,6 +39,7 @@ export function OrderListCard({ order }: OrderListCardProps) {
   function openCompletePayment() {
     setPendingOrderId(order.id);
     setPaymentIncomplete(true);
+    setPaymentUserCancelled(false);
     router.push('/(app)/checkout/payment' as Href);
   }
 
@@ -113,13 +118,20 @@ export function OrderListCard({ order }: OrderListCardProps) {
         </Pressable>
         {order.canReview && !order.reviewSubmitted ? (
           <Pressable
-            onPress={openOrderDetail}
+            onPress={() => setReviewOpen(true)}
             className="w-full items-center rounded-full border border-border bg-muted/30 py-3 active:opacity-90"
             accessibilityRole="button">
             <Text className="text-foreground text-sm font-semibold">Leave review</Text>
           </Pressable>
         ) : null}
       </View>
+
+      <OrderReviewSheet
+        visible={reviewOpen}
+        onClose={() => setReviewOpen(false)}
+        orderId={order.id}
+        productName={order.primaryName}
+      />
     </View>
   );
 }

@@ -4,9 +4,18 @@ import { useAuthStore } from '@/store/auth.store';
 import { useEnRouteTripStore } from '@/store/en-route-trip.store';
 import { selectIsFieldShell, usePartnerModeStore } from '@/store/partner-mode.store';
 import { useEffect, useRef } from 'react';
-import { Alert, AppState, type AppStateStatus } from 'react-native';
+import { Alert, AppState, InteractionManager, type AppStateStatus } from 'react-native';
 
 const VERIFY_INTERVAL_MS = 60_000;
+
+function scheduleVerifyWhenForeground(verify: () => void | Promise<void>) {
+  if (AppState.currentState !== 'active') return;
+  InteractionManager.runAfterInteractions(() => {
+    if (AppState.currentState === 'active') {
+      void verify();
+    }
+  });
+}
 
 export function EnRouteLocationController() {
   const user = useAuthStore((s) => s.user);
@@ -74,7 +83,9 @@ export function EnRouteLocationController() {
       try {
         const job = await getVendorJob(orderId);
         if (job.status === 'EN_ROUTE') {
-          await ensureBackgroundSharing();
+          if (AppState.currentState === 'active') {
+            await ensureBackgroundSharing();
+          }
         } else {
           await endTrip();
         }
@@ -85,13 +96,17 @@ export function EnRouteLocationController() {
       }
     }
 
-    void verifyTrip();
+    scheduleVerifyWhenForeground(verifyTrip);
 
-    const interval = setInterval(() => void verifyTrip(), VERIFY_INTERVAL_MS);
+    const interval = setInterval(() => {
+      if (AppState.currentState === 'active') {
+        void verifyTrip();
+      }
+    }, VERIFY_INTERVAL_MS);
 
     const onAppState = (state: AppStateStatus) => {
       if (state === 'active') {
-        void verifyTrip();
+        scheduleVerifyWhenForeground(verifyTrip);
       }
     };
     const subscription = AppState.addEventListener('change', onAppState);

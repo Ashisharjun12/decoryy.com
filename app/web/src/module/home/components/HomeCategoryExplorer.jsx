@@ -8,6 +8,7 @@ import {
   HOME_CATEGORY_DESKTOP_VISIBLE,
   HOME_CATEGORY_PREVIEW_COUNT,
 } from "@/module/catalog/components/CategoryTileGrid";
+import { VIEW_ALL_LINK_CLASS } from "@/module/catalog/components/PdpProductRailHeader";
 import { HomeSectionHeading } from "@/module/home/components/HomeSectionHeading";
 import { normalizeCategoryTree } from "@/module/home/lib/home-catalog";
 import { useCatalogStore } from "@/store/catalog.store";
@@ -90,10 +91,7 @@ export function HomeCategoryExplorer({
             ) : null}
           </div>
           {showViewAllLink ? (
-            <Link
-              to={viewAllHref}
-              className="shrink-0 self-center whitespace-nowrap pt-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground sm:text-sm"
-            >
+            <Link to={viewAllHref} className={VIEW_ALL_LINK_CLASS}>
               View all →
             </Link>
           ) : null}

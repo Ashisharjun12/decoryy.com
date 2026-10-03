@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { REGEXP_ONLY_DIGITS } from "input-otp";
-import { PhoneIcon, UploadIcon } from "lucide-react";
+import { PhoneIcon } from "lucide-react";
 import { getApiError } from "@/api/api";
 import { linkGoogle, linkPhone, requestOtp } from "@/api/auth.api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -185,10 +185,6 @@ export function ProfilePage() {
           {user.avatar ? <AvatarImage src={user.avatar} alt="" /> : null}
           <AvatarFallback className="text-lg">{initials(user.name)}</AvatarFallback>
         </Avatar>
-        <Button type="button" variant="outline" size="sm" disabled title="Coming soon">
-          <UploadIcon className="size-4" />
-          Upload photo
-        </Button>
       </div>
 
       <div className="mt-6">

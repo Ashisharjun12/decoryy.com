@@ -11,8 +11,9 @@ import { NotificationTemplatesPanel } from "@/module/settings/components/Notific
 import { AuditLogPage } from "@/module/settings/pages/AuditLogPage"
 import { AdminAccountPanel } from "@/module/settings/components/AdminAccountPanel"
 import { MessageServicePage } from "@/module/settings/pages/MessageServicePage"
+import { DemoAuthPanel } from "@/module/settings/components/DemoAuthPanel"
 
-const TABS = ["account", "notifications", "message-service", "booking", "ai", "audit"]
+const TABS = ["account", "notifications", "message-service", "booking", "ai", "demo", "audit"]
 
 function normalizeTab(value) {
   return TABS.includes(value) ? value : "account"
@@ -44,7 +45,7 @@ export function SettingsPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           {setupRequired
             ? "Verify your login email and choose a new password before using the admin panel."
-            : "Admin account, notifications, MSG91 message service, booking and instant dispatch, AI controls, and audit trail."}
+            : "Admin account, notifications, MSG91 message service, booking and instant dispatch, AI controls, Play review demo login, and audit trail."}
         </p>
       </div>
 
@@ -56,6 +57,7 @@ export function SettingsPage() {
             <TabsTrigger value="message-service">Message service</TabsTrigger>
             <TabsTrigger value="booking">Booking</TabsTrigger>
             <TabsTrigger value="ai">AI</TabsTrigger>
+            <TabsTrigger value="demo">Demo credentials</TabsTrigger>
             <TabsTrigger value="audit">Audit log</TabsTrigger>
           </TabsList>
         )}
@@ -80,6 +82,10 @@ export function SettingsPage() {
 
         <TabsContent value="ai" className="pt-4">
           <AiPolicyPanel />
+        </TabsContent>
+
+        <TabsContent value="demo" className="pt-4">
+          <DemoAuthPanel />
         </TabsContent>
 
         <TabsContent value="audit" className="pt-4">

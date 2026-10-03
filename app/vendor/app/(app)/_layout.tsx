@@ -58,6 +58,7 @@ function AppTabs() {
   const onSetupScreen =
     pathname.includes('enable-notifications') || pathname.includes('enable-location');
   const hideTabBar =
+    onSetupScreen ||
     /bookings\/[^/]+/.test(pathname) ||
     pathname.includes('support') ||
     pathname.includes('help-support');
@@ -70,7 +71,7 @@ function AppTabs() {
     );
   }
 
-  if (pendingRoute && !onSetupScreen) {
+  if (pendingRoute) {
     return <Redirect href={pendingRoute} />;
   }
 

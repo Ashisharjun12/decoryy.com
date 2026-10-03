@@ -101,6 +101,7 @@ export const userChatController = new UserChatController(
     conversationService,
     messageService,
     chatAttachmentService,
+    bookingChatService,
 );
 export const adminChatController = new AdminChatController(
     conversationService,

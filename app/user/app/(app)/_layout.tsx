@@ -1,4 +1,5 @@
 import { AppTabBar, LoadingPlaceholder } from '@/components/shell';
+import { MerchSectionsSync } from '@/module/home/components/MerchSectionsSync';
 import { TabActiveOrderOverlay } from '@/module/home/components/TabActiveOrderOverlay';
 import { usePermissionsSetupPrompt } from '@/module/permissions/hooks/use-permissions-setup-prompt';
 import { useLocationStore } from '@/store/location.store';
@@ -28,6 +29,7 @@ export default function AppLayout() {
 
   return (
     <View className="flex-1">
+      <MerchSectionsSync />
       <Tabs
         tabBar={(props) => <AppTabBar {...props} />}
         screenOptions={{

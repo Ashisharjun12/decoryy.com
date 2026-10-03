@@ -6,8 +6,6 @@ export const BRAND_LOGO_LIGHT_URL =
 export const LOGIN_ILLUSTRATION_URL =
   'https://ik.imagekit.io/aevhlnk0h/Sign%20up-cuate.png';
 
-export const MOCK_OTP = '123456';
-
 export const ONBOARDING_SLIDES = [
   {
     id: '1',

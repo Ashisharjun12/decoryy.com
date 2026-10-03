@@ -63,6 +63,7 @@ import { RealtimeFactory } from "@/infrastructure/realtime/realtime.factory.js";
 import { registerDispatchModule } from "@/modules/dispatch/register-dispatch-module.js";
 import { VendorPresenceController } from "@/modules/dispatch/presence/vendor-presence.controller.js";
 import { VendorPresenceService } from "@/modules/dispatch/presence/vendor-presence.service.js";
+import { settingService } from "@/modules/ops/index.js";
 
 const userRepository = new UserRepository();
 const vendorRepository = new VendorRepository();
@@ -71,7 +72,13 @@ const sessionRepository = new SessionRepository();
 const userService = new UserService(userRepository);
 const sessionService = new SessionService(sessionRepository, userRepository);
 const vendorService = new VendorService(vendorRepository, mediaService, userService, sessionService);
-const authService = new AuthService(userService, vendorService, sessionService, notificationService);
+const authService = new AuthService(
+    userService,
+    vendorService,
+    sessionService,
+    notificationService,
+    settingService,
+);
 const adminAccountService = new AdminAccountService(userRepository, new AdminEmailChangeRepository());
 const adminAccountController = new AdminAccountController(adminAccountService);
 const authController = new AuthController(authService);

@@ -71,6 +71,22 @@ export const patchInstantMarketplaceDto = z
         message: "at least one instant marketplace field is required",
     });
 
+export const patchDemoAuthDto = z
+    .object({
+        enabled: z.boolean().optional(),
+        customerApp: z.boolean().optional(),
+        vendorOwnerApp: z.boolean().optional(),
+        vendorStaffApp: z.boolean().optional(),
+    })
+    .refine(
+        (value) =>
+            value.enabled !== undefined ||
+            value.customerApp !== undefined ||
+            value.vendorOwnerApp !== undefined ||
+            value.vendorStaffApp !== undefined,
+        { message: "at least one demo auth field is required" },
+    );
+
 export const patchBookingPolicyDto = z
     .object({
         acceptingBookings: z.boolean().optional(),

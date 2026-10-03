@@ -2,6 +2,9 @@ const { getDefaultConfig } = require('expo/metro-config');
 const { withNativeWind } = require('nativewind/metro');
 const exclusionList =
   require('metro-config/private/defaults/exclusionList').default;
+const {
+  NATIVE_TREE_EXCLUSIONS,
+} = require('../scripts/metro-native-exclusions');
 
 const METRO_PORT = 8080;
 
@@ -21,8 +24,7 @@ const blockPatterns = [
     : expoBlockList
       ? [expoBlockList]
       : []),
-  /[/\\]android[/\\]/,
-  /[/\\]ios[/\\]/,
+  ...NATIVE_TREE_EXCLUSIONS,
 ];
 
 config.resolver = {

@@ -1,6 +1,7 @@
 import { ScalePressable } from '@/components/shell';
 import { Text } from '@/components/ui/text';
 import { openCmsLink } from '@/lib/open-cms-link';
+import { resolveViewAllCategoryHref } from '@/module/catalog/lib/category-nav';
 import { HomeCategoryTile } from '@/module/home/components/HomeCategoryTile';
 import { HomeSectionHeading } from '@/module/home/components/HomeSectionHeading';
 import {
@@ -8,12 +9,14 @@ import {
   type HomeCategory,
 } from '@/module/home/lib/home-catalog';
 import { type Href, router } from 'expo-router';
+import { useMemo } from 'react';
 import { ScrollView, View } from 'react-native';
 
 const TILE_WIDTH = 88;
 
 type HomeCategoryHorizontalSectionProps = {
   categories: HomeCategory[];
+  catalogCategories?: HomeCategory[];
   loading?: boolean;
   headingTitle?: string;
   headingSubtitle?: string;
@@ -30,6 +33,7 @@ function categoryPath(category: HomeCategory): Href {
 
 export function HomeCategoryHorizontalSection({
   categories,
+  catalogCategories = [],
   loading = false,
   headingTitle = 'Top decoration categories',
   headingSubtitle = 'Trusted decorators for all events',
@@ -43,8 +47,28 @@ export function HomeCategoryHorizontalSection({
 
   const cap = Math.max(1, maxVisible);
   const visible = categories.slice(0, cap);
-  const showViewAllLink = showViewAll && categories.length > cap && !loading;
-  const viewAllTarget = viewAllHref?.trim() || '/(app)/category';
+
+  const resolvedHref = useMemo(() => {
+    if (!showViewAll || loading) return null;
+    const cmsHref = viewAllHref?.trim();
+    if (cmsHref) return cmsHref;
+    return resolveViewAllCategoryHref({
+      rowCategories: categories,
+      catalogCategories,
+    });
+  }, [showViewAll, loading, viewAllHref, categories, catalogCategories]);
+
+  const showViewAllLink = Boolean(resolvedHref);
+
+  function onViewAllPress() {
+    if (!resolvedHref) return;
+    const cmsHref = viewAllHref?.trim();
+    if (cmsHref) {
+      openCmsLink(cmsHref);
+      return;
+    }
+    router.push(resolvedHref as Href);
+  }
 
   return (
     <View className="gap-4">
@@ -59,12 +83,12 @@ export function HomeCategoryHorizontalSection({
         )}
         {showViewAllLink ? (
           <ScalePressable
-            onPress={() => openCmsLink(viewAllTarget)}
+            onPress={onViewAllPress}
             haptic
-            className="shrink-0 pt-1"
+            className="shrink-0 self-center pt-0.5"
             accessibilityRole="button"
             accessibilityLabel="View all categories">
-            <Text className="text-muted-foreground text-xs font-medium">View all</Text>
+            <Text className="text-muted-foreground text-xs font-medium">View all →</Text>
           </ScalePressable>
         ) : null}
       </View>

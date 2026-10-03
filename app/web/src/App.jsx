@@ -15,7 +15,6 @@ import { HelpTopicChatPage } from "@/module/account/pages/HelpTopicChatPage";
 import { BookingDetailPage } from "@/module/account/pages/BookingDetailPage";
 import { ProfilePage } from "@/module/account/pages/ProfilePage";
 import { NotificationsPage } from "@/module/account/pages/NotificationsPage";
-import { SettingsPage } from "@/module/account/pages/SettingsPage";
 import { AddressesPage } from "@/module/account/pages/AddressesPage";
 import { ReturnsRefundsPage } from "@/module/account/pages/ReturnsRefundsPage";
 import { CheckoutPage } from "@/module/booking/pages/CheckoutPage";
@@ -70,12 +69,12 @@ export default function App() {
             <Route path="help" element={<HelpPage />} />
             <Route path="help/:topicKey/chat" element={<HelpTopicChatPage />} />
             <Route path="notifications" element={<NotificationsPage />} />
-            <Route path="settings" element={<SettingsPage />} />
+            <Route path="settings" element={<Navigate to="/account" replace />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
           <Route path="/support" element={<Navigate to="/account/help" replace />} />
           <Route path="/bookings" element={<Navigate to="/account/bookings" replace />} />
-          <Route path="/settings" element={<Navigate to="/account/settings" replace />} />
+          <Route path="/settings" element={<Navigate to="/account" replace />} />
           <Route
             path="/checkout"
             element={

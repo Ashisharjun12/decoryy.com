@@ -1,7 +1,7 @@
 import * as chatApi from '@/api/chat.api';
 import { queryKeys } from '@/lib/query-keys';
+import { newClientMessageId } from '@/module/chat/lib/client-message-id';
 import { CHAT_BLUR_EVENT, CHAT_FOCUS_EVENT } from '@/module/chat/lib/chat-events';
-import { isOptimisticMessageId } from '@/module/chat/lib/chat-utils';
 import { useSocket } from '@/providers/socket-provider';
 import { useAuthStore } from '@/store/auth.store';
 import { useChatStore } from '@/store/chat.store';
@@ -18,10 +18,6 @@ function useChatFocus(conversationId: string | undefined) {
       socket.emit(CHAT_BLUR_EVENT, {});
     };
   }, [socket, conversationId]);
-}
-
-export function newClientMessageId() {
-  return `cm-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
 export function useBookingChatThread(orderId: string, options?: { enabled?: boolean }) {
@@ -103,9 +99,11 @@ export function useBookingChatThread(orderId: string, options?: { enabled?: bool
 
   useEffect(() => {
     const last = mergedMessages[mergedMessages.length - 1];
-    if (!last || !conversationId || isOptimisticMessageId(last.id)) return;
+    if (!last || !conversationId) return;
+    const pending = conversationId ? pendingMessages[conversationId] ?? [] : [];
+    if (pending.some((p) => p.clientMessageId === last.id)) return;
     void chatApi.markConversationRead(conversationId, last.id).catch(() => {});
-  }, [mergedMessages, conversationId]);
+  }, [mergedMessages, conversationId, pendingMessages]);
 
   return {
     conversation: conversationQuery.data,

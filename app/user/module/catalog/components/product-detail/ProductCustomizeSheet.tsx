@@ -2,7 +2,9 @@ import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { HomeBottomSheetModal } from '@/module/home/components/HomeBottomSheetModal';
 import {
+  ADDON_CARD_GAP,
   getAddonCustomizeCardHeight,
+  getAddonRailSnapInterval,
   ProductAddonCustomizeCard,
 } from './ProductAddonCustomizeCard';
 import type { PublicAddonForCity } from '@/module/catalog/lib/product-detail';
@@ -12,7 +14,8 @@ import { Dimensions, FlatList, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const SHEET_HORIZONTAL_PADDING = 20;
-const CARD_GAP = 12;
+
+const CARD_GAP = ADDON_CARD_GAP;
 const VISIBLE_ADDON_COLUMNS = 2;
 const SHEET_MIN_HEIGHT_RATIO = 0.5;
 
@@ -21,10 +24,6 @@ export function getAddonCustomizeCardWidth(windowWidth = Dimensions.get('window'
   const contentWidth = windowWidth - SHEET_HORIZONTAL_PADDING * 2;
   const totalGap = CARD_GAP * (VISIBLE_ADDON_COLUMNS - 1);
   return (contentWidth - totalGap) / VISIBLE_ADDON_COLUMNS;
-}
-
-export function getAddonRailSnapInterval(cardWidth: number) {
-  return cardWidth + CARD_GAP;
 }
 
 type ProductCustomizeSheetProps = {

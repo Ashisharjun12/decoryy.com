@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { MoreHorizontalIcon, PackagePlusIcon, Trash2Icon } from "lucide-react"
+import { MoreHorizontalIcon, Trash2Icon } from "lucide-react"
 import { listAdmin as listAddons } from "@/api/addons.api"
 import { mapProductAddon, unmapProductAddon } from "@/api/products.api"
 import { getApiError } from "@/api/api"
@@ -21,13 +21,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty"
-import {
   Table,
   TableBody,
   TableCell,
@@ -41,14 +34,14 @@ import { AddonThumb } from "@/module/catalog/components/AddonThumb"
 import { ColorSwatch } from "@/module/catalog/components/AddonColorField"
 
 export function ProductAddonsCard({ productId, mappedIds, onMappedIdsChange, disabled }) {
+  const deferPersistence = !productId
   const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(Boolean(productId))
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [busyId, setBusyId] = useState("")
   const [comboKey, setComboKey] = useState(0)
 
   const load = useCallback(async () => {
-    if (!productId) return
     setLoading(true)
     setError("")
     try {
@@ -59,7 +52,7 @@ export function ProductAddonsCard({ productId, mappedIds, onMappedIdsChange, dis
     } finally {
       setLoading(false)
     }
-  }, [productId])
+  }, [])
 
   useEffect(() => {
     load()
@@ -75,14 +68,24 @@ export function ProductAddonsCard({ productId, mappedIds, onMappedIdsChange, dis
     [items, mapped],
   )
 
+  function appendMappedId(addonId) {
+    onMappedIdsChange(
+      [...(mappedIds || []), addonId].filter((id, index, all) => all.indexOf(id) === index),
+    )
+    setComboKey((key) => key + 1)
+  }
+
   async function add(addon) {
-    if (!productId || disabled || !addon?.id) return
+    if (disabled || !addon?.id) return
+    if (deferPersistence) {
+      appendMappedId(addon.id)
+      return
+    }
     setBusyId(addon.id)
     setError("")
     try {
       await mapProductAddon(productId, addon.id)
-      onMappedIdsChange([...(mappedIds || []), addon.id].filter((id, index, all) => all.indexOf(id) === index))
-      setComboKey((key) => key + 1)
+      appendMappedId(addon.id)
     } catch (err) {
       toast.add({ title: getApiError(err), type: "error" })
     } finally {
@@ -91,7 +94,11 @@ export function ProductAddonsCard({ productId, mappedIds, onMappedIdsChange, dis
   }
 
   async function remove(addon) {
-    if (!productId || disabled) return
+    if (disabled || !addon?.id) return
+    if (deferPersistence) {
+      onMappedIdsChange((mappedIds || []).filter((id) => id !== addon.id))
+      return
+    }
     setBusyId(addon.id)
     setError("")
     try {
@@ -104,19 +111,9 @@ export function ProductAddonsCard({ productId, mappedIds, onMappedIdsChange, dis
     }
   }
 
-  if (!productId) {
-    return (
-      <Empty className="border">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <PackagePlusIcon />
-          </EmptyMedia>
-          <EmptyTitle>Add product first</EmptyTitle>
-          <EmptyDescription>Save the product, then map add-ons from the library.</EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    )
-  }
+  const emptyHint = deferPersistence
+    ? "No add-ons yet. Search and select — they are saved when you create the product."
+    : "No add-ons yet. Search and select to add."
 
   return (
     <div className="flex flex-col gap-3">
@@ -175,7 +172,7 @@ export function ProductAddonsCard({ productId, mappedIds, onMappedIdsChange, dis
           </Combobox>
 
           {mappedRows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No add-ons yet. Search and select to add.</p>
+            <p className="text-sm text-muted-foreground">{emptyHint}</p>
           ) : (
             <Table>
               <TableHeader>

@@ -59,22 +59,45 @@ export class CashfreeProvider implements IPaymentProvider {
 
     async createIntent(input: CreateIntentInput): Promise<CreateIntentResult> {
         const customer = input.customer;
-        const response = await client().PGCreateOrder({
-            order_id: input.orderId,
-            order_amount: toRupees(input.amountPaise),
-            order_currency: "INR",
-            customer_details: {
-                customer_id: input.orderId,
-                customer_name: customer?.name ?? "Customer",
-                customer_email: customer?.email ?? "customer@decoryy.com",
-                customer_phone: customer ? cashfreePhone(customer.phone) : cashfreePhone("9876543210"),
-            },
-            order_meta: {
-                return_url: `${_config.WEB_APP_ORIGIN}/checkout/success/${input.orderId}`,
-            },
-        });
+        try {
+            const response = await client().PGCreateOrder({
+                order_id: input.orderId,
+                order_amount: toRupees(input.amountPaise),
+                order_currency: "INR",
+                customer_details: {
+                    customer_id: input.orderId,
+                    customer_name: customer?.name ?? "Customer",
+                    customer_email: customer?.email ?? "customer@decoryy.com",
+                    customer_phone: customer ? cashfreePhone(customer.phone) : cashfreePhone("9876543210"),
+                },
+                order_meta: {
+                    return_url: `${_config.WEB_APP_ORIGIN}/checkout/success/${input.orderId}`,
+                },
+            });
+            return this.intentFromOrderResponse(response.data, input);
+        } catch (err: unknown) {
+            if (this.isCashfreeOrderAlreadyExists(err)) {
+                const response = await client().PGFetchOrder(input.orderId);
+                return this.intentFromOrderResponse(response.data, input);
+            }
+            throw err;
+        }
+    }
 
-        const data = response.data;
+    private isCashfreeOrderAlreadyExists(err: unknown): boolean {
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code;
+        return status === 409 || code === "order_already_exists";
+    }
+
+    private intentFromOrderResponse(
+        data: {
+            cf_order_id?: string | number;
+            order_id?: string;
+            payment_session_id?: string;
+        },
+        input: CreateIntentInput,
+    ): CreateIntentResult {
         const providerRef = String(data.cf_order_id ?? data.order_id ?? input.orderId);
         const paymentSessionId = data.payment_session_id;
         if (!paymentSessionId) {

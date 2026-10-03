@@ -11,6 +11,7 @@ import type { IOrderFieldAssignmentRepository } from "@/modules/assignment/field
 export type BookingChatCloseReason = "completed" | "cancelled";
 
 export interface IBookingChatService {
+    openBookingConversationForOrder(orderId: string): Promise<Conversation>;
     ensureBookingConversation(orderId: string): Promise<Conversation>;
     syncBookingFieldWorker(orderId: string, vendorId: string): Promise<void>;
     closeBookingConversation(
@@ -29,6 +30,16 @@ export class BookingChatService implements IBookingChatService {
         private readonly vendors: IVendorRepository,
         private readonly fieldAssignments: IOrderFieldAssignmentRepository,
     ) {}
+
+    /** Create conversation if missing and align vendor participant with field worker when assigned. */
+    async openBookingConversationForOrder(orderId: string): Promise<Conversation> {
+        const conversation = await this.ensureBookingConversation(orderId);
+        const assignment = await this.assignments.findActiveByOrderId(orderId);
+        if (assignment) {
+            await this.syncBookingFieldWorker(orderId, assignment.vendorId);
+        }
+        return conversation;
+    }
 
     async ensureBookingConversation(orderId: string): Promise<Conversation> {
         const existing = await this.conversations.findByTypeAndContext(

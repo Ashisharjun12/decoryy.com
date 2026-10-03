@@ -17,6 +17,12 @@ import { View } from 'react-native';
 /** Image spans full card width (two cards fill the rail row). */
 export const ADDON_IMAGE_SIZE_RATIO = 1;
 
+export const ADDON_CARD_GAP = 12;
+
+export function getAddonRailSnapInterval(cardWidth: number) {
+  return cardWidth + ADDON_CARD_GAP;
+}
+
 const CARD_BODY_PADDING_V = 16;
 const CARD_SECTION_GAP = 6;
 const CARD_TITLE_MIN = 30;

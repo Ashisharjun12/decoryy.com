@@ -81,6 +81,8 @@ function NavTab({ item, active, onAction }) {
     );
   }
 
+  const isInstant = item.id === "instant";
+
   const content = (
     <>
       <motion.span
@@ -91,16 +93,32 @@ function NavTab({ item, active, onAction }) {
         <span
           className={cn(
             "flex size-8 items-center justify-center rounded-full transition-colors duration-300 ease-out",
-            active ? "bg-primary/10 text-primary" : "text-muted-foreground",
+            isInstant
+              ? active
+                ? "bg-orange-500/15 text-orange-600 dark:text-orange-400"
+                : "text-muted-foreground"
+              : active
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground",
           )}
         >
-          <Icon className="size-[1.25rem]" strokeWidth={active ? 2.25 : 1.75} aria-hidden />
+          <Icon
+            className={cn("size-[1.25rem]", isInstant && active && "fill-orange-500/25")}
+            strokeWidth={active ? 2.25 : 1.75}
+            aria-hidden
+          />
         </span>
       </motion.span>
       <span
         className={cn(
           "max-w-full truncate px-0.5 text-[10px] font-medium leading-none transition-colors duration-300",
-          active ? "font-semibold text-primary" : "text-muted-foreground",
+          isInstant
+            ? active
+              ? "font-semibold text-orange-600 dark:text-orange-400"
+              : "font-medium text-muted-foreground"
+            : active
+              ? "font-semibold text-primary"
+              : "text-muted-foreground",
         )}
       >
         {item.label}
@@ -216,7 +234,12 @@ export function MobileBottomNav({ visible = true }) {
         <div className="relative flex w-full items-stretch overflow-visible">
           {hasActive ? (
             <motion.div
-              className="pointer-events-none absolute top-0 z-10 h-1 w-12 -translate-x-1/2 rounded-full bg-primary shadow-[0_0_14px_2px] shadow-primary/30"
+              className={cn(
+                "pointer-events-none absolute top-0 z-10 h-1 w-12 -translate-x-1/2 rounded-full shadow-[0_0_14px_2px]",
+                activeId === "instant"
+                  ? "bg-orange-500 shadow-orange-500/35"
+                  : "bg-primary shadow-primary/30",
+              )}
               initial={false}
               animate={{ left: `${indicatorLeft}%` }}
               transition={{ type: "spring", stiffness: 340, damping: 28, mass: 0.85 }}

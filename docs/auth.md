@@ -92,6 +92,29 @@ Production:
 
 Development (`NODE_ENV=development`) also returns `"otp": "123456"` so you can verify in Postman without SMS.
 
+### Demo login (Play Store review)
+
+**Setup (production):**
+
+1. On the API server: `cd backend && npm run db:seed:demo-access` (creates review customer, vendor owner, and staff accounts; idempotent).
+2. In admin: **Settings → Demo credentials** — enable master switch and per-app toggles (`platform_settings` key `demo.auth`).
+
+**Default phones** (override with `DEMO_CUSTOMER_PHONE`, `DEMO_VENDOR_OWNER_PHONE`, `DEMO_VENDOR_STAFF_PHONE`, `DEMO_AUTH_OTP` in backend `.env`):
+
+| App | Phone | OTP |
+|-----|-------|-----|
+| Customer | 9000000001 | 123456 |
+| Vendor owner | 9000000002 | 123456 |
+| Vendor staff | 9000000003 | 123456 |
+
+When the admin **master switch is on** and the matching per-app toggle is on, `POST /auth/otp/request` skips SMS and stores the fixed OTP in Redis. When demo is **off**, review numbers use the normal SMS OTP path (same as any other phone).
+
+- **Customer app:** phone above, **no** `loginIntent`.
+- **Vendor owner:** owner phone, `loginIntent: "owner"`, `partnerSignIn: true` on verify.
+- **Vendor staff:** staff phone, `loginIntent: "staff"`, `partnerSignIn: true` on verify.
+
+In **production**, the API does not echo OTP in JSON for demo or SMS logins. In **`NODE_ENV=development`**, OTP is included in the request response when channels are off (no SMS send) or after a normal send — same as before. Paste review credentials in Google Play Console → App content → App access.
+
 ### Errors
 
 - `400` invalid phone

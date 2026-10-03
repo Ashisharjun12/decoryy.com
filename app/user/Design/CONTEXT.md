@@ -18,12 +18,12 @@ Living brief for the customer mobile app (`app/user`). Update this file when eac
 
 | Field | Value |
 |-------|--------|
-| Name | Order booking chat (vendor parity) |
-| Status | shipped — Socket.IO realtime, attachments, typing/read receipts, vendor-style keyboard + composer |
-| Home UI | Browse feed without city + compact “Please select city” banner; auto city sheet |
+| Name | Profile hub — web account parity (mobile UI) |
+| Status | shipped — Personal info (link phone/Google), refunds API screen, help/support chat; placeholder Settings removed |
+| Home UI | Browse feed without city + compact “Please select city” banner; auto city sheet; CMS/discovery rails match web View all + badge colors |
 | Bag / checkout | No My bag screen — bag icon / add-to-bag → `/(app)/checkout` (Confirm booking → Payment); offers + address sub-routes |
 | APIs | Cart, coupons, orders (create/cancel/resume, `GET /orders?bucket&page`, `GET /orders/:id`), `POST /payments/verify`; Cashfree UPI Intent Android |
-| Payment QA | Online fail → stay on Payment, banner, retry same order; user picks COD → confirmed only if `CONFIRMED`; success screen gates status; My orders → Complete payment + order detail |
+| Payment QA | Online cancel/fail → cancel pending order, reset idempotency, alert “Order not placed” (bag unchanged); backend Cashfree 409 → reuse session; COD → confirmed only if `CONFIRMED`; success gates status |
 | Location | Tab bootstrap + `useCatalogLocationGate` on PDP/home catalog |
 | Parity | Normalization from web `home-catalog` / home CMS hero slides |
 | Bottom nav | Home → Category → **Explore** → Instant → Profile; Instant tab orange (`INSTANT_TAB_HEX`); other tabs yellow primary |
@@ -33,22 +33,24 @@ Living brief for the customer mobile app (`app/user`). Update this file when eac
 | Path | Owns |
 |------|------|
 | `module/onboarding/` | Welcome UI, phone + OTP, `otp.service`, SMS autofill hook |
-| `module/home/` | `HomeTopBar` → `select-location` route; `HomeSearchBar` + city picker; CMS feed components |
+| `module/home/` | `HomeTopBar` → `select-location` route; `HomeSearchBar` + city picker; CMS feed; `MerchSectionsSync`, `use-catalog-sections-query` |
+| `module/catalog/components/CatalogProductCard.tsx` | Single browse product card (`layout` grid/rail); `use-product-merch-badge` |
+| `store/merch-sections.store.ts` | City-scoped product → section badge index for cards |
 | `module/location/` | `SelectLocationScreen`, `AddAddressScreen`, `ConfirmAddressMapScreen` (web-style form → Ola map + pin) |
 | `module/geo/` | `OlaPinMapView`, `MapCenterPin`, `use-maps-sdk-config`, Ola auth (MapLibre) |
 | `module/geo/` | `PlacesAddressAutocomplete` (maps API) |
-| `module/booking/` | `checkout/*`, `CashfreePaymentGatewayHost`, `cashfree-payment-bridge.ts`, `online-checkout-native.ts`, `place-order.ts` |
-| `module/catalog/` | PLP + `ProductPdpScreen` (gallery chrome, breadcrumb, price, location, schedule/instant, coupon ticket rail, PDP details tabs, `ProductSimilarRail` + `ProductOtherCategoriesRail`, reviews API, WhatsApp + Book sticky CTA, customize sheet); hooks `use-product-detail-query`, `use-product-reviews-preview-query`, `use-similar-products-query`, `use-other-category-products-query`, `use-available-coupons` |
+| `module/booking/` | `checkout/*`, `abandon-incomplete-online-payment.ts`, `CashfreePaymentGatewayHost`, `cashfree-payment-bridge.ts`, `online-checkout-native.ts`, `place-order.ts` |
+| `module/catalog/` | PLP + `ProductPdpScreen` (gallery Share + Home, `ProductShareSheet`, web `/p/{id}` share URL, breadcrumb, price, location, schedule/instant, coupon ticket rail, `ProductPdpAddonsSection`, About accordion, details tabs, rails, reviews, `ProductPdpMobileBookingBar`); hooks `use-product-detail-query`, `use-product-reviews-preview-query`, `use-similar-products-query`, `use-other-category-products-query`, `use-available-coupons` |
 | `module/promotions/` | `CouponTicketCard` (rail/stack), `CouponOffersRail`, `CouponDetailSheet`, `CouponOffersFilterSheet`, `OffersScreen`; PDP horizontal coupons + `app/(app)/offers` (stacked tickets, filter, load more) |
-| `module/account/` | Profile hub, orders list/detail; `order-detail/*` tracking map, contact, details sheet; `use-order-tracking-query`, `use-active-order-for-home` |
-| `module/chat/` | `BookingChatScreen`, `use-booking-chat-thread`, attachments, typing; `SocketProvider` + `chat.store` in root layout → `profile/orders/[id]/chat` |
+| `module/account/` | `ProfileTabScreen`, `AccountScreen` (Personal info), `RefundsScreen`, `HelpScreen`, link phone/Google sheets; orders list/detail; `order-detail/*`; `account-nav`, `profile-menu` |
+| `module/chat/` | `BookingChatScreen`, `SupportTopicChatScreen`, `use-booking-chat-thread`, `use-support-topic-chat-thread`, `help-topics`; order + support chat routes |
 | `module/geo/` | `OlaTrackingMapView`, trip pins, `map-bounds` |
 | `module/notifications/` | Inbox list (`use-user-notifications`, `NotificationRow`), tap routing (`resolve-notification-target`), query invalidation on push |
 | `module/permissions/` | Post-login `enable-location` → `enable-notifications`; `use-permissions-setup-prompt` |
 | `lib/notifications.ts`, `lib/push-registration.ts`, `lib/location.ts`, `lib/camera.ts`, `hooks/use-push-registration.ts`, `hooks/use-notification-listeners.ts` | Permissions, Expo push token sync, foreground handler + tap/receive listeners, location/camera helpers |
 | `api/notifications.api.ts` | `POST/DELETE /user/devices`, `GET/PATCH /user/notifications` |
 | `components/shell/SmoothScrollView.tsx` | Native smooth scroll defaults; web uses `lib/lenis-web` |
-| `api/` | `client.ts` (401 → refresh + retry), `auth.api.ts`, `auth-refresh.api.ts`, `addresses.api.ts`, `notifications.api.ts`, … |
+| `api/` | `client.ts` (401 → refresh + retry), `auth.api.ts`, `cms.api.ts` (`getSiteShell`), `refunds.api.ts`, `chat.api.ts` (`openCustomerSupport`), `addresses.api.ts`, `notifications.api.ts`, … |
 | `module/auth/` | `consumer-session`, `AuthSessionBridge`, `NotificationListenersHost` (push register + listeners), `google-auth.service`, `link-google.service` |
 | `lib/auth-session-refresh.ts` | JWT exp check, single-flight `POST /auth/refresh` for mobile |
 | `module/onboarding/lib/otp-verify-errors.ts` | OTP_EXPIRED / INVALID / ATTEMPTS mapping |
@@ -60,8 +62,7 @@ Living brief for the customer mobile app (`app/user`). Update this file when eac
 | `store/delivery-location.store.ts` | Selected delivery address + header subtitle; applies to location store |
 | `store/cart.store.ts` | Cart item count from `GET /cart` when authenticated |
 | `store/checkout.store.ts` | Customer + delivery snapshot for confirm/pay |
-| `lib/mock/` | PDP products, legacy home mocks (unused on home path), addresses, support URLs |
-| `lib/support-actions.ts` | Open WhatsApp / tel fallback |
+| `lib/site-brand-contact.ts`, `lib/support-actions.ts` | `GET /catalog/cms/site-shell?platform=app` for WhatsApp/tel; alert if brand contact unset |
 | `components/shell/` | `Screen`, `ScreenBackButton`, `TabScreenTitle`, `AppTabBar`, `LoadingPlaceholder` |
 | `components/ui/` | Shared primitives — change rarely |
 
@@ -81,10 +82,14 @@ Living brief for the customer mobile app (`app/user`). Update this file when eac
 - [x] `app/(app)/instant` — instant-only catalog (`GET /catalog/products?instant=1`), sort/price toolbar, infinite scroll + pull-to-refresh
 - [x] `app/(app)/explore` — web `/explore` parity: category rail + city-wide or filtered product grid (sort/price, load more)
 - [x] `whatsapp` (FAB action)
-- [x] `app/(app)/profile` tab — settings-style grouped cards, OS notification toggle, notification inbox row, log out pill; stack routes account, orders, addresses, returns, notifications, settings, help
+- [x] `app/(app)/profile` tab — web `AccountNav` labels; push toggle + Notifications row; Personal info / orders / addresses / refunds / help stack
+- [x] `app/(app)/profile/account` — Personal info, avatar initials, link phone (sheet) + link Google (sheet)
+- [x] `app/(app)/profile/returns` — refunds list + summary (`GET /user/refunds`)
+- [x] `app/(app)/profile/settings` — redirect to profile (placeholder Settings removed)
+- [x] `app/(app)/profile/help` + `help/[topic]` — help topics accordion + in-app support chat
 - [x] `app/(app)/notifications` — inbox (hidden tab route); back → home or profile by `from`; bottom tabs stay visible; re-tap tab → tab root (`lib/tab-roots.ts`)
 - [x] `app/(app)/profile/orders` — All / Upcoming / Completed / Cancelled (horizontal pills), infinite scroll + load more, `OrderListCard` CTAs (payment, view, review)
-- [x] `app/(app)/profile/orders/[id]` — tracking layout (map ~58%, contact call/chat, timeline, details sheet) or classic hero for completed/payment
+- [x] `app/(app)/profile/orders/[id]` — map tracking layout only `EN_ROUTE`; `ON_SITE` / assigned / completed → classic detail + contact + timeline
 - [x] `app/(app)/profile/orders/[id]/chat` — in-app decorator chat
 - [x] Home `HomeActiveOrderBar` — ASSIGNED / EN_ROUTE / ON_SITE above tab bar
 - [x] Home header notifications bell → `/(app)/notifications`; bag → checkout
@@ -114,6 +119,13 @@ Living brief for the customer mobile app (`app/user`). Update this file when eac
 ## History (newest first)
 
 ```text
+2026-10-03 — Home CMS banners — restore `getHomeCms` in `api/cms.api.ts` (`platform=android`) so admin Android hero banners load on home carousel
+2026-10-03 — Mock/placeholder cleanup — removed `lib/mock/`; support via site-shell brand; dropped Settings screen; PDP empty tabs show no-data copy
+2026-10-03 — Online payment abandon — cancel `PENDING_PAYMENT` on gateway exit/fail; simple “Order not placed” alert; no retry banner; `abandon-incomplete-online-payment.ts`
+2026-10-03 — PDP share v1 — gallery Share + `ProductShareSheet` (WhatsApp, copy, system share); `EXPO_PUBLIC_WEB_URL` + `/p/{id}` links
+2026-10-03 — PDP About accordion — description moved off title into collapsible “About this package” above details tabs (web content order)
+2026-10-02 — CatalogProductCard — one dynamic grid/rail card; fix merch Zustand selector infinite loop; sections signature skip on refetch
+2026-10-02 — Home/catalog web parity — global merch section badges; `ProductRailHeader` View all → on category rows + package rails + PDP similar/explore rails; `resolveViewAllCategoryHref` / `getCategoryListingHref`
 2026-10-01 — Live tracking — GET /orders/:id/tracking, map-first detail, Home active-order bar, order chat API + screen
 2026-10-01 — Order tracking map — `GET /orders/:id/route` black polyline + vendor→home fallback; ImageKit delivery pin; bottom-left Open in Google Maps chip
 2026-10-01 — User trip map parity — trimRouteAhead + route refetch (75m/15s); stale GPS keeps last pin/line; location.png + blue live dot on tracking map
@@ -179,6 +191,12 @@ Living brief for the customer mobile app (`app/user`). Update this file when eac
 2026-10-01 — Dev Metro — blockList excludes full `android/` + `ios/` (fixes Windows watch timeout on `android/app/build` after native builds)
 2026-10-01 — Dev Expo CLI — `scripts/expo-dev.js` sets default `EXPO_NO_CACHE=1` (dual-app start / shared `~/.expo` API cache "Body already read" crash)
 2026-10-01 — Order chat route — `profile/orders/[id].tsx` + `[id]/chat` (vendor-style); fix chat icon navigation (`user:///` unmatched)
+2026-10-02 — Booking chat send — UUID `clientMessageId` (API validation); send/attach error alerts; user GET conversation lazy-opens via `openBookingConversationForOrder`
+2026-10-02 — Order detail map — tracking map layout only for `EN_ROUTE`; `ON_SITE` uses classic detail (decorator on site, no live map)
+2026-10-03 — Windows `npm run android` — `win-native-run-helpers` detached Metro + `--no-bundler`; LAN packager hostname for devices
+2026-10-03 — PDP sticky bar (web mobile) — `ProductPdpMobileBookingBar` price + compact WhatsApp + Book your setup
+2026-10-02 — PDP addons (web) — `ProductPdpAddonsSection` horizontal rail below offers; Book Now uses inline selection (removed customize bottom sheet)
+2026-10-02 — Order reviews — `OrderReviewSheet` (interactive 5★ + text), orders list + detail, `POST /orders/:id/review`
 2026-09-25 — Unified consumer identity — consumer-session (vendor/staff OK); backend eligibility, self-dealing, shop-block staff; web parity
 2026-09-25 — OTP hardening + account linking — verify debounce, otp-verify-errors, resend cooldown; `user.api` + Account link phone/Google
 2026-09-25 — Phone OTP (API) — `auth.api` request/verify, `otp.service`, customer-session guard, Android SMS autofill; mock OTP removed
@@ -190,4 +208,7 @@ Living brief for the customer mobile app (`app/user`). Update this file when eac
 2026-03-24 — Native 4-tab bar — Home/Category/Instant/Profile, neutral icons; Profile tab + WhatsApp in profile — AppTabBar, profile.tsx, ProfileTabScreen
 2026-03-24 — Home + bottom nav (mock) — Home feed with mock rails; account/search — app/(app), module/home, lib/mock, store/location+cart
 2026-03-23 — Onboarding slice (mock) — Welcome + sign-in + OTP + placeholder home; CONTEXT/AGENTS; auth.store mock session — app/(onboarding), module/onboarding, module/auth, store/, lib/, components/shell/
+2026-10-03 — Search screen category chips — `SearchCategoryBadges` + web-aligned limits/copy on `SearchScreen`
+2026-10-03 — PDP similar packages — gallery “Similar” pill + `ProductPdpSimilarPackages` bottom sheet (web mobile parity)
+2026-10-03 — Profile web parity — Personal info linking, refunds/settings/help screens, support topic chat — module/account, module/chat, api/refunds
 ```

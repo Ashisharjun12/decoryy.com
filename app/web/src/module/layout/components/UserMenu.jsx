@@ -3,7 +3,6 @@ import {
   LogOutIcon,
   MapPinIcon,
   PackageIcon,
-  SettingsIcon,
   UserRoundIcon,
 } from "lucide-react";
 import { logout } from "@/api/auth.api";
@@ -25,7 +24,6 @@ const MENU_LINKS = [
   { label: "Personal Info", href: "/account", icon: UserRoundIcon },
   { label: "My Orders", href: "/account/bookings", icon: PackageIcon },
   { label: "Addresses", href: "/account/addresses", icon: MapPinIcon },
-  { label: "Settings", href: "/account/settings", icon: SettingsIcon },
 ];
 
 function initials(name = "") {
@@ -190,38 +188,22 @@ export function UserMenu({ className, variant = "header", onNavigate }) {
 
   if (variant === "sheet") {
     return (
-      <div className={cn("flex flex-col gap-3", className)}>
-        <div className="flex items-center gap-3 rounded-2xl bg-muted/60 px-3 py-2.5">
-          <Avatar size="sm">
-            {user.avatar ? <AvatarImage src={user.avatar} alt="" /> : null}
-            <AvatarFallback>{initials(name)}</AvatarFallback>
-          </Avatar>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{name}</p>
-            {user.email ? (
-              <p className="truncate text-xs text-muted-foreground">{user.email}</p>
-            ) : null}
-          </div>
-        </div>
-        <nav className="flex flex-col gap-1">
-          {MENU_LINKS.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                to={item.href}
-                onClick={onNavigate}
-                className="flex cursor-pointer items-center gap-2.5 rounded-2xl px-3 py-2.5 text-sm font-medium hover:bg-muted"
-              >
-                <Icon className="size-4" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-        <Button variant="destructive" onClick={onLogout}>
-          <LogOutIcon className="size-4" />
-          Logout
+      <div className={cn("flex flex-col gap-2", className)}>
+        <Button
+          type="button"
+          nativeButton={false}
+          className="h-11 w-full rounded-full bg-primary text-base font-semibold text-black hover:bg-primary/85"
+          render={<Link to="/account" onClick={onNavigate} />}
+        >
+          Manage profile
+        </Button>
+        <Button
+          type="button"
+          variant="destructive"
+          className="h-11 w-full rounded-full text-base font-semibold"
+          onClick={onLogout}
+        >
+          Sign out
         </Button>
       </div>
     );

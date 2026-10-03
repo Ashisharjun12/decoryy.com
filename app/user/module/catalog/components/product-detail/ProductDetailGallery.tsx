@@ -1,7 +1,7 @@
 import { Icon } from '@/components/ui/icon';
 import { cn } from '@/lib/utils';
-import { BRAND_PRIMARY_HEX } from '@/lib/theme';
-import { ChevronLeft, Home } from 'lucide-react-native';
+import { ProductPdpSimilarGalleryButton } from '@/module/catalog/components/product-detail/ProductPdpSimilarPackages';
+import { ChevronLeft, Home, Share2 } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { useRef, useState } from 'react';
 import {
@@ -19,6 +19,9 @@ type ProductDetailGalleryProps = {
   title: string;
   onBack: () => void;
   onHome: () => void;
+  onShare?: () => void;
+  showSimilar?: boolean;
+  onSimilar?: () => void;
 };
 
 const PLACEHOLDER =
@@ -29,6 +32,9 @@ export function ProductDetailGallery({
   title,
   onBack,
   onHome,
+  onShare,
+  showSimilar,
+  onSimilar,
 }: ProductDetailGalleryProps) {
   const width = Dimensions.get('window').width;
   const insets = useSafeAreaInsets();
@@ -69,19 +75,29 @@ export function ProductDetailGallery({
         style={{ paddingTop: Math.max(insets.top, 12) }}>
         <Pressable
           onPress={onBack}
-          className="size-10 items-center justify-center rounded-full shadow-md"
-          style={{ backgroundColor: BRAND_PRIMARY_HEX }}
-          accessibilityRole="button"
-          accessibilityLabel="Go back">
-          <Icon as={ChevronLeft} className="text-primary-foreground size-5" />
-        </Pressable>
-        <Pressable
-          onPress={onHome}
           className="size-10 items-center justify-center rounded-full bg-background/95 shadow-md"
           accessibilityRole="button"
-          accessibilityLabel="Home">
-          <Icon as={Home} className="text-foreground size-5" />
+          accessibilityLabel="Go back">
+          <Icon as={ChevronLeft} className="text-foreground size-5" />
         </Pressable>
+        <View className="flex-row items-center gap-2">
+          {onShare ? (
+            <Pressable
+              onPress={onShare}
+              className="size-10 items-center justify-center rounded-full bg-background/95 shadow-md"
+              accessibilityRole="button"
+              accessibilityLabel="Share">
+              <Icon as={Share2} className="text-foreground size-5" />
+            </Pressable>
+          ) : null}
+          <Pressable
+            onPress={onHome}
+            className="size-10 items-center justify-center rounded-full bg-background/95 shadow-md"
+            accessibilityRole="button"
+            accessibilityLabel="Home">
+            <Icon as={Home} className="text-foreground size-5" />
+          </Pressable>
+        </View>
       </View>
       {urls.length > 1 ? (
         <View className="absolute bottom-3 w-full flex-row justify-center gap-1.5">
@@ -94,6 +110,16 @@ export function ProductDetailGallery({
               )}
             />
           ))}
+        </View>
+      ) : null}
+      {showSimilar && onSimilar ? (
+        <View
+          className={cn(
+            'absolute right-0 z-20 px-3',
+            urls.length > 1 ? 'bottom-10' : 'bottom-3',
+          )}
+          pointerEvents="box-none">
+          <ProductPdpSimilarGalleryButton onPress={onSimilar} />
         </View>
       ) : null}
     </View>

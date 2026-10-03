@@ -13,6 +13,7 @@ import { ScrollToTopButton } from "@/module/layout/components/ScrollToTopButton"
 import { ScrollToTopOnNavigate } from "@/module/layout/components/ScrollToTopOnNavigate";
 import { MobileBottomNav } from "@/module/layout/components/MobileBottomNav";
 import { MobileCategorySheet } from "@/module/layout/components/MobileCategorySheet";
+import { MerchSectionsSync } from "@/module/layout/components/MerchSectionsSync";
 import { RouteSeo } from "@/module/layout/components/RouteSeo";
 import { isProductDetailPath } from "@/lib/product-page-route";
 
@@ -31,6 +32,7 @@ export function Layout() {
         <Toaster>
           <RouteSeo />
           <ScrollToTopOnNavigate />
+          <MerchSectionsSync />
           <div className="flex min-h-[100dvh] flex-col bg-background text-foreground">
             <AnnouncementBar />
             <SiteHeader />

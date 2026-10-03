@@ -9,6 +9,7 @@ import { LocationPicker } from "@/module/layout/components/LocationPicker";
 import { MobileNav } from "@/module/layout/components/MobileNav";
 import { SearchCommand } from "@/module/layout/components/SearchCommand";
 import { UserMenu } from "@/module/layout/components/UserMenu";
+import { NotificationBell } from "@/module/notifications/components/NotificationBell";
 import { useAuthStore } from "@/store/auth.store";
 import { useSiteShell } from "@/module/site/hooks/use-site-shell.jsx";
 
@@ -37,7 +38,8 @@ export function HomeMobileHero({ slides = [] }) {
         <div className="min-w-0 flex-1 px-1">
           <LocationPicker variant="mobileToolbar" />
         </div>
-        <SearchCommand variant="toolbarIcon" />
+        <SearchCommand variant="toolbarIcon" fullScreen />
+        {isLoggedIn ? <NotificationBell /> : null}
         <CartButton />
         {isLoggedIn ? (
           user ? (

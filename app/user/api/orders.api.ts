@@ -170,3 +170,13 @@ export function cancelPendingOrder(id: string) {
 export function resumeOrderCheckout(id: string) {
   return api.post(`/orders/${id}/checkout`).then(unwrap<CreateOrderResponse>);
 }
+
+export type SubmitOrderReviewBody = {
+  rating: number;
+  body: string;
+  productId?: string;
+};
+
+export function submitOrderReview(orderId: string, body: SubmitOrderReviewBody) {
+  return api.post(`/orders/${orderId}/review`, body).then(unwrap<{ canReview: boolean; reviewSubmitted: boolean }>);
+}

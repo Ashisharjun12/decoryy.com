@@ -1,7 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { formatInr } from '@/module/bookings/lib/booking-format';
-import type { PayoutSummary } from '@/module/payouts/lib/mock-payouts';
+import type { PayoutSummary } from '@/module/payouts/lib/payout.types';
 import { View } from 'react-native';
 
 type PayoutSummaryCardProps = {

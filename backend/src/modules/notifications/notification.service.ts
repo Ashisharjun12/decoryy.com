@@ -1,3 +1,4 @@
+import { _config } from "@/config/config.js";
 import { isChannelEnabled } from "@/modules/ops/index.js";
 import type { NotificationChannel as OpsChannel } from "@/modules/ops/settings/notification-channels.js";
 import { ApiError } from "@/shared/errors/apiError.js";
@@ -46,6 +47,7 @@ export type NotifyInput = {
 };
 
 export interface INotificationService {
+    canDeliverLoginOtp(): Promise<boolean>;
     assertCanSend(event: NotificationEvent): Promise<void>;
     notify(input: NotifyInput): Promise<void>;
 }
@@ -108,11 +110,18 @@ export class NotificationService implements INotificationService {
         private readonly prefs: PreferenceService,
     ) {}
 
+    async canDeliverLoginOtp(): Promise<boolean> {
+        const sms = await isChannelEnabled("sms");
+        const whatsapp = await isChannelEnabled("whatsapp");
+        return sms || whatsapp;
+    }
+
     async assertCanSend(event: NotificationEvent): Promise<void> {
         if (event === "LOGIN_OTP") {
-            const sms = await isChannelEnabled("sms");
-            const whatsapp = await isChannelEnabled("whatsapp");
-            if (!sms && !whatsapp) {
+            if (_config.NODE_ENV === "development") {
+                return;
+            }
+            if (!(await this.canDeliverLoginOtp())) {
                 throw new ApiError(
                     503,
                     "phone notifications disabled (enable SMS or WhatsApp in admin settings)",

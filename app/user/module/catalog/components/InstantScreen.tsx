@@ -14,7 +14,7 @@ import {
   CATALOG_SORT_DEFAULT,
   type CatalogSortId,
 } from '@/module/catalog/lib/catalog-listing-sort';
-import { HomeProductCard } from '@/module/home/components/HomeProductCard';
+import { CatalogProductCard } from '@/module/catalog/components/CatalogProductCard';
 import { SELECT_LOCATION_HREF } from '@/lib/select-location-route';
 import type { HomeCatalogProduct } from '@/module/home/lib/home-catalog';
 import { useLocationStore } from '@/store/location.store';
@@ -230,7 +230,7 @@ export function InstantScreen() {
       onEndReachedThreshold={0.4}
       renderItem={({ item }) => (
         <View className="min-w-0 flex-1">
-          <HomeProductCard product={item} className="w-full" />
+          <CatalogProductCard product={item} layout="grid" />
         </View>
       )}
     />

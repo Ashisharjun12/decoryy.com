@@ -1,3 +1,4 @@
+import { getApiError } from '@/api/client';
 import type { PublicOrder } from '@/api/orders.api';
 import type { ChatMessage } from '@/api/chat.api';
 import { LoadingPlaceholder, ScalePressable } from '@/components/shell';
@@ -21,6 +22,7 @@ import {
   FlatList,
   Keyboard,
   LayoutAnimation,
+  Alert,
   Linking,
   Platform,
   Pressable,
@@ -106,8 +108,9 @@ export function BookingChatScreen({ orderId, order }: BookingChatScreenProps) {
     try {
       await sendMessage(text);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
-    } catch {
+    } catch (err) {
       setDraft(text);
+      Alert.alert('Could not send message', getApiError(err));
     }
   }
 
@@ -287,7 +290,9 @@ export function BookingChatScreen({ orderId, order }: BookingChatScreenProps) {
         onClose={() => setAttachOpen(false)}
         disabled={isUploading}
         onPick={(source) => {
-          void sendAttachment(source).catch(() => {});
+          void sendAttachment(source).catch((err) => {
+            Alert.alert('Could not send attachment', getApiError(err));
+          });
         }}
       />
     </SafeAreaView>

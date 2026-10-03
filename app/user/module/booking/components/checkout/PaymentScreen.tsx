@@ -11,6 +11,7 @@ import { BillDetailsCard } from '@/module/booking/components/checkout/BillDetail
 import { PaymentMethodCard } from '@/module/booking/components/checkout/PaymentMethodCard';
 import { useCartData, useCartMutations, useCartQuery } from '@/module/booking/hooks/use-cart-query';
 import { usePaymentMethodsQuery } from '@/module/booking/hooks/use-payment-methods-query';
+import { abandonIncompleteOnlinePayment } from '@/module/booking/lib/abandon-incomplete-online-payment';
 import {
   customerFormValid,
   deliveryFormValid,
@@ -38,6 +39,10 @@ function payCtaLabel(payment: CheckoutPaymentMethod, total: string, placing: boo
   return `Pay · ${total}`;
 }
 
+function newIdempotencyKey() {
+  return `mobile-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export function PaymentScreen() {
   const user = useAuthStore((s) => s.user);
   const onBack = useGoBack();
@@ -57,19 +62,11 @@ export function PaymentScreen() {
 
   const [payment, setPayment] = useState<CheckoutPaymentMethod>('');
   const [placing, setPlacing] = useState(false);
-  const idempotencyKeyRef = useRef(`mobile-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const idempotencyKeyRef = useRef(newIdempotencyKey());
   const suppressEmptyCartExit = useCheckoutStore((s) => s.suppressEmptyCartExit);
   const setSuppressEmptyCartExit = useCheckoutStore((s) => s.setSuppressEmptyCartExit);
-  const pendingOrderId = useCheckoutStore((s) => s.pendingOrderId);
-  const paymentIncomplete = useCheckoutStore((s) => s.paymentIncomplete);
-  const setPendingOrderId = useCheckoutStore((s) => s.setPendingOrderId);
-  const setPaymentIncomplete = useCheckoutStore((s) => s.setPaymentIncomplete);
   const clearPendingPayment = useCheckoutStore((s) => s.clearPendingPayment);
   const cartItemCount = useCartStore((s) => s.itemCount);
-
-  useEffect(() => {
-    if (!user) router.replace('/(onboarding)/login' as Href);
-  }, [user]);
 
   useFocusEffect(
     useCallback(() => {
@@ -128,6 +125,19 @@ export function PaymentScreen() {
     !paymentWarning &&
     !methodsError;
 
+  async function onOnlinePaymentAbandoned(orderId: string) {
+    await abandonIncompleteOnlinePayment(orderId);
+    clearPendingPayment();
+    idempotencyKeyRef.current = newIdempotencyKey();
+    setSuppressEmptyCartExit(false);
+    await refresh();
+    Alert.alert(
+      'Order not placed',
+      'No payment was taken. Your bag is unchanged — you can review and checkout again.',
+      [{ text: 'OK', onPress: () => router.replace('/(app)/checkout' as Href) }],
+    );
+  }
+
   async function onPlace() {
     if (!canPay || placing) return;
     setPlacing(true);
@@ -146,13 +156,7 @@ export function PaymentScreen() {
     } catch (err) {
       setSuppressEmptyCartExit(false);
       if (err instanceof OnlinePaymentIncompleteError) {
-        setPendingOrderId(err.orderId);
-        setPaymentIncomplete(true);
-        const title = err.userCancelled ? 'Payment cancelled' : 'Payment incomplete';
-        Alert.alert(
-          title,
-          'Your booking is not confirmed yet. Choose how you would like to pay and try again.',
-        );
+        await onOnlinePaymentAbandoned(err.orderId);
         return;
       }
       Alert.alert('Could not place order', getApiError(err));
@@ -176,18 +180,6 @@ export function PaymentScreen() {
         className="flex-1"
         contentContainerClassName="gap-5 pb-4 pt-2"
         contentContainerStyle={{ paddingBottom: 130 + insets.bottom }}>
-        {paymentIncomplete && pendingOrderId ? (
-          <View className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-950/30">
-            <Text className="text-foreground text-sm font-semibold">
-              Payment didn&apos;t go through
-            </Text>
-            <Text className="text-muted-foreground mt-1 text-sm leading-relaxed">
-              Your booking isn&apos;t confirmed yet. Select Pay online or Cash on delivery below,
-              then tap the button to continue.
-            </Text>
-          </View>
-        ) : null}
-
         <View className="flex-row items-center justify-between gap-3">
           <Text className="text-foreground text-lg font-bold">How to pay</Text>
           <View className="shrink-0 flex-row items-center gap-1">

@@ -1,85 +1,83 @@
 import { useEffect, useMemo, useState } from "react";
 import { listProducts } from "@/api/products.api";
-import { listSections } from "@/api/sections.api";
 import {
-  normalizeApiSections,
   normalizeCategoryTree,
   normalizeProduct,
 } from "@/module/home/lib/home-catalog";
 import { isBackendCityId, useLocationStore } from "@/store/location.store";
 import { useCatalogStore } from "@/store/catalog.store";
+import { useMerchSectionsStore } from "@/store/merch-sections.store";
+
+function catalogFallbackKey(serviceCityId, pincodeCode) {
+  return `${serviceCityId ?? ""}:${pincodeCode ?? ""}`;
+}
 
 export function useHomeDiscovery() {
   const cityId = useLocationStore((s) => s.city?.id);
   const pincode = useLocationStore((s) => s.pincode);
   const locationStatus = useLocationStore((s) => s.status);
 
-  const [sectionsStatus, setSectionsStatus] = useState("loading");
-  const [apiSections, setApiSections] = useState([]);
+  const merchStatus = useMerchSectionsStore((s) => s.status);
+  const merchSections = useMerchSectionsStore((s) => s.sections);
+
+  const [fallbackCache, setFallbackCache] = useState({
+    key: null,
+    sections: [],
+  });
+
+  const serviceCityId = isBackendCityId(cityId) ? cityId : undefined;
+  const pincodeCode = pincode?.code ?? null;
+  const hasLocation = Boolean(serviceCityId || pincodeCode);
+
+  const shouldFetchCatalogFallback =
+    locationStatus === "ready" &&
+    merchStatus === "ready" &&
+    merchSections.length === 0 &&
+    hasLocation;
+
+  const fallbackKey = shouldFetchCatalogFallback
+    ? catalogFallbackKey(serviceCityId, pincodeCode)
+    : null;
 
   useEffect(() => {
-    if (locationStatus !== "ready") {
-      setSectionsStatus("loading");
-      return;
-    }
-
-    const serviceCityId = isBackendCityId(cityId) ? cityId : undefined;
-    const pincodeCode = pincode?.code ?? null;
-
-    if (!serviceCityId && !pincodeCode) {
-      setApiSections([]);
-      setSectionsStatus("ready");
-      return;
-    }
+    if (!fallbackKey) return;
 
     let cancelled = false;
-    setSectionsStatus("loading");
 
     const locationQuery = {
       cityId: serviceCityId,
       pincode: pincodeCode ?? undefined,
     };
 
-    listSections(locationQuery)
-      .then(async (data) => {
-        if (cancelled) return;
-        const fromSections = normalizeApiSections(data);
-        if (fromSections.length > 0) {
-          setApiSections(fromSections);
-          setSectionsStatus("ready");
-          return;
-        }
-
-        const catalog = await listProducts({ ...locationQuery, page: 1, limit: 16 });
+    listProducts({ ...locationQuery, page: 1, limit: 16 })
+      .then((catalog) => {
         if (cancelled) return;
         const items = (catalog?.items ?? [])
           .map(normalizeProduct)
           .filter(Boolean);
-        if (items.length === 0) {
-          setApiSections([]);
-        } else {
-          setApiSections([
-            {
-              id: "catalog-fallback",
-              slug: "decorations",
-              name: "Popular setups",
-              sortIndex: 0,
-              items,
-            },
-          ]);
-        }
-        setSectionsStatus("ready");
+        const sections =
+          items.length === 0
+            ? []
+            : [
+                {
+                  id: "catalog-fallback",
+                  slug: "decorations",
+                  name: "Popular setups",
+                  sortIndex: 0,
+                  items,
+                },
+              ];
+        setFallbackCache({ key: fallbackKey, sections });
       })
       .catch(() => {
         if (cancelled) return;
-        setApiSections([]);
-        setSectionsStatus("ready");
+        setFallbackCache({ key: fallbackKey, sections: [] });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [cityId, pincode, locationStatus]);
+  }, [fallbackKey, serviceCityId, pincodeCode]);
 
   const catalogCategories = useCatalogStore((s) => s.categories);
 
@@ -88,10 +86,30 @@ export function useHomeDiscovery() {
     [catalogCategories],
   );
 
-  const sections = apiSections;
+  const sections = useMemo(() => {
+    if (merchSections.length > 0) return merchSections;
+    if (!shouldFetchCatalogFallback && !hasLocation) return [];
+    if (shouldFetchCatalogFallback) {
+      return fallbackKey && fallbackCache.key === fallbackKey
+        ? fallbackCache.sections
+        : [];
+    }
+    return [];
+  }, [
+    merchSections,
+    shouldFetchCatalogFallback,
+    hasLocation,
+    fallbackKey,
+    fallbackCache,
+  ]);
+
+  const fallbackPending =
+    shouldFetchCatalogFallback && fallbackCache.key !== fallbackKey;
 
   const loading =
-    locationStatus !== "ready" || sectionsStatus === "loading";
+    locationStatus !== "ready" ||
+    merchStatus === "loading" ||
+    fallbackPending;
 
   return {
     categories,

@@ -40,6 +40,12 @@ import {
     requirePartnerLoginIntentForSignIn,
 } from "@/modules/identity/auth/partner-login-eligibility.js";
 import { assertConsumerAppEligible } from "@/modules/identity/consumer/consumer-app-eligibility.js";
+import { buildOtpRequestPayload } from "@/modules/ops/settings/demo-auth-login.js";
+import { resolveDemoOtp, type DemoAuthPolicy } from "@/modules/ops/settings/demo-auth-policy.js";
+
+export type IDemoAuthSettingsReader = {
+    getDemoAuthPolicy(): Promise<DemoAuthPolicy>;
+};
 
 export type PublicUser = {
     id: string;
@@ -154,6 +160,7 @@ export class AuthService implements IAuthService {
         private readonly vendors: IVendorService,
         private readonly sessions: ISessionService,
         private readonly notifications: INotificationService,
+        private readonly demoAuthSettings: IDemoAuthSettingsReader,
     ) {}
 
     private async withVendor(user: User): Promise<PublicUser> {
@@ -206,24 +213,40 @@ export class AuthService implements IAuthService {
         ip?: string,
         androidAppHash?: string,
     ) {
-        await this.notifications.assertCanSend("LOGIN_OTP");
         await assertOtpRateLimit(phone, ip);
+        if (!this.exposeOtp()) {
+            await this.notifications.assertCanSend("LOGIN_OTP");
+        }
         const otp = generateOtp();
         await saveOtp(phone, otp, purpose);
-        await this.notifications.notify({
-            event: "LOGIN_OTP",
-            recipient: { phone },
-            data: {
-                otp,
-                ...(androidAppHash ? { androidAppHash } : {}),
-            },
-            idempotencyKey: randomUUID(),
-        });
+        if (await this.notifications.canDeliverLoginOtp()) {
+            await this.notifications.notify({
+                event: "LOGIN_OTP",
+                recipient: { phone },
+                data: {
+                    otp,
+                    ...(androidAppHash ? { androidAppHash } : {}),
+                },
+                idempotencyKey: randomUUID(),
+            });
+        }
+        return buildOtpRequestPayload(phone, otp, this.exposeOtp());
+    }
 
-        return {
-            phone,
-            ...(this.exposeOtp() ? { otp } : {}),
-        };
+    private async sendDemoLoginOtp(
+        phone: string,
+        purpose: OtpPurpose,
+        loginIntent?: "owner" | "staff",
+        ip?: string,
+    ) {
+        const policy = await this.demoAuthSettings.getDemoAuthPolicy();
+        const otp = resolveDemoOtp(phone, loginIntent, policy);
+        if (!otp) {
+            return null;
+        }
+        await assertOtpRateLimit(phone, ip);
+        await saveOtp(phone, otp, purpose);
+        return buildOtpRequestPayload(phone, otp, this.exposeOtp());
     }
 
     async requestOtp(
@@ -235,6 +258,14 @@ export class AuthService implements IAuthService {
         const phone = normalizePhone(phoneRaw);
         const pending = await peekVendorPending(phone);
         const purpose: OtpPurpose = pending ? "vendor_register" : "login";
+
+        if (purpose === "login") {
+            const demoResponse = await this.sendDemoLoginOtp(phone, purpose, loginIntent, ip);
+            if (demoResponse) {
+                return demoResponse;
+            }
+        }
+
         if (purpose === "login" && loginIntent) {
             await assertPartnerLoginEligibleForPhone(phone, loginIntent, {
                 users: this.users,

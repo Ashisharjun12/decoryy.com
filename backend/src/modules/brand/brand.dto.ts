@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+    productCopyFaqsDto,
+    productCopyPointsDto,
+} from "@/modules/catalog/products/product.dto.js";
 
 export const patchSiteBrandDto = z.object({
     companyName: z.string().trim().min(1).max(120).optional(),
@@ -10,6 +14,10 @@ export const patchSiteBrandDto = z.object({
     whatsappUrl: z.string().trim().max(500).nullable().optional(),
     productTrustGalleryEnabled: z.boolean().optional(),
     productTrustGalleryUploadId: z.string().uuid().nullable().optional(),
+    defaultIncludes: productCopyPointsDto,
+    defaultDeliverySetup: productCopyPointsDto,
+    defaultCareInstructions: productCopyPointsDto,
+    defaultFaqs: productCopyFaqsDto,
 });
 
 export {

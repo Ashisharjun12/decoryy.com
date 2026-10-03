@@ -1,15 +1,16 @@
 import { requestForegroundLocationPermission } from '@/lib/location';
-import { saveLocationPromptCompleted } from '@/lib/secure-storage';
 import { PermissionStepScreen } from '@/module/permissions/components/PermissionStepScreen';
+import { usePermissionsSetupStore } from '@/store/permissions-setup.store';
 import { Href, router } from 'expo-router';
 import { MapPin } from 'lucide-react-native';
 import { useState } from 'react';
 
 export default function EnableLocationScreen() {
   const [loading, setLoading] = useState(false);
+  const completeLocationStep = usePermissionsSetupStore((s) => s.completeLocationStep);
 
   async function goToNextStep() {
-    await saveLocationPromptCompleted();
+    await completeLocationStep();
     router.replace('/(app)/enable-notifications' as Href);
   }
 

@@ -13,6 +13,10 @@ import {
   ProductCardInstantBadge,
   ProductCardInstantEta,
 } from "@/module/catalog/components/ProductCardInstant";
+import {
+  resolveCardBadges,
+  useProductMerchBadge,
+} from "@/module/home/hooks/use-product-merch-badge";
 
 /** Two-line product name — matches catalog card weight/size (see HomeProductCard default). */
 const PRODUCT_CARD_TITLE_CLASS =
@@ -164,17 +168,22 @@ function ProductCardPriceBlock({ pricePaise, compareAtPaise, size = "default" })
   );
 }
 
-function CompactProductCardContent({ product }) {
+function CompactProductCardContent({ product, onNavigate }) {
   const [broken, setBroken] = useState(false);
   const src = product.imageUrl ?? product.images?.[0]?.url;
   const ratingLabel = formatRating(product.rating);
+  const fromStore = useProductMerchBadge(product.id);
+  const { badgeLabel, badgeColor } = resolveCardBadges({ fromStore });
 
   return (
     <Link
       to={productPath(product)}
+      onClick={onNavigate}
       className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm transition-[box-shadow,border-color] duration-200 hover:border-border hover:shadow-md"
     >
       <div className="relative aspect-square w-full shrink-0 overflow-hidden rounded-t-2xl bg-muted">
+        <SectionProductBadge label={badgeLabel} color={badgeColor} />
+        <ProductCardInstantBadge instant={product.instant} />
         {src && !broken ? (
           <img
             src={src}
@@ -210,13 +219,11 @@ function CompactProductCardContent({ product }) {
   );
 }
 
-function ProductCardContent({ product, compact }) {
+function DefaultProductCardContent({ product }) {
   const [broken, setBroken] = useState(false);
   const src = product.imageUrl ?? product.images?.[0]?.url;
-
-  if (compact) {
-    return <CompactProductCardContent product={product} />;
-  }
+  const fromStore = useProductMerchBadge(product.id);
+  const { badgeLabel, badgeColor } = resolveCardBadges({ fromStore });
 
   return (
     <Link
@@ -224,6 +231,8 @@ function ProductCardContent({ product, compact }) {
       className="group flex h-full flex-col overflow-hidden rounded-[20px] border border-border bg-card transition-shadow hover:shadow-lg"
     >
       <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-muted">
+        <SectionProductBadge label={badgeLabel} color={badgeColor} />
+        <ProductCardInstantBadge instant={product.instant} />
         {src && !broken ? (
           <img
             src={src}
@@ -259,14 +268,21 @@ function ProductCardContent({ product, compact }) {
   );
 }
 
-export function HomeProductCard({ product, variant = "default" }) {
+function ProductCardContent({ product, compact, onNavigate }) {
+  if (compact) {
+    return <CompactProductCardContent product={product} onNavigate={onNavigate} />;
+  }
+  return <DefaultProductCardContent product={product} />;
+}
+
+export function HomeProductCard({ product, variant = "default", onNavigate }) {
   const reduce = useReducedMotion();
   const compact = variant === "compact";
 
   if (compact) {
     return (
       <div className="min-w-0">
-        <ProductCardContent product={product} compact />
+        <ProductCardContent product={product} compact onNavigate={onNavigate} />
       </div>
     );
   }
@@ -283,8 +299,8 @@ export function HomeProductCard({ product, variant = "default" }) {
   );
 }
 
-export function HomeProductCardCompact({ product }) {
-  return <HomeProductCard product={product} variant="compact" />;
+export function HomeProductCardCompact({ product, onNavigate }) {
+  return <HomeProductCard product={product} variant="compact" onNavigate={onNavigate} />;
 }
 
 function SectionProductBadge({ label, color }) {
@@ -307,6 +323,12 @@ function RailProductCardContent({ product, badgeLabel, badgeColor }) {
   const [broken, setBroken] = useState(false);
   const src = product.imageUrl ?? product.images?.[0]?.url;
   const ratingLabel = formatRating(product.rating);
+  const fromStore = useProductMerchBadge(product.id);
+  const resolved = resolveCardBadges({
+    badgeLabel,
+    badgeColor,
+    fromStore,
+  });
 
   return (
     <Link
@@ -314,7 +336,7 @@ function RailProductCardContent({ product, badgeLabel, badgeColor }) {
       className="group flex h-full min-w-0 flex-col rounded-2xl border border-border/80 bg-card shadow-sm transition-[box-shadow,border-color] duration-200 hover:border-border hover:shadow-md"
     >
       <div className="relative aspect-square w-full shrink-0 overflow-hidden rounded-t-2xl bg-muted">
-        <SectionProductBadge label={badgeLabel} color={badgeColor} />
+        <SectionProductBadge label={resolved.badgeLabel} color={resolved.badgeColor} />
         <ProductCardInstantBadge instant={product.instant} />
         {src && !broken ? (
           <img

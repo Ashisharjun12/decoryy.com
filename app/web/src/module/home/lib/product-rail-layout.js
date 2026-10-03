@@ -11,3 +11,7 @@ export const PRODUCT_RAIL_ITEM_CLASS =
 /** PDP similar rail — smaller cards (~2.4 mobile, ~4.5 desktop). */
 export const PRODUCT_RAIL_PDP_SIMILAR_ITEM_CLASS =
   "basis-[calc(100%/2.4)] sm:basis-[40%] md:basis-[calc(100%/4.5)]";
+
+/** PDP horizontal rail slot: 2 full cards per viewport on mobile. gap-2.5 = 0.625rem */
+export const PRODUCT_RAIL_PDP_MOBILE_CARD_SLOT =
+  "max-md:w-[calc((100%-0.625rem)/2)] md:w-[calc((100%-2.5rem)/4.5)]";

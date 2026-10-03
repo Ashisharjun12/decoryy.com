@@ -57,12 +57,15 @@ type CheckoutState = {
   /** Unpaid online order awaiting gateway completion. */
   pendingOrderId: string | null;
   paymentIncomplete: boolean;
+  /** User closed the gateway vs bank/network failure (for payment retry copy). */
+  paymentUserCancelled: boolean;
   /** While navigating to booking-confirmed after place order (cart clears). */
   suppressEmptyCartExit: boolean;
   /** Order id just placed — show confirmation hero while detail loads. */
   confirmedOrderId: string | null;
   setPendingOrderId: (orderId: string | null) => void;
   setPaymentIncomplete: (value: boolean) => void;
+  setPaymentUserCancelled: (value: boolean) => void;
   clearPendingPayment: () => void;
   setSuppressEmptyCartExit: (value: boolean) => void;
   setConfirmedOrderId: (orderId: string | null) => void;
@@ -79,11 +82,14 @@ export const useCheckoutStore = create<CheckoutState>((set) => ({
   deliveryLabel: 'Home',
   pendingOrderId: null,
   paymentIncomplete: false,
+  paymentUserCancelled: false,
   suppressEmptyCartExit: false,
   confirmedOrderId: null,
   setPendingOrderId: (pendingOrderId) => set({ pendingOrderId }),
   setPaymentIncomplete: (paymentIncomplete) => set({ paymentIncomplete }),
-  clearPendingPayment: () => set({ pendingOrderId: null, paymentIncomplete: false }),
+  setPaymentUserCancelled: (paymentUserCancelled) => set({ paymentUserCancelled }),
+  clearPendingPayment: () =>
+    set({ pendingOrderId: null, paymentIncomplete: false, paymentUserCancelled: false }),
   setSuppressEmptyCartExit: (value) => set({ suppressEmptyCartExit: value }),
   setConfirmedOrderId: (confirmedOrderId) => set({ confirmedOrderId }),
 

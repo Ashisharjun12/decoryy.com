@@ -31,7 +31,7 @@ import { Href, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ProductCustomizeSheet } from './ProductCustomizeSheet';
+import { ProductPdpAddonsSection } from './ProductPdpAddonsSection';
 import { ProductDetailDeliverySection } from './ProductDetailDeliverySection';
 import { ProductDetailError } from './ProductDetailError';
 import { ProductDetailGallery } from './ProductDetailGallery';
@@ -39,12 +39,15 @@ import { ProductDetailHeader } from './ProductDetailHeader';
 import { ProductDetailLocationPrompt } from './ProductDetailLocationPrompt';
 import { ProductDetailSkeleton } from './ProductDetailSkeleton';
 import { ProductDetailTitleBlock } from './ProductDetailTitleBlock';
-import { ProductPdpBookingActions } from './ProductPdpBookingActions';
+import { ProductPdpMobileBookingBar } from './ProductPdpMobileBookingBar';
 import { ProductPdpBreadcrumb } from './ProductPdpBreadcrumb';
 import { ProductPdpDetailsTabs } from './ProductPdpDetailsTabs';
+import { ProductPdpAboutPackage } from './ProductPdpAboutPackage';
 import { ProductPdpOffers } from './ProductPdpOffers';
 import { ProductPdpPrice } from './ProductPdpPrice';
 import { ProductReviewsPreview } from './ProductReviewsPreview';
+import { ProductPdpSimilarPackages } from './ProductPdpSimilarPackages';
+import { ProductShareSheet } from './ProductShareSheet';
 import { useProductAddonSelection } from './use-product-addon-selection';
 
 type ProductPdpScreenProps = {
@@ -68,13 +71,13 @@ export function ProductPdpScreen({ productId }: ProductPdpScreenProps) {
 
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const footerPad = 88 + Math.max(insets.bottom, 12);
+  const footerPad = 108 + Math.max(insets.bottom, 12);
 
   const [fulfillment, setFulfillment] = useState<FulfillmentMode>('scheduled');
   const [scheduledAt, setScheduledAt] = useState<string | null>(null);
   const [booking, setBooking] = useState(false);
-  const [sheetOpen, setSheetOpen] = useState(false);
-
+  const [shareOpen, setShareOpen] = useState(false);
+  const [similarOpen, setSimilarOpen] = useState(false);
   const addons = product?.addons ?? [];
   const addonSelection = useProductAddonSelection(addons);
 
@@ -101,10 +104,6 @@ export function ProductPdpScreen({ productId }: ProductPdpScreenProps) {
   }, [product]);
 
   const resetAddonSelection = addonSelection.reset;
-  useEffect(() => {
-    if (!sheetOpen) return;
-    resetAddonSelection();
-  }, [sheetOpen, resetAddonSelection]);
 
   const canInstant = Boolean(product?.instant?.enabled);
   const canScheduled = product?.scheduledEnabled !== false;
@@ -138,7 +137,6 @@ export function ProductPdpScreen({ productId }: ProductPdpScreenProps) {
         });
         syncCartQueryCache(queryClient, cart);
         resetAddonSelection();
-        setSheetOpen(false);
         if (!user) {
           router.push('/(onboarding)/login' as Href);
           return;
@@ -167,12 +165,15 @@ export function ProductPdpScreen({ productId }: ProductPdpScreenProps) {
       Alert.alert('Choose date and time', 'Pick a delivery date and time slot, then tap Book Now.');
       return;
     }
-    if (hasAddons) {
-      setSheetOpen(true);
-      return;
-    }
-    void completeBooking([]);
-  }, [product, hasLocation, isInstantBooking, scheduledAt, hasAddons, completeBooking]);
+    void completeBooking(addonSelection.buildSelections());
+  }, [
+    product,
+    hasLocation,
+    isInstantBooking,
+    scheduledAt,
+    completeBooking,
+    addonSelection.buildSelections,
+  ]);
 
   const onBack = useGoBack();
 
@@ -236,16 +237,15 @@ export function ProductPdpScreen({ productId }: ProductPdpScreenProps) {
           title={title}
           onBack={onBack}
           onHome={onHome}
+          onShare={detail.id ? () => setShareOpen(true) : undefined}
+          showSimilar={Boolean(detail.categoryId)}
+          onSimilar={() => setSimilarOpen(true)}
         />
 
         <View className="mt-4 gap-4">
           <ProductPdpBreadcrumb title={title} categoryId={detail.categoryId} />
 
-          <ProductDetailTitleBlock
-            title={title}
-            description={detail.description}
-            showInstantBadge={false}
-          />
+          <ProductDetailTitleBlock title={title} showInstantBadge={false} />
 
           <ProductPdpPrice
             pricePaise={detail.pricePaise}
@@ -267,6 +267,19 @@ export function ProductPdpScreen({ productId }: ProductPdpScreenProps) {
 
           <ProductPdpOffers productId={detail.id} categoryId={detail.categoryId} />
 
+          {hasAddons ? (
+            <ProductPdpAddonsSection
+              addons={addons}
+              qtyById={addonSelection.qtyById}
+              disabled={booking}
+              onSetQty={addonSelection.setQty}
+              onToggle={addonSelection.toggleSingle}
+              onIncrement={addonSelection.increment}
+            />
+          ) : null}
+
+          <ProductPdpAboutPackage description={detail.description} />
+
           <ProductPdpDetailsTabs
             includes={detail.includes}
             faqs={detail.faqs}
@@ -276,7 +289,11 @@ export function ProductPdpScreen({ productId }: ProductPdpScreenProps) {
 
           <ProductReviewsPreview productId={detail.id} product={detail} />
 
-          <ProductSimilarRail items={similar} loading={similarLoading} />
+          <ProductSimilarRail
+            items={similar}
+            loading={similarLoading}
+            categoryId={detail.categoryId}
+          />
           <ProductOtherCategoriesRail
             items={otherCategory}
             loading={otherCategoryLoading}
@@ -286,11 +303,17 @@ export function ProductPdpScreen({ productId }: ProductPdpScreenProps) {
       </ScrollView>
 
       <View
-        className="absolute inset-x-0 bottom-0 border-t border-border/60 bg-background px-5 pt-3"
+        className="absolute inset-x-0 bottom-0 border-t border-border/60 bg-background/95 px-3 pt-2.5"
         style={{
-          paddingBottom: Math.max(insets.bottom, 12),
+          paddingBottom: Math.max(insets.bottom, 10),
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.08,
+          shadowRadius: 12,
+          elevation: 8,
         }}>
-        <ProductPdpBookingActions
+        <ProductPdpMobileBookingBar
+          pricePaise={detail.pricePaise}
           booking={booking}
           isInstantBooking={isInstantBooking}
           onWhatsApp={() => void openWhatsAppSupport()}
@@ -298,18 +321,19 @@ export function ProductPdpScreen({ productId }: ProductPdpScreenProps) {
         />
       </View>
 
-      <ProductCustomizeSheet
-        visible={sheetOpen}
-        addons={addons}
-        qtyById={addonSelection.qtyById}
-        submitting={booking}
-        onClose={() => setSheetOpen(false)}
-        onSetQty={addonSelection.setQty}
-        onToggle={addonSelection.toggleSingle}
-        onIncrement={addonSelection.increment}
-        onSkip={() => void completeBooking([])}
-        onProceed={(selections) => void completeBooking(selections)}
-        buildSelections={addonSelection.buildSelections}
+      {detail.id ? (
+        <ProductShareSheet
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          title={title}
+          productId={detail.id}
+        />
+      ) : null}
+
+      <ProductPdpSimilarPackages
+        product={detail}
+        open={similarOpen}
+        onOpenChange={setSimilarOpen}
       />
     </View>
   );

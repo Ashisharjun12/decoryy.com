@@ -10,6 +10,7 @@ export function HomeCategoryTile({
   category,
   parent,
   onDrill,
+  onNavigate,
   className,
   navigation = "drill",
   compact = false,
@@ -89,7 +90,7 @@ export function HomeCategoryTile({
   if (hasChildren && navigation === "link") {
     const href = categoryPath(category);
     return (
-      <Link to={href} className={tileClass}>
+      <Link to={href} className={tileClass} onClick={() => onNavigate?.()}>
         {imageBox}
         {labelEl}
       </Link>
@@ -99,7 +100,7 @@ export function HomeCategoryTile({
   const href = parent ? categoryPath(parent, category) : categoryPath(category);
 
   return (
-    <Link to={href} className={tileClass}>
+    <Link to={href} className={tileClass} onClick={() => onNavigate?.()}>
       {imageBox}
       {labelEl}
     </Link>

@@ -1,4 +1,4 @@
-import { HomeProductCard } from '@/module/home/components/HomeProductCard';
+import { CatalogProductCard } from '@/module/catalog/components/CatalogProductCard';
 import type { HomeCatalogProduct } from '@/module/home/lib/home-catalog';
 import { View } from 'react-native';
 
@@ -18,7 +18,7 @@ export function CatalogProductGrid({ products }: CatalogProductGridProps) {
         <View key={`row-${rowIndex}`} className="flex-row gap-2.5">
           {row.map((product) => (
             <View key={product.id} className="min-w-0 flex-1">
-              <HomeProductCard product={product} className="w-full" />
+              <CatalogProductCard product={product} layout="grid" />
             </View>
           ))}
           {row.length === 1 ? <View className="min-w-0 flex-1" /> : null}

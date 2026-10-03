@@ -3,10 +3,19 @@ import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { ArrowLeftIcon, EyeIcon } from "lucide-react"
+import { getBrandSite } from "@/api/brand.api"
 import { getAiPolicy } from "@/api/settings.api"
-import { createProduct, deleteCityPrice, getAdmin, patchProduct, setCityPrice } from "@/api/products.api"
+import {
+  createProduct,
+  deleteCityPrice,
+  getAdmin,
+  mapProductAddon,
+  patchProduct,
+  setCityPrice,
+} from "@/api/products.api"
 import { listAdmin as listCategories } from "@/api/categories.api"
 import { listAdmin as listCities } from "@/api/cities.api"
+import { listGlobalProductOccupancy, listSections } from "@/api/sections.api"
 import { getInstantMarketplacePolicy, getPaymentMethods } from "@/api/settings.api"
 import { getApiError } from "@/api/api"
 import { toSellAndCompare } from "@/lib/money"
@@ -17,6 +26,7 @@ import {
 } from "@/module/catalog/schema"
 import { ProductMediaGallery, toGalleryItem } from "@/module/catalog/components/ProductMediaGallery"
 import { ProductAddonsCard } from "@/module/catalog/components/ProductAddonsCard"
+import { ProductGlobalSectionField } from "@/module/catalog/components/ProductGlobalSectionField"
 import { ProductAdditionalInfo } from "@/module/catalog/components/ProductAdditionalInfo"
 import { ProductPdpPreview } from "@/module/catalog/components/ProductPdpPreview"
 import { fromFaqRows, toFaqRows } from "@/module/catalog/components/FaqListEditor"
@@ -67,6 +77,10 @@ import {
   INSTANT_SWITCH_INFO,
   PRODUCT_DETAILS_INFO,
 } from "@/module/catalog/lib/fulfillment-info-copy"
+import {
+  findGlobalSectionForProduct,
+  syncProductGlobalSection,
+} from "@/module/catalog/lib/global-section-membership"
 
 const CATALOG_PRODUCTS = "/catalog?tab=products"
 
@@ -114,6 +128,9 @@ export function ProductFormPage() {
   const [careInstructions, setCareInstructions] = useState([])
   const [faqs, setFaqs] = useState([])
   const [mappedAddonIds, setMappedAddonIds] = useState([])
+  const [catalogSections, setCatalogSections] = useState([])
+  const [globalSectionId, setGlobalSectionId] = useState("")
+  const [initialGlobalSectionId, setInitialGlobalSectionId] = useState("")
   const [template, setTemplate] = useState(emptyPricePair())
   const [offers, setOffers] = useState({})
   const [savedPriceCityIds, setSavedPriceCityIds] = useState([])
@@ -210,10 +227,12 @@ export function ProductFormPage() {
 
     async function load() {
       try {
-        const [parentData, cityData, payData] = await Promise.all([
+        const [parentData, cityData, payData, brandSite, sectionsData] = await Promise.all([
           listCategories({ parentId: null, limit: 100, isActive: "true" }),
           listCities({ page: 1, limit: 100 }),
           getPaymentMethods(),
+          isNew ? getBrandSite().catch(() => null) : Promise.resolve(null),
+          listSections().catch(() => ({ items: [] })),
         ])
         if (cancelled) return
         const parentItems = parentData.items ?? []
@@ -223,11 +242,20 @@ export function ProductFormPage() {
           cod: payData?.cod !== false,
           online: Boolean(payData?.online),
         })
+        setCatalogSections(sectionsData.items ?? [])
 
         if (isNew) {
           setLoadedCategoryName("")
+          setGlobalSectionId("")
+          setInitialGlobalSectionId("")
           form.setValue("paymentCod", payData?.cod !== false)
           form.setValue("paymentOnline", Boolean(payData?.online))
+          if (brandSite) {
+            setIncludes(brandSite.defaultIncludes ?? [])
+            setDeliverySetup(brandSite.defaultDeliverySetup ?? [])
+            setCareInstructions(brandSite.defaultCareInstructions ?? [])
+            setFaqs(toFaqRows(brandSite.defaultFaqs ?? []))
+          }
           setLoading(false)
           return
         }
@@ -276,6 +304,11 @@ export function ProductFormPage() {
         setCareInstructions(product.careInstructions ?? [])
         setFaqs(toFaqRows(product.faqs))
         setMappedAddonIds(product.addonIds ?? [])
+        const occupancyData = await listGlobalProductOccupancy().catch(() => ({ items: [] }))
+        if (cancelled) return
+        const sectionForProduct = findGlobalSectionForProduct(occupancyData.items, id) ?? ""
+        setGlobalSectionId(sectionForProduct)
+        setInitialGlobalSectionId(sectionForProduct)
         if (product.pricePaise) {
           setTemplate(pairFromCityPrice({ pricePaise: product.pricePaise, compareAtPaise: product.compareAtPaise }))
         } else {
@@ -368,6 +401,12 @@ export function ProductFormPage() {
     setSavedPriceCityIds([...selectedIds])
   }
 
+  async function syncProductAddons(productId, addonIds) {
+    const ids = [...new Set(addonIds || [])].filter(Boolean)
+    if (!ids.length) return
+    await Promise.all(ids.map((addonId) => mapProductAddon(productId, addonId)))
+  }
+
   const selectedCategory = children.find((row) => row.id === categoryId)
   const selectedParent = parents.find((row) => row.id === parentCategoryId)
   const resolvedCategoryName =
@@ -443,6 +482,14 @@ export function ProductFormPage() {
         }
         await patchProduct(productId, details)
       }
+      if (createdNew) {
+        await syncProductAddons(productId, mappedAddonIds)
+      }
+      await syncProductGlobalSection({
+        productId,
+        nextSectionId: globalSectionId || null,
+        previousSectionId: initialGlobalSectionId || null,
+      })
       await syncPrices(productId)
       if (publish) {
         await patchProduct(productId, { isActive: true })
@@ -695,6 +742,24 @@ export function ProductFormPage() {
                   )}
                 />
               </FieldGroup>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Home section</CardTitle>
+              <CardDescription>
+                Optional catalog section for the storefront home rail (global list).
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ProductGlobalSectionField
+                value={globalSectionId}
+                onChange={setGlobalSectionId}
+                disabled={submitting}
+                sections={catalogSections}
+                loading={loading}
+              />
             </CardContent>
           </Card>
 

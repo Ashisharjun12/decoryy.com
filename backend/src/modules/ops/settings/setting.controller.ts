@@ -84,4 +84,14 @@ export class SettingController {
     getMessageServiceCatalog = asyncHandler(async (_req, res) => {
         res.status(200).json(new ApiResponse(200, { items: getMessageServiceCatalog() }, "ok"));
     });
+
+    getDemoAuth = asyncHandler(async (_req, res) => {
+        const data = await this.settings.getDemoAuthAdmin();
+        res.status(200).json(new ApiResponse(200, data, "ok"));
+    });
+
+    patchDemoAuth = asyncHandler(async (req, res) => {
+        const data = await this.settings.patchDemoAuthPolicy(req.body, req.actor!.id);
+        res.status(200).json(new ApiResponse(200, data, "demo auth updated"));
+    });
 }

@@ -1,23 +1,20 @@
 import { requestNotificationPermission } from '@/lib/notifications';
 import { syncPushRegistration } from '@/lib/push-registration';
-import {
-  saveNotificationPromptCompleted,
-  savePermissionsSetupCompleted,
-} from '@/lib/secure-storage';
 import { PermissionStepScreen } from '@/module/permissions/components/PermissionStepScreen';
+import { usePermissionsSetupStore } from '@/store/permissions-setup.store';
+import { useAuthStore } from '@/store/auth.store';
 import { Href, router } from 'expo-router';
 import { Bell } from 'lucide-react-native';
 import { useState } from 'react';
-import { useAuthStore } from '@/store/auth.store';
 
 export default function EnableNotificationsScreen() {
   const [loading, setLoading] = useState(false);
   const accessToken = useAuthStore((s) => s.accessToken);
   const userId = useAuthStore((s) => s.user?.id ?? null);
+  const completeNotificationStep = usePermissionsSetupStore((s) => s.completeNotificationStep);
 
   async function finish() {
-    await saveNotificationPromptCompleted();
-    await savePermissionsSetupCompleted();
+    await completeNotificationStep();
     router.replace('/(app)/' as Href);
   }
 

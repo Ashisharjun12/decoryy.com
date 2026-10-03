@@ -1,9 +1,11 @@
-import { useNotificationsStore, selectUnreadCount } from "@/store/notifications.store"
+import { useNotificationsStore } from "@/store/notifications.store"
 
 export function useUserNotifications() {
   const notifications = useNotificationsStore((s) => s.notifications)
   const total = useNotificationsStore((s) => s.total)
-  const unreadCount = useNotificationsStore(selectUnreadCount)
+  const unreadCount = useNotificationsStore(
+    (s) => s.notifications.filter((item) => !item.readAt).length,
+  )
   const loading = useNotificationsStore((s) => s.loading)
   const loadingMore = useNotificationsStore((s) => s.loadingMore)
   const error = useNotificationsStore((s) => s.error)

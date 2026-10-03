@@ -3,9 +3,9 @@ import { Text } from '@/components/ui/text';
 import { formatInr } from '@/module/bookings/lib/booking-format';
 import {
   PAYOUT_STATUS_LABELS,
-  type MockPayout,
+  type SettlementPayout,
   type PayoutStatus,
-} from '@/module/payouts/lib/mock-payouts';
+} from '@/module/payouts/lib/payout.types';
 import { cn } from '@/lib/utils';
 import { ArrowDownLeft } from 'lucide-react-native';
 import { View } from 'react-native';
@@ -25,7 +25,7 @@ function payoutStatusDotClass(status: PayoutStatus) {
 }
 
 type PayoutHistoryRowProps = {
-  payout: MockPayout;
+  payout: SettlementPayout;
   variant?: 'card' | 'flat';
 };
 

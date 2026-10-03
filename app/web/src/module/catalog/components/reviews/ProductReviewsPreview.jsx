@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { CheckCircle2Icon, HeartHandshakeIcon, SmileIcon, UsersIcon } from "lucide-react";
+import { ChevronDownIcon, PenLineIcon, StarIcon } from "lucide-react";
 import { listProductReviews } from "@/api/reviews.api";
 import { productReviewsPath } from "@/lib/catalog-path";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProductReviewCard } from "@/module/catalog/components/reviews/ProductReviewCard";
 import { ProductReviewsSummary } from "@/module/catalog/components/reviews/ProductReviewsSummary";
@@ -17,7 +17,6 @@ export function ProductReviewsPreview({
   product,
   previewLimit = 3,
   className,
-  linkLabel = "View more reviews",
 }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -49,7 +48,9 @@ export function ProductReviewsPreview({
   const items = data?.items ?? [];
   const reviewCount = resolveProductReviewCount({ data, product, items });
   const showSection =
-    loading || hasProductReviews({ data, product, items }) || (error && Number(product?.reviewCount) > 0);
+    loading ||
+    hasProductReviews({ data, product, items }) ||
+    (error && Number(product?.reviewCount) > 0);
 
   if (!showSection) return null;
 
@@ -63,77 +64,81 @@ export function ProductReviewsPreview({
         }
       : null);
 
-  const hasVerified = items.some((item) => item.isVerified);
-  const satisfactionScore =
-    summary?.ratingAvg != null ? Number(summary.ratingAvg).toFixed(1) : null;
-
-  const showViewMore =
-    reviewCount > previewLimit || (reviewCount > 0 && items.length > 0 && reviewCount > items.length);
+  const showMore = reviewCount > items.length || reviewCount > previewLimit;
+  const reviewsHref = productId ? productReviewsPath(productId) : "#";
 
   return (
-    <section className={className ?? "flex flex-col gap-4"}>
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-            Customer feedback
-          </p>
-          <h2 className="font-heading text-lg font-semibold tracking-tight md:text-xl">
-            Ratings &amp; reviews
+    <section
+      className={cn(
+        "flex flex-col gap-4 rounded-2xl border border-border/70 bg-card p-4 md:p-5",
+        className,
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span
+            className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950/50"
+            aria-hidden
+          >
+            <StarIcon className="size-4 fill-amber-500 text-amber-500" />
+          </span>
+          <h2 className="font-heading text-lg font-bold tracking-tight text-foreground">
+            Customer reviews
           </h2>
         </div>
+        <Link
+          to="/account/bookings"
+          className="inline-flex shrink-0 items-center gap-1 pt-0.5 text-sm font-semibold text-emerald-700 hover:text-emerald-800 dark:text-emerald-500"
+        >
+          <PenLineIcon className="size-3.5" aria-hidden />
+          Write review
+        </Link>
       </div>
 
       {loading ? (
         <div className="space-y-3">
-          <Skeleton className="h-28 w-full rounded-2xl" />
-          <Skeleton className="h-24 w-full rounded-2xl" />
-          <Skeleton className="h-24 w-full rounded-2xl" />
+          <Skeleton className="h-32 w-full rounded-2xl" />
+          <Skeleton className="h-16 w-full rounded-xl" />
+          <Skeleton className="h-20 w-full rounded-xl" />
         </div>
       ) : (
         <>
-          {error ? (
-            <p className="text-sm text-muted-foreground">{error}</p>
+          {error ? <p className="text-sm text-muted-foreground">{error}</p> : null}
+
+          <ProductReviewsSummary
+            summary={summary}
+            availableCount={data?.total ?? reviewCount}
+          />
+
+          {reviewCount > 0 ? (
+            <span
+              className="inline-flex w-fit items-center rounded-full border border-emerald-700/30 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 dark:border-emerald-600/40 dark:bg-emerald-950/40 dark:text-emerald-300"
+            >
+              All reviews {reviewCount.toLocaleString()}
+            </span>
           ) : null}
 
-          <ProductReviewsSummary summary={summary} />
-
-          <div className="flex flex-wrap gap-2">
-            {hasVerified ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
-                <CheckCircle2Icon className="size-3.5" />
-                Verified
-              </span>
-            ) : null}
-            <span className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-700 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300">
-              <HeartHandshakeIcon className="size-3.5" />
-              Ease of care
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-              <SmileIcon className="size-3.5" />
-              Satisfaction{satisfactionScore ? ` · ${satisfactionScore}` : ""}
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-300">
-              <UsersIcon className="size-3.5" />
-              Real buyers
-            </span>
-          </div>
-
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col">
             {items.map((review) => (
-              <ProductReviewCard key={review.id} review={review} />
+              <ProductReviewCard key={review.id} review={review} variant="pdp" />
             ))}
           </div>
 
-          {showViewMore ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full rounded-full"
-              nativeButton={false}
-              render={<Link to={productReviewsPath(productId)} />}
-            >
-              {linkLabel}
-            </Button>
+          {items.length > 0 ? (
+            <div className="flex items-center justify-between gap-3 pt-1">
+              <p className="text-xs text-muted-foreground">
+                Showing {items.length} of {reviewCount.toLocaleString()}
+              </p>
+              {showMore ? (
+                <Link
+                  to={reviewsHref}
+                  className="inline-flex items-center gap-0.5 text-sm font-semibold text-emerald-700 hover:text-emerald-800 dark:text-emerald-500"
+                >
+                  Show more
+                  <ChevronDownIcon className="size-4" aria-hidden />
+                </Link>
+              ) : null}
+            </div>
           ) : null}
         </>
       )}

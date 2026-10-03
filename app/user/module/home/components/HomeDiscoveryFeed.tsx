@@ -74,7 +74,11 @@ export function HomeDiscoveryFeed({
 
   return (
     <View className="gap-10">
-      <HomeCategoryHorizontalSection categories={categories} loading={discoveryLoading} />
+      <HomeCategoryHorizontalSection
+        categories={categories}
+        catalogCategories={categories}
+        loading={discoveryLoading}
+      />
       <HomeProductRails sections={sections} loading={discoveryLoading} />
       {showEmpty ? (
         <View className="mx-4 rounded-2xl border border-border bg-muted/30 px-4 py-6">

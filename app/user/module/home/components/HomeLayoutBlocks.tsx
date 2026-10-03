@@ -1,5 +1,6 @@
 import { HomeCategoryHorizontalSection } from '@/module/home/components/HomeCategoryHorizontalSection';
 import { HomeProductRail } from '@/module/home/components/HomeProductRail';
+import { useHomeCategories } from '@/module/home/hooks/use-home-categories';
 import {
   normalizeCategoryTree,
   normalizeLayoutProducts,
@@ -14,6 +15,8 @@ type HomeLayoutBlocksProps = {
 };
 
 export function HomeLayoutBlocks({ blocks, loading = false }: HomeLayoutBlocksProps) {
+  const { categories: catalogCategories } = useHomeCategories();
+
   if (!loading && blocks.length === 0) return null;
 
   return (
@@ -25,6 +28,7 @@ export function HomeLayoutBlocks({ blocks, loading = false }: HomeLayoutBlocksPr
             <HomeCategoryHorizontalSection
               key={block.id}
               categories={categories}
+              catalogCategories={catalogCategories}
               loading={loading}
               headingTitle={block.title ?? 'Categories'}
               headingSubtitle={block.subtitle ?? undefined}
@@ -45,6 +49,7 @@ export function HomeLayoutBlocks({ blocks, loading = false }: HomeLayoutBlocksPr
             title: block.title ?? block.sectionName ?? 'Popular setups',
             subtitle: block.showSubtitle ? block.subtitle ?? undefined : undefined,
             badgeLabel: block.sectionName ?? block.title ?? null,
+            badgeColor: block.badgeColor ?? null,
             items,
           };
           return (
@@ -53,6 +58,7 @@ export function HomeLayoutBlocks({ blocks, loading = false }: HomeLayoutBlocksPr
               section={section}
               showTitle={block.showTitle ?? true}
               showSubtitle={block.showSubtitle ?? true}
+              loading={loading}
             />
           );
         }

@@ -19,14 +19,14 @@ import { Href, router } from 'expo-router';
 import { useCallback } from 'react';
 import { Linking, ScrollView, View } from 'react-native';
 
-function renderMenuItem(item: ProfileMenuItem, isLast: boolean) {
+function renderMenuItem(item: ProfileMenuItem, isLast: boolean, itemKey: string) {
   if (item.type === 'notification-toggle') {
     return null;
   }
   if (item.type === 'route') {
     return (
       <ProfileMenuRow
-        key={item.id}
+        key={itemKey}
         label={item.label}
         subtitle={item.subtitle}
         icon={item.icon}
@@ -37,7 +37,7 @@ function renderMenuItem(item: ProfileMenuItem, isLast: boolean) {
   }
   return (
     <ProfileMenuRow
-      key={item.id}
+      key={itemKey}
       label={item.label}
       subtitle={item.subtitle}
       isLast={isLast}
@@ -96,10 +96,11 @@ export function ProfileTabScreen() {
             <ProfileSettingsGroup key={section.id} title={section.title}>
               {section.items.map((item, index) => {
                 const isLast = index === section.items.length - 1;
+                const itemKey = `${section.id}-${item.id}`;
                 if (item.type === 'notification-toggle') {
                   return (
                     <ProfileToggleRow
-                      key={item.id}
+                      key={itemKey}
                       label={item.label}
                       icon={item.icon}
                       value={notificationsOn}
@@ -108,7 +109,7 @@ export function ProfileTabScreen() {
                     />
                   );
                 }
-                return renderMenuItem(item, isLast);
+                return renderMenuItem(item, isLast, itemKey);
               })}
             </ProfileSettingsGroup>
           ))}

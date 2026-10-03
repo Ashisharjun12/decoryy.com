@@ -1,52 +1,51 @@
-import {
-  loadLocationPromptCompleted,
-  loadNotificationPromptCompleted,
-  loadPermissionsSetupCompleted,
-} from '@/lib/secure-storage';
+import { usePermissionsSetupStore } from '@/store/permissions-setup.store';
 import { useAuthStore } from '@/store/auth.store';
 import { usePathname } from 'expo-router';
 import type { Href } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { Platform } from 'react-native';
+
+function isNativePlatform() {
+  return Platform.OS === 'ios' || Platform.OS === 'android';
+}
 
 export function usePermissionsSetupPrompt() {
   const vendorStatus = useAuthStore((s) => s.user?.vendor?.onboardingStatus ?? null);
   const pathname = usePathname();
-  const [setupCompleted, setSetupCompleted] = useState<boolean | null>(null);
-  const [notificationStepDone, setNotificationStepDone] = useState<boolean | null>(null);
-  const [locationStepDone, setLocationStepDone] = useState<boolean | null>(null);
 
-  const reload = useCallback(async () => {
-    const [completed, notificationDone, locationDone] = await Promise.all([
-      loadPermissionsSetupCompleted(),
-      loadNotificationPromptCompleted(),
-      loadLocationPromptCompleted(),
-    ]);
-
-    setSetupCompleted(completed);
-    setNotificationStepDone(notificationDone);
-    setLocationStepDone(locationDone);
-  }, []);
+  const setupCompleted = usePermissionsSetupStore((s) => s.setupCompleted);
+  const locationStepDone = usePermissionsSetupStore((s) => s.locationStepDone);
+  const notificationStepDone = usePermissionsSetupStore((s) => s.notificationStepDone);
+  const hydrate = usePermissionsSetupStore((s) => s.hydrate);
 
   useEffect(() => {
-    void reload();
-  }, [reload, pathname]);
+    void hydrate();
+  }, [hydrate, pathname, vendorStatus]);
 
   const isLoading =
-    setupCompleted === null || notificationStepDone === null || locationStepDone === null;
+    setupCompleted === null || locationStepDone === null || notificationStepDone === null;
+
+  const onSetupScreen =
+    pathname.includes('enable-location') || pathname.includes('enable-notifications');
 
   let pendingRoute: Href | null = null;
 
-  if (vendorStatus === 'ACTIVE' && setupCompleted === false) {
-    if (notificationStepDone === false) {
-      pendingRoute = '/(app)/enable-notifications' as Href;
-    } else if (locationStepDone === false) {
+  if (
+    vendorStatus === 'ACTIVE' &&
+    isNativePlatform() &&
+    setupCompleted === false &&
+    !onSetupScreen
+  ) {
+    if (locationStepDone === false) {
       pendingRoute = '/(app)/enable-location' as Href;
+    } else if (notificationStepDone === false) {
+      pendingRoute = '/(app)/enable-notifications' as Href;
     }
   }
 
   return {
     pendingRoute,
     isLoading,
-    reload,
+    reload: hydrate,
   };
 }

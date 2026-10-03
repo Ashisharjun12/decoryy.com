@@ -1,7 +1,7 @@
 import { PermissionStepScreen } from '@/module/permissions/components/PermissionStepScreen';
 import { syncPushRegistration } from '@/lib/push-registration';
 import { requestNotificationPermission } from '@/lib/notifications';
-import { saveNotificationPromptCompleted } from '@/lib/secure-storage';
+import { usePermissionsSetupStore } from '@/store/permissions-setup.store';
 import { useAuthStore } from '@/store/auth.store';
 import { Href, router } from 'expo-router';
 import { Bell } from 'lucide-react-native';
@@ -11,23 +11,24 @@ export default function EnableNotificationsScreen() {
   const accessToken = useAuthStore((s) => s.accessToken);
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const [loading, setLoading] = useState(false);
+  const completeNotificationStep = usePermissionsSetupStore((s) => s.completeNotificationStep);
 
-  async function goToNextStep() {
-    await saveNotificationPromptCompleted();
-    router.replace('/(app)/enable-location' as Href);
+  async function finish() {
+    await completeNotificationStep();
+    router.replace('/(app)' as Href);
   }
 
   async function handleAllow() {
     setLoading(true);
     try {
-      const granted = await requestNotificationPermission();
-      if (granted && accessToken && userId) {
+      await requestNotificationPermission();
+      if (accessToken && userId) {
         await syncPushRegistration(accessToken, userId);
       }
-      await goToNextStep();
     } finally {
       setLoading(false);
     }
+    await finish();
   }
 
   return (
@@ -38,7 +39,7 @@ export default function EnableNotificationsScreen() {
       accentClassName="bg-primary/20"
       loading={loading}
       onAllow={() => void handleAllow()}
-      onSkip={() => void goToNextStep()}
+      onSkip={() => void finish()}
     />
   );
 }

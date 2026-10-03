@@ -46,6 +46,16 @@ import {
     type InstantMarketplacePolicy,
 } from "@/modules/ops/settings/instant-marketplace-policy.js";
 import {
+    applyDemoAuthPatch,
+    DEFAULT_DEMO_AUTH_POLICY,
+    DEMO_AUTH_KEY,
+    mergeDemoAuthPolicy,
+    toDemoAuthAdminView,
+    type DemoAuthAdminView,
+    type DemoAuthPolicy,
+    type PatchDemoAuthPolicyInput,
+} from "@/modules/ops/settings/demo-auth-policy.js";
+import {
     ensureInstantDispatchSystemUser,
     type InstantDispatchSystemUserResult,
 } from "@/modules/ops/settings/instant-dispatch-system-user.js";
@@ -59,6 +69,7 @@ export type PatchBookingPolicyInput = Partial<BookingPolicy>;
 export type PatchInstantDispatchInput = Partial<InstantDispatchPolicy>;
 export type PatchInstantMapsInput = Partial<InstantMapsPolicy>;
 export type PatchInstantMarketplaceInput = Partial<InstantMarketplacePolicy>;
+export type { PatchDemoAuthPolicyInput } from "@/modules/ops/settings/demo-auth-policy.js";
 
 export interface ISettingService {
     getNotificationChannels(): Promise<NotificationChannelFlags>;
@@ -86,6 +97,9 @@ export interface ISettingService {
         input: PatchInstantMarketplaceInput,
         actorId: string,
     ): Promise<InstantMarketplacePolicy>;
+    getDemoAuthPolicy(): Promise<DemoAuthPolicy>;
+    getDemoAuthAdmin(): Promise<DemoAuthAdminView>;
+    patchDemoAuthPolicy(input: PatchDemoAuthPolicyInput, actorId: string): Promise<DemoAuthAdminView>;
     getPublicInstantConfig(): Promise<{
         dispatchEnabled: boolean;
         marketplaceEnabled: boolean;
@@ -112,6 +126,7 @@ export class SettingService implements ISettingService {
     private instantDispatchCache: { policy: InstantDispatchPolicy; at: number } | null = null;
     private instantMapsCache: { policy: InstantMapsPolicy; at: number } | null = null;
     private instantMarketplaceCache: { policy: InstantMarketplacePolicy; at: number } | null = null;
+    private demoAuthCache: { policy: DemoAuthPolicy; at: number } | null = null;
 
     constructor(private readonly settings: ISettingRepository) {}
 
@@ -357,6 +372,48 @@ export class SettingService implements ISettingService {
             after: policy,
         });
         return policy;
+    }
+
+    private async loadDemoAuthPolicy(): Promise<DemoAuthPolicy> {
+        if (this.demoAuthCache && Date.now() - this.demoAuthCache.at < CHANNEL_CACHE_TTL_MS) {
+            return this.demoAuthCache.policy;
+        }
+        const row = await this.settings.findByKey(DEMO_AUTH_KEY);
+        const policy = mergeDemoAuthPolicy(row?.value ?? DEFAULT_DEMO_AUTH_POLICY);
+        if (!row) {
+            await this.settings.upsert(DEMO_AUTH_KEY, policy);
+        }
+        this.demoAuthCache = { policy, at: Date.now() };
+        return policy;
+    }
+
+    async getDemoAuthPolicy(): Promise<DemoAuthPolicy> {
+        return this.loadDemoAuthPolicy();
+    }
+
+    async getDemoAuthAdmin(): Promise<DemoAuthAdminView> {
+        const policy = await this.loadDemoAuthPolicy();
+        return toDemoAuthAdminView(policy);
+    }
+
+    async patchDemoAuthPolicy(
+        input: PatchDemoAuthPolicyInput,
+        actorId: string,
+    ): Promise<DemoAuthAdminView> {
+        const current = await this.loadDemoAuthPolicy();
+        const policy = applyDemoAuthPatch(current, input);
+        await this.settings.upsert(DEMO_AUTH_KEY, policy);
+        this.demoAuthCache = { policy, at: Date.now() };
+        await auditService.log({
+            actorId,
+            action: "settings.demo_auth_updated",
+            entityType: "settings",
+            entityId: DEMO_AUTH_KEY,
+            summary: "Demo auth policy updated",
+            before: current,
+            after: policy,
+        });
+        return toDemoAuthAdminView(policy);
     }
 
     async getPublicInstantConfig() {

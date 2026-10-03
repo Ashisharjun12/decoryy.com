@@ -319,9 +319,10 @@ export function CheckoutPage() {
         setPaymentIncomplete(true);
         setStep(3);
         toast.add({
-          title: err.userCancelled ? "Payment cancelled" : "Payment incomplete",
-          description:
-            "Your booking is not confirmed yet. Choose how you would like to pay and try again.",
+          title: "Payment didn't go through",
+          description: err.userCancelled
+            ? "You left checkout before paying. Nothing was charged. Your bag is saved — try again or choose Cash on delivery."
+            : "We couldn't complete the payment. Nothing was charged. Your bag is saved — try again or choose Cash on delivery.",
           type: "error",
         });
         return;

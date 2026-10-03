@@ -32,8 +32,9 @@ import { Spinner } from "@/components/ui/spinner"
 import { DecoryImageFallback } from "@/module/catalog/components/DecoryImageFallback"
 import { SectionProductPickerDialog } from "@/module/catalog/components/SectionProductPickerDialog"
 import { cn } from "@/lib/utils"
+import { SECTION_PRODUCT_MAX } from "@/module/catalog/lib/global-section-membership"
 
-const MAX = 24
+const MAX = SECTION_PRODUCT_MAX
 
 function coverSrc(product) {
   const cover = (product?.images ?? []).find((item) => item.kind === "image") ?? product?.images?.[0]

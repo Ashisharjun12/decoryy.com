@@ -1,14 +1,9 @@
-import {
-  loadLocationPromptCompleted,
-  loadNotificationPromptCompleted,
-  loadPermissionsSetupCompleted,
-  savePermissionsSetupCompleted,
-} from '@/lib/secure-storage';
 import { isNativePlatform } from '@/module/permissions/lib/platform-permissions';
 import { useAuthStore } from '@/store/auth.store';
+import { usePermissionsSetupStore } from '@/store/permissions-setup.store';
 import { usePathname } from 'expo-router';
 import type { Href } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
 /** After login: full-screen location step, then notifications (vendor-style). */
 export function usePermissionsSetupPrompt() {
@@ -17,29 +12,14 @@ export function usePermissionsSetupPrompt() {
   const pathname = usePathname();
   const isLoggedIn = Boolean(accessToken && user);
 
-  const [setupCompleted, setSetupCompleted] = useState<boolean | null>(null);
-  const [locationStepDone, setLocationStepDone] = useState<boolean | null>(null);
-  const [notificationStepDone, setNotificationStepDone] = useState<boolean | null>(null);
-
-  const reload = useCallback(async () => {
-    const [completed, locationDone, notificationDone] = await Promise.all([
-      loadPermissionsSetupCompleted(),
-      loadLocationPromptCompleted(),
-      loadNotificationPromptCompleted(),
-    ]);
-    if (!completed && locationDone && notificationDone) {
-      await savePermissionsSetupCompleted();
-      setSetupCompleted(true);
-    } else {
-      setSetupCompleted(completed);
-    }
-    setLocationStepDone(locationDone);
-    setNotificationStepDone(notificationDone);
-  }, []);
+  const setupCompleted = usePermissionsSetupStore((s) => s.setupCompleted);
+  const locationStepDone = usePermissionsSetupStore((s) => s.locationStepDone);
+  const notificationStepDone = usePermissionsSetupStore((s) => s.notificationStepDone);
+  const hydrate = usePermissionsSetupStore((s) => s.hydrate);
 
   useEffect(() => {
-    void reload();
-  }, [reload, pathname]);
+    void hydrate();
+  }, [hydrate, pathname, accessToken, user?.id]);
 
   const isLoading =
     setupCompleted === null || locationStepDone === null || notificationStepDone === null;
@@ -65,6 +45,6 @@ export function usePermissionsSetupPrompt() {
   return {
     pendingRoute,
     isLoading,
-    reload,
+    reload: hydrate,
   };
 }

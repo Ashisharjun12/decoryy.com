@@ -1,29 +1,48 @@
-import { Text } from '@/components/ui/text';
-import { HomeProductCard } from '@/module/home/components/HomeProductCard';
+import { ProductRailHeader } from '@/module/catalog/components/ProductRailHeader';
+import { resolveRailViewAllHref } from '@/module/catalog/lib/product-category-rails';
+import { CatalogProductCardRail } from '@/module/catalog/components/CatalogProductCard';
+import { useHomeCategories } from '@/module/home/hooks/use-home-categories';
 import type { HomeProductSection } from '@/module/home/lib/home-catalog';
+import { useMemo } from 'react';
 import { ScrollView, View } from 'react-native';
 
 type HomeProductRailProps = {
   section: HomeProductSection;
   showTitle?: boolean;
   showSubtitle?: boolean;
+  loading?: boolean;
 };
 
 export function HomeProductRail({
   section,
   showTitle = true,
   showSubtitle = true,
+  loading = false,
 }: HomeProductRailProps) {
+  const { categories } = useHomeCategories();
+
+  const viewAllHref = useMemo(
+    () => resolveRailViewAllHref(section.items, categories),
+    [section.items, categories],
+  );
+
+  /** Section merchandising label (Trending, Most popular) — same as web `badgeLabel ?? name`. */
+  const railBadgeLabel = section.badgeLabel ?? section.title;
+  const railBadgeColor = section.badgeColor ?? null;
+  const showHeader =
+    showTitle ||
+    (showSubtitle && section.subtitle) ||
+    (!loading && Boolean(viewAllHref));
+
   return (
     <View className="gap-3">
-      {showTitle || (showSubtitle && section.subtitle) ? (
-        <View className="gap-0.5 px-4">
-          {showTitle ? (
-            <Text className="text-foreground text-lg font-semibold">{section.title}</Text>
-          ) : null}
-          {showSubtitle && section.subtitle ? (
-            <Text className="text-muted-foreground text-sm">{section.subtitle}</Text>
-          ) : null}
+      {showHeader ? (
+        <View className="px-4">
+          <ProductRailHeader
+            title={showTitle ? section.title : undefined}
+            subtitle={showSubtitle ? section.subtitle : undefined}
+            viewAllHref={loading ? undefined : viewAllHref}
+          />
         </View>
       ) : null}
       <ScrollView
@@ -31,10 +50,11 @@ export function HomeProductRail({
         showsHorizontalScrollIndicator={false}
         contentContainerClassName="gap-3 px-4">
         {section.items.map((product) => (
-          <HomeProductCard
+          <CatalogProductCardRail
             key={product.id}
             product={product}
-            badgeLabel={section.badgeLabel}
+            badgeLabel={railBadgeLabel}
+            badgeColor={railBadgeColor}
           />
         ))}
       </ScrollView>

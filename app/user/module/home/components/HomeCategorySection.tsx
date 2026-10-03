@@ -1,5 +1,6 @@
 import { ScalePressable } from '@/components/shell';
 import { Text } from '@/components/ui/text';
+import { resolveViewAllCategoryHref } from '@/module/catalog/lib/category-nav';
 import { HomeCategoryTile } from '@/module/home/components/HomeCategoryTile';
 import { HomeSectionHeading } from '@/module/home/components/HomeSectionHeading';
 import {
@@ -7,12 +8,14 @@ import {
   type HomeCategory,
 } from '@/module/home/lib/home-catalog';
 import { Href, router } from 'expo-router';
+import { useMemo } from 'react';
 import { View } from 'react-native';
 
 const COLS = 4;
 
 type HomeCategorySectionProps = {
   categories: HomeCategory[];
+  catalogCategories?: HomeCategory[];
   loading?: boolean;
   headingTitle?: string;
   headingSubtitle?: string;
@@ -24,6 +27,7 @@ type HomeCategorySectionProps = {
 
 export function HomeCategorySection({
   categories,
+  catalogCategories = [],
   loading = false,
   headingTitle = 'Top decoration categories',
   headingSubtitle = 'Trusted decorators for all events',
@@ -40,7 +44,15 @@ export function HomeCategorySection({
     rows.push(visible.slice(i, i + COLS));
   }
 
-  const showViewAllLink = showViewAll && categories.length > maxVisible && !loading;
+  const resolvedHref = useMemo(() => {
+    if (!showViewAll || loading) return null;
+    return resolveViewAllCategoryHref({
+      rowCategories: categories,
+      catalogCategories,
+    });
+  }, [showViewAll, loading, categories, catalogCategories]);
+
+  const showViewAllLink = Boolean(resolvedHref);
 
   return (
     <View className="gap-4 px-4">
@@ -55,12 +67,12 @@ export function HomeCategorySection({
         )}
         {showViewAllLink ? (
           <ScalePressable
-            onPress={() => router.push('/(app)/category' as Href)}
+            onPress={() => router.push(resolvedHref as Href)}
             haptic
-            className="shrink-0 pt-1"
+            className="shrink-0 self-center pt-0.5"
             accessibilityRole="button"
             accessibilityLabel="View all categories">
-            <Text className="text-muted-foreground text-xs font-medium">View all</Text>
+            <Text className="text-muted-foreground text-xs font-medium">View all →</Text>
           </ScalePressable>
         ) : null}
       </View>
@@ -71,7 +83,11 @@ export function HomeCategorySection({
               <HomeCategoryTile
                 key={category.id}
                 category={category}
-                onPress={() => router.push('/(app)/category' as Href)}
+                onPress={() =>
+                  router.push(
+                    `/(app)/category?parentSlug=${encodeURIComponent(category.slug)}` as Href,
+                  )
+                }
               />
             ))}
             {row.length < COLS

@@ -1,5 +1,6 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
+import { AppState } from 'react-native';
 import { EN_ROUTE_FGS_NOTIFICATION } from '@/lib/en-route-notification-copy';
 import {
   logBackgroundLocationPostError,
@@ -48,6 +49,11 @@ export async function isEnRouteBackgroundLocationActive(): Promise<boolean> {
   return Location.hasStartedLocationUpdatesAsync(EN_ROUTE_LOCATION_TASK);
 }
 
+/** Android 12+ rejects location FGS start while the app is not in the foreground. */
+export function canStartEnRouteForegroundService(): boolean {
+  return AppState.currentState === 'active';
+}
+
 export async function startEnRouteBackgroundLocation(orderId: string): Promise<boolean> {
   const trimmed = orderId.trim();
   if (!trimmed) return false;
@@ -67,21 +73,30 @@ export async function startEnRouteBackgroundLocation(orderId: string): Promise<b
     return false;
   }
 
-  if (alreadyActive) {
-    await Location.stopLocationUpdatesAsync(EN_ROUTE_LOCATION_TASK);
+  if (!canStartEnRouteForegroundService()) {
+    return false;
   }
 
-  await Location.startLocationUpdatesAsync(EN_ROUTE_LOCATION_TASK, {
-    accuracy: Location.Accuracy.Balanced,
-    timeInterval: 8000,
-    distanceInterval: 20,
-    showsBackgroundLocationIndicator: true,
-    foregroundService: {
-      notificationTitle: EN_ROUTE_FGS_NOTIFICATION.title,
-      notificationBody: EN_ROUTE_FGS_NOTIFICATION.body,
-    },
-  });
-  return true;
+  try {
+    if (alreadyActive) {
+      await Location.stopLocationUpdatesAsync(EN_ROUTE_LOCATION_TASK);
+    }
+
+    await Location.startLocationUpdatesAsync(EN_ROUTE_LOCATION_TASK, {
+      accuracy: Location.Accuracy.Balanced,
+      timeInterval: 8000,
+      distanceInterval: 20,
+      showsBackgroundLocationIndicator: true,
+      foregroundService: {
+        notificationTitle: EN_ROUTE_FGS_NOTIFICATION.title,
+        notificationBody: EN_ROUTE_FGS_NOTIFICATION.body,
+      },
+    });
+    return true;
+  } catch (err) {
+    console.warn('[en-route-location] startLocationUpdatesAsync failed:', err);
+    return false;
+  }
 }
 
 export async function stopEnRouteBackgroundLocation(): Promise<void> {

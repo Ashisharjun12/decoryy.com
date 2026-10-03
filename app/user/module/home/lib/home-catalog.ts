@@ -10,6 +10,7 @@ export type HomeCatalogProduct = {
   id: string;
   title: string;
   imageUrl: string | null;
+  categoryId?: string | null;
   pricePaise: number;
   compareAtPaise?: number | null;
   rating: number | null;
@@ -24,6 +25,7 @@ export type HomeProductSection = {
   title: string;
   subtitle?: string;
   badgeLabel?: string | null;
+  badgeColor?: string | null;
   items: HomeCatalogProduct[];
 };
 
@@ -50,6 +52,7 @@ export type HomeCmsLayoutBlock = {
   enableDrillDown?: boolean;
   sectionSlug?: string | null;
   sectionName?: string | null;
+  badgeColor?: string | null;
   categories?: unknown[];
   items?: unknown[];
 };
@@ -181,10 +184,17 @@ export function normalizeProduct(raw: unknown): HomeCatalogProduct | null {
     };
   }
 
+  const categoryIdRaw = row.categoryId;
+  const categoryId =
+    categoryIdRaw != null && String(categoryIdRaw).trim()
+      ? String(categoryIdRaw)
+      : null;
+
   return {
     id: String(row.id),
     title: String(row.name),
     imageUrl,
+    categoryId,
     pricePaise,
     compareAtPaise,
     rating: Number.isFinite(rating) ? rating : null,
@@ -203,11 +213,17 @@ export function normalizeSection(raw: unknown): HomeProductSection | null {
   const typedItems = items as HomeCatalogProduct[];
   if (typedItems.length === 0) return null;
 
+  const name = row.name != null ? String(row.name) : '';
+  const badgeLabelRaw = row.badgeLabel ?? name;
+  const badgeLabel = badgeLabelRaw ? String(badgeLabelRaw) : undefined;
+
   return {
     id: String(row.id ?? row.slug),
     slug: String(row.slug ?? row.id),
-    title: String(row.name ?? row.badgeLabel ?? 'Picks for you'),
+    title: name || badgeLabel || 'Picks for you',
     subtitle: undefined,
+    badgeLabel,
+    badgeColor: row.badgeColor != null ? String(row.badgeColor) : undefined,
     items: typedItems,
   };
 }
@@ -218,12 +234,17 @@ export function normalizeApiSections(response: unknown): HomeProductSection[] {
   if (!Array.isArray(sections)) return [];
 
   return sections
-    .map((section) =>
-      normalizeSection({
-        ...(section as object),
-        items: (section as { items?: unknown }).items,
-      }),
-    )
+    .map((section) => {
+      const row = section as Record<string, unknown>;
+      return normalizeSection({
+        id: row.id,
+        slug: row.slug,
+        name: row.name,
+        badgeColor: row.badgeColor,
+        badgeLabel: row.badgeLabel ?? row.name,
+        items: row.items,
+      });
+    })
     .filter(Boolean) as HomeProductSection[];
 }
 

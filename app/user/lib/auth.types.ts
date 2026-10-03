@@ -3,6 +3,7 @@ export type CustomerUser = {
   name: string;
   phone: string;
   email?: string | null;
+  avatar?: string | null;
   linkedGoogle?: boolean;
 };
 
@@ -31,6 +32,7 @@ export function mapPublicUserToCustomer(user: PublicUser): CustomerUser {
     name: user.name,
     phone: user.phone ?? '',
     email: user.email,
+    avatar: user.avatar,
     linkedGoogle: user.linkedGoogle,
   };
 }

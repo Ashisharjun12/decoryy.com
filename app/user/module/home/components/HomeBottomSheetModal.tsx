@@ -39,12 +39,15 @@ export function HomeBottomSheetModal({
       statusBarTranslucent
       onRequestClose={close}>
       <View className="flex-1">
-        <Pressable style={StyleSheet.absoluteFill} onPress={close} accessibilityRole="button">
+        <Pressable
+          style={[StyleSheet.absoluteFill, { zIndex: 1 }]}
+          onPress={close}
+          accessibilityRole="button">
           <View className="flex-1 bg-black/40" />
         </Pressable>
         <View
           className="absolute left-0 right-0 items-center"
-          style={{ bottom: sheetBottom }}
+          style={{ bottom: sheetBottom, zIndex: 2, elevation: 8 }}
           pointerEvents="box-none">
           <ScalePressable
             onPress={close}
@@ -57,6 +60,7 @@ export function HomeBottomSheetModal({
           </ScalePressable>
           <View
             className="w-full rounded-t-3xl bg-background pb-4"
+            pointerEvents="auto"
             style={sheetMinHeight != null ? { minHeight: sheetMinHeight } : undefined}>
             {children}
           </View>

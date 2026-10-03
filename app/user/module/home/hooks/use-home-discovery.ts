@@ -1,35 +1,30 @@
 import { listProductsForCatalogLocation } from '@/lib/catalog-location';
-import { listSections } from '@/api/sections.api';
-import { queryKeys } from '@/lib/query-keys';
-import {
-  normalizeApiSections,
-  normalizeProduct,
-  type HomeProductSection,
-} from '@/module/home/lib/home-catalog';
+import { normalizeProduct, type HomeProductSection } from '@/module/home/lib/home-catalog';
+import { useCatalogSectionsQuery } from '@/module/home/hooks/use-catalog-sections-query';
 import { useHomeCatalogCityId } from '@/module/home/hooks/use-home-catalog-city-id';
 import { useLocationStore } from '@/store/location.store';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 
 export function useHomeDiscovery() {
   const { catalogCityId, catalogPincode } = useHomeCatalogCityId();
   const status = useLocationStore((s) => s.status);
+  const locationReady = status === 'ready';
+  const enabled = locationReady && Boolean(catalogCityId);
 
-  const query = useQuery({
-    queryKey: queryKeys.homeSections(catalogCityId ?? null, catalogPincode ?? null),
+  const sectionsQuery = useCatalogSectionsQuery();
+
+  const fallbackQuery = useQuery({
+    queryKey: [
+      'catalog',
+      'home-discovery-fallback',
+      catalogCityId ?? null,
+      catalogPincode ?? null,
+    ] as const,
     queryFn: async (): Promise<HomeProductSection[]> => {
-      const locationQuery = {
+      const catalog = await listProductsForCatalogLocation({
         cityId: catalogCityId,
         pincode: catalogPincode,
-      };
-
-      const sectionData = await listSections(locationQuery);
-      const fromSections = normalizeApiSections(sectionData);
-      if (fromSections.length > 0) {
-        return fromSections;
-      }
-
-      const catalog = await listProductsForCatalogLocation({
-        ...locationQuery,
         page: 1,
         limit: 16,
       });
@@ -48,18 +43,39 @@ export function useHomeDiscovery() {
         },
       ];
     },
-    enabled: status === 'ready' && Boolean(catalogCityId),
+    enabled:
+      enabled &&
+      sectionsQuery.isSuccess &&
+      (sectionsQuery.data?.length ?? 0) === 0,
     staleTime: 60_000,
-    placeholderData: (previous) => previous,
   });
 
-  const locationReady = status === 'ready';
+  const sections = useMemo(() => {
+    if ((sectionsQuery.data?.length ?? 0) > 0) {
+      return sectionsQuery.data ?? [];
+    }
+    if (fallbackQuery.data?.length) {
+      return fallbackQuery.data;
+    }
+    return [];
+  }, [sectionsQuery.data, fallbackQuery.data]);
+
+  const isPending =
+    enabled &&
+    (sectionsQuery.isPending || ((sectionsQuery.data?.length ?? 0) === 0 && fallbackQuery.isPending));
+
+  const refetch = async () => {
+    const sectionsResult = await sectionsQuery.refetch();
+    if ((sectionsResult.data?.length ?? 0) === 0) {
+      await fallbackQuery.refetch();
+    }
+  };
 
   return {
-    sections: query.data ?? [],
-    isPending: locationReady && query.isPending,
-    isRefetching: locationReady && query.isRefetching,
-    refetch: query.refetch,
-    isError: query.isError,
+    sections,
+    isPending,
+    isRefetching: enabled && (sectionsQuery.isRefetching || fallbackQuery.isRefetching),
+    refetch,
+    isError: sectionsQuery.isError && fallbackQuery.isError,
   };
 }

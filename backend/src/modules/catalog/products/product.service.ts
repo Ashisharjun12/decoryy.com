@@ -17,6 +17,7 @@ import {
     resolvedSellPaise,
 } from "@/modules/catalog/pricing/paise-pair.js";
 import type { IProductRepository } from "@/modules/catalog/products/product.repository.js";
+import { sanitizeFaqs, sanitizePoints } from "@/modules/catalog/products/product-copy.js";
 import type { Product, ProductFaq } from "@/modules/catalog/products/product.schema.js";
 import type { CityPrice } from "@/modules/catalog/pricing/city-price.schema.js";
 import type { PublicCity } from "@/modules/geo/cities/city.public.js";
@@ -162,7 +163,6 @@ function parsePublicSort(query: PublicProductListQuery): PublicProductSort {
     return "popularity";
 }
 
-const COPY_MAX = 20;
 const UUID_RE =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -185,25 +185,6 @@ function parseOptionalPaise(value: unknown): number | undefined {
     const n = Number(value);
     if (!Number.isFinite(n) || n < 0) return undefined;
     return Math.floor(n);
-}
-
-function sanitizePoints(value: string[] | undefined): string[] {
-    if (!value) return [];
-    return value
-        .map((item) => item.trim())
-        .filter(Boolean)
-        .slice(0, COPY_MAX);
-}
-
-function sanitizeFaqs(value: ProductFaq[] | undefined): ProductFaq[] {
-    if (!value) return [];
-    return value
-        .map((item) => ({
-            question: item.question.trim(),
-            answer: item.answer.trim(),
-        }))
-        .filter((item) => item.question)
-        .slice(0, COPY_MAX);
 }
 
 export interface IProductService {

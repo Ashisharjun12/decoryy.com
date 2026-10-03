@@ -20,7 +20,3 @@ export function patchReadStatus(
   });
 }
 
-/** Pending rows use client ids (cm- prefix), not server message ids. */
-export function isOptimisticMessageId(id: string): boolean {
-  return id.startsWith('cm-');
-}

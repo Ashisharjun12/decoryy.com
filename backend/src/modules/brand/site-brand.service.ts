@@ -10,6 +10,7 @@ import {
 import type { z } from "zod";
 import type { patchSiteBrandDto } from "@/modules/brand/brand.dto.js";
 import { invalidateSiteShell } from "@/modules/cms/cache/cms-cache.invalidation.js";
+import { sanitizeFaqs, sanitizePoints } from "@/modules/catalog/products/product-copy.js";
 
 type PatchInput = z.infer<typeof patchSiteBrandDto>;
 
@@ -61,6 +62,22 @@ export class SiteBrandService {
                 input.productTrustGalleryUploadId !== undefined
                     ? input.productTrustGalleryUploadId
                     : current.productTrustGalleryUploadId,
+            defaultIncludes:
+                input.defaultIncludes !== undefined
+                    ? sanitizePoints(input.defaultIncludes)
+                    : current.defaultIncludes,
+            defaultDeliverySetup:
+                input.defaultDeliverySetup !== undefined
+                    ? sanitizePoints(input.defaultDeliverySetup)
+                    : current.defaultDeliverySetup,
+            defaultCareInstructions:
+                input.defaultCareInstructions !== undefined
+                    ? sanitizePoints(input.defaultCareInstructions)
+                    : current.defaultCareInstructions,
+            defaultFaqs:
+                input.defaultFaqs !== undefined
+                    ? sanitizeFaqs(input.defaultFaqs)
+                    : current.defaultFaqs,
         };
 
         if (next.logoLightUploadId) await this.validateLogo(next.logoLightUploadId);

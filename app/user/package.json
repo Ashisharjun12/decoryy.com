@@ -3,7 +3,7 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "preinstall": "node ./scripts/clean-expo-gradle-in-node-modules.js",
+    "postinstall": "node ./scripts/ensure-expo-autolinking.js && node ./scripts/clean-expo-gradle-in-node-modules.js",
     "clean:gradle-locks": "node ./scripts/clean-expo-gradle-in-node-modules.js",
     "stop:gradle": "powershell -NoProfile -File ./scripts/stop-gradle-daemons.ps1",
     "start": "node ./scripts/expo-dev.js start",
@@ -65,6 +65,7 @@
     "expo-keep-awake": "~15.0.8",
     "expo-linking": "~8.0.12",
     "expo-location": "~19.0.8",
+    "expo-modules-autolinking": "^3.0.27",
     "expo-notifications": "~0.32.17",
     "expo-router": "~6.0.24",
     "expo-secure-store": "~15.0.8",

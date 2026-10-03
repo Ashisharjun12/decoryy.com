@@ -1,11 +1,30 @@
+import { createElement } from "react"
 import { formatDistanceToNow } from "date-fns"
-import { getNotificationIcon } from "@/module/notifications/lib/notification-icon"
+import {
+  getNotificationIcon,
+  getNotificationIconAppearance,
+} from "@/module/notifications/lib/notification-icon"
 import { cn } from "@/lib/utils"
+
+function NotificationEventIcon({ event, className }) {
+  return createElement(getNotificationIcon(event), {
+    className,
+    "aria-hidden": true,
+  })
+}
+
+function resolveNotificationEvent(item) {
+  const data = item?.data
+  if (!data || typeof data !== "object") return undefined
+  if (typeof data.event === "string") return data.event
+  if (typeof data.type === "string") return data.type
+  return undefined
+}
 
 export function NotificationRow({ item, onPress, compact = false }) {
   const unread = !item.readAt
-  const Icon = getNotificationIcon(item.data?.event)
-  const event = item.data?.event
+  const event = resolveNotificationEvent(item)
+  const { wrap: iconWrapClass } = getNotificationIconAppearance(event)
 
   return (
     <button
@@ -21,11 +40,12 @@ export function NotificationRow({ item, onPress, compact = false }) {
       <div className="flex items-start gap-3">
         <span
           className={cn(
-            "mt-0.5 flex shrink-0 items-center justify-center rounded-full bg-muted",
+            "mt-0.5 flex shrink-0 items-center justify-center rounded-full",
+            iconWrapClass,
             compact ? "size-8" : "size-9",
           )}
         >
-          <Icon className="size-4 text-muted-foreground" />
+          <NotificationEventIcon event={event} className="size-4" />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">

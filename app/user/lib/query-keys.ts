@@ -8,7 +8,7 @@ export const queryKeys = {
   chatBooking: (orderId: string) => ['chat', 'booking', orderId] as const,
   chatMessages: (conversationId: string) => ['chat', 'messages', conversationId] as const,
   cmsHome: (cityId: string | null, pincode: string | null) =>
-    ['cms', 'home', 'mobile', cityId, pincode] as const,
+    ['cms', 'home', 'android', cityId, pincode] as const,
   homeSections: (cityId: string | null, pincode: string | null) =>
     ['catalog', 'sections', cityId, pincode] as const,
   categories: () => ['catalog', 'categories'] as const,
@@ -51,6 +51,9 @@ export const queryKeys = {
     ] as const,
   cities: () => ['geo', 'cities'] as const,
   addresses: () => ['user', 'addresses'] as const,
+  refunds: () => ['user', 'refunds'] as const,
+  orderRefund: (orderId: string) => ['user', 'refunds', 'order', orderId] as const,
+  chatSupport: (topicKey: string) => ['chat', 'support', topicKey] as const,
   productDetail: (
     productId: string | undefined,
     cityId: string | null | undefined,

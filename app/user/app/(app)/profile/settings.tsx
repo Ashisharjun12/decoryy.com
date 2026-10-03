@@ -1,10 +1,6 @@
-import { AccountStubScreen } from '@/module/account/components/AccountStubScreen';
+import { Redirect, type Href } from 'expo-router';
 
-export default function ProfileSettingsRoute() {
-  return (
-    <AccountStubScreen
-      title="Settings"
-      description="App preferences, language, and privacy controls will align with web account settings."
-    />
-  );
+/** Legacy deep link — placeholder Settings screen removed. */
+export default function ProfileSettingsRedirect() {
+  return <Redirect href={'/(app)/profile' as Href} />;
 }

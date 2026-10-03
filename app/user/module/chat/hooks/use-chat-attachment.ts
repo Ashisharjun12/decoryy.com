@@ -1,6 +1,6 @@
 import * as chatApi from '@/api/chat.api';
 import { queryKeys } from '@/lib/query-keys';
-import { newClientMessageId } from '@/module/chat/hooks/use-booking-chat-thread';
+import { newClientMessageId } from '@/module/chat/lib/client-message-id';
 import {
   pickChatAttachment,
   type ChatAttachmentSource,

@@ -5,7 +5,7 @@ import type { PublicOrder } from '@/api/orders.api';
 import { formatBookingSlot } from '@/module/account/lib/booking-ui';
 import { HomeBottomSheetModal } from '@/module/home/components/HomeBottomSheetModal';
 import { Image } from 'expo-image';
-import { Clock, MapPin, Receipt } from 'lucide-react-native';
+import { Clock, MapPin, Phone } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
 import { View } from 'react-native';
 
@@ -56,7 +56,7 @@ export function OrderDetailsSheet({ visible, onClose, order, onCompletePayment }
           </View>
         </View>
         <View className="flex-row gap-3">
-          <Icon as={Receipt} className="text-muted-foreground size-5" />
+          <Icon as={Phone} className="text-muted-foreground size-5" />
           <View className="flex-1">
             <Text className="text-muted-foreground text-xs uppercase">Contact</Text>
             <Text className="text-foreground text-sm">{order.customer.name}</Text>

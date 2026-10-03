@@ -1,7 +1,7 @@
 import { IconWell } from '@/components/shell';
 import { Text } from '@/components/ui/text';
 import { formatInr } from '@/module/bookings/lib/booking-format';
-import type { WalletTransaction } from '@/module/payouts/lib/mock-payouts';
+import type { WalletTransaction } from '@/module/payouts/lib/payout.types';
 import { cn } from '@/lib/utils';
 import { ArrowDownLeft, ArrowUpRight } from 'lucide-react-native';
 import { View } from 'react-native';

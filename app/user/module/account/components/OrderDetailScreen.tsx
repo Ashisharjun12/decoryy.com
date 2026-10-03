@@ -4,6 +4,8 @@ import { Text } from '@/components/ui/text';
 import { formatPaise } from '@/lib/format-money';
 import { cn } from '@/lib/utils';
 import { useGoBack } from '@/lib/use-go-back';
+import { OrderReviewSheet } from '@/module/account/components/order-review/OrderReviewSheet';
+import { OrderContactCard } from '@/module/account/components/order-detail/OrderContactCard';
 import { OrderDetailTrackingLayout } from '@/module/account/components/order-detail/OrderDetailTrackingLayout';
 import { OrderTimeline } from '@/module/account/components/order-detail/OrderTimeline';
 import { OrderDetailSkeleton } from '@/module/account/components/OrderDetailSkeleton';
@@ -16,9 +18,9 @@ import { isOrderTrackingLayout } from '@/module/account/lib/order-tracking-mode'
 import { useCheckoutStore } from '@/store/checkout.store';
 import { Image } from 'expo-image';
 import { type Href, router, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { Clock, MapPin, Receipt } from 'lucide-react-native';
+import { Clock, MapPin, Phone } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 const HERO_PLACEHOLDER =
@@ -43,8 +45,10 @@ export function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const orderId = id?.trim() ?? '';
   const { data: order, isLoading, isError, error, refetch } = useOrderDetailQuery(orderId);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const setPendingOrderId = useCheckoutStore((s) => s.setPendingOrderId);
   const setPaymentIncomplete = useCheckoutStore((s) => s.setPaymentIncomplete);
+  const setPaymentUserCancelled = useCheckoutStore((s) => s.setPaymentUserCancelled);
 
   useFocusEffect(
     useCallback(() => {
@@ -56,6 +60,7 @@ export function OrderDetailScreen() {
     if (!order) return;
     setPendingOrderId(order.id);
     setPaymentIncomplete(true);
+    setPaymentUserCancelled(false);
     router.push('/(app)/checkout/payment' as Href);
   }
 
@@ -86,7 +91,12 @@ export function OrderDetailScreen() {
   const heroImage = order.items?.find((item) => item.imageUrl)?.imageUrl ?? HERO_PLACEHOLDER;
   const showTimeline =
     order.status !== 'PENDING_PAYMENT' &&
-    (order.status === 'COMPLETED' || order.status === 'CANCELLED' || order.status === 'CONFIRMED');
+    (order.status === 'COMPLETED' ||
+      order.status === 'CANCELLED' ||
+      order.status === 'CONFIRMED' ||
+      order.status === 'ASSIGNED' ||
+      order.status === 'ON_SITE' ||
+      order.status === 'COMPLETED');
 
   return (
     <Screen edges={['top', 'left', 'right']} gutter contentClassName="pb-10">
@@ -99,25 +109,34 @@ export function OrderDetailScreen() {
               style={{ width: '100%', height: '100%' }}
               contentFit="cover"
             />
-            <View className="absolute inset-0 bg-black/25" />
-            <View className="absolute bottom-0 left-0 right-0 p-4">
-              <View className={cn('self-start rounded-full px-3 py-1', statusPillClass(order.status))}>
+            <View className="absolute left-4 top-4">
+              <View className={cn('rounded-full px-3 py-1', statusPillClass(order.status))}>
                 <Text className={cn('text-xs font-semibold', statusPillTextClass(order.status))}>
                   {bookingStatusLabel(order.status)}
                 </Text>
               </View>
-              <Text className="text-white mt-2 text-lg font-bold" numberOfLines={2}>
-                {order.items?.[0]?.name ?? 'Your booking'}
-              </Text>
-              <Text className="text-white/90 mt-1 text-sm font-medium">{order.reference}</Text>
             </View>
           </View>
-          <View className="border-t border-border/60 bg-muted/20 px-4 py-3">
-            <Text className="text-foreground text-2xl font-bold tabular-nums">
+          <View className="gap-1 border-t border-border/60 bg-muted/20 px-4 py-3">
+            <Text className="text-foreground text-lg font-bold" numberOfLines={2}>
+              {order.items?.[0]?.name ?? 'Your booking'}
+            </Text>
+            <Text className="text-muted-foreground font-mono text-xs">{order.reference}</Text>
+            <Text className="text-foreground mt-1 text-2xl font-bold tabular-nums">
               {formatPaise(order.totalPaise)}
             </Text>
           </View>
         </View>
+
+        {order.status === 'ON_SITE' ? (
+          <Text className="text-foreground rounded-2xl bg-emerald-500/10 px-4 py-3 text-sm">
+            {order.deliveryCodePending
+              ? 'Your decorator has arrived. Share your completion code when they ask.'
+              : 'Your decorator is on site and setup is in progress.'}
+          </Text>
+        ) : null}
+
+        <OrderContactCard order={order} />
 
         <View className="rounded-2xl border border-border bg-card p-4 gap-4">
           <View className="flex-row gap-3">
@@ -135,7 +154,7 @@ export function OrderDetailScreen() {
             </View>
           </View>
           <View className="flex-row gap-3">
-            <Icon as={Receipt} className="text-muted-foreground size-5" />
+            <Icon as={Phone} className="text-muted-foreground size-5" />
             <View className="flex-1">
               <Text className="text-muted-foreground text-xs uppercase">Contact</Text>
               <Text className="text-foreground text-sm">{order.customer.phone}</Text>
@@ -150,6 +169,20 @@ export function OrderDetailScreen() {
           </View>
         ) : null}
 
+        {order.canReview && !order.reviewSubmitted ? (
+          <Pressable
+            onPress={() => setReviewOpen(true)}
+            className="w-full items-center rounded-full bg-primary py-3.5 active:opacity-90">
+            <Text className="text-primary-foreground text-sm font-semibold">Leave a review</Text>
+          </Pressable>
+        ) : null}
+
+        {order.reviewSubmitted ? (
+          <Text className="text-muted-foreground text-center text-sm">
+            Thanks — your review is on its way to our community.
+          </Text>
+        ) : null}
+
         {order.status === 'PENDING_PAYMENT' ? (
           <Pressable
             onPress={openCompletePayment}
@@ -158,6 +191,14 @@ export function OrderDetailScreen() {
           </Pressable>
         ) : null}
       </View>
+
+      <OrderReviewSheet
+        visible={reviewOpen}
+        onClose={() => setReviewOpen(false)}
+        orderId={order.id}
+        productName={order.items?.[0]?.name}
+        productId={order.items?.length === 1 ? order.items[0].productId : undefined}
+      />
     </Screen>
   );
 }

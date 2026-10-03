@@ -21,7 +21,8 @@ import { useCatalogStore } from "@/store/catalog.store";
 import { toast } from "@/components/ui/toast";
 import { getApiError } from "@/api/api";
 import { useCartStore } from "@/store/cart.store";
-import { LocationPicker } from "@/module/layout/components/LocationPicker";
+import { ProductPdpMobileHeader } from "@/module/catalog/components/ProductPdpMobileHeader";
+import { ProductGalleryLightbox } from "@/module/catalog/components/ProductGalleryLightbox";
 import { isBackendCityId, useLocationStore } from "@/store/location.store";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -30,7 +31,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { DecoryImageFallback } from "@/components/decory-image-fallback";
 import { MapsPinIcon } from "@/components/maps-pin-icon";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ProductCustomizeOrderDialog } from "@/module/catalog/components/ProductCustomizeOrderDialog";
+import { ProductPdpAboutPackage } from "@/module/catalog/components/ProductPdpAboutPackage";
+import { ProductPdpAddonsSection } from "@/module/catalog/components/ProductPdpAddonsSection";
+import { buildAddonSelections } from "@/module/catalog/lib/addon-selection";
 import {
   ProductShareGalleryTrigger,
   ProductShareSheet,
@@ -43,7 +46,11 @@ import { ProductReviewsPreview } from "@/module/catalog/components/reviews/Produ
 import { proceedToCheckout } from "@/module/booking/lib/proceed-to-checkout";
 import { useAuthStore } from "@/store/auth.store";
 import { ProductOtherCategoriesRail } from "@/module/catalog/components/ProductOtherCategoriesRail";
-import { ProductRelatedRail } from "@/module/catalog/components/ProductRelatedRail";
+import { ProductPdpSubcategoryRails } from "@/module/catalog/components/ProductPdpSubcategoryRails";
+import {
+  ProductPdpSimilarGalleryButton,
+  ProductPdpSimilarPackages,
+} from "@/module/catalog/components/ProductPdpSimilarPackages";
 import { useSiteShell } from "@/module/site/hooks/use-site-shell.jsx";
 
 const LG_MEDIA_QUERY = "(min-width: 1024px)";
@@ -62,8 +69,7 @@ function useIsLgUp() {
   return useSyncExternalStore(subscribeLgMedia, getLgMediaSnapshot, () => true);
 }
 
-const PDP_REVIEWS_PREVIEW_CLASS =
-  "flex flex-col gap-3 rounded-2xl border border-border/80 bg-card p-4 md:p-5";
+const PDP_REVIEWS_PREVIEW_CLASS = "";
 
 const TIME_SLOTS = [
   { id: "9-12", label: "9 AM – 12 PM" },
@@ -184,6 +190,61 @@ function ProductPdpBookingActions({
           <ChevronRightIcon className="size-5 shrink-0" aria-hidden />
         ) : null}
       </Button>
+    </div>
+  );
+}
+
+function ProductPdpMobileBookingBar({
+  pricePaise,
+  booking,
+  isInstantBooking,
+  onWhatsApp,
+  onBookNow,
+}) {
+  return (
+    <div className="flex items-end gap-2.5">
+      <div className="min-w-0 flex-1 pb-0.5">
+        <p className="text-[11px] leading-tight text-muted-foreground">All-inclusive price</p>
+        <p className="text-[1.35rem] font-extrabold leading-tight tracking-tight text-foreground tabular-nums">
+          {pricePaise != null ? formatPaise(pricePaise) : "—"}
+        </p>
+        <p className="mt-0.5 flex items-center gap-1 text-[10px] font-medium leading-tight text-emerald-600 dark:text-emerald-500">
+          <CheckIcon className="size-3 shrink-0" strokeWidth={2.5} aria-hidden />
+          Setup, delivery &amp; materials included
+        </p>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-2.5">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-[3.25rem] shrink-0 rounded-xl bg-emerald-50 text-[#00A859] hover:bg-emerald-100 hover:text-[#009650] [&_svg]:size-6 dark:bg-emerald-950/40 dark:text-emerald-400"
+          onClick={onWhatsApp}
+          aria-label="Chat on WhatsApp"
+        >
+          <WhatsAppIcon />
+        </Button>
+
+        <Button
+          type="button"
+          size="lg"
+          className={cn(
+            "h-[3.25rem] min-w-[9.5rem] max-w-[11.5rem] gap-1 rounded-xl px-3.5 text-sm font-bold shadow-sm",
+            isInstantBooking
+              ? "bg-orange-500 text-white hover:bg-orange-600 hover:text-white"
+              : "bg-primary text-black hover:bg-primary/90",
+          )}
+          disabled={booking}
+          onClick={onBookNow}
+        >
+          {isInstantBooking ? <ZapIcon className="size-4 fill-current" aria-hidden /> : null}
+          <span className="truncate">
+            {booking ? "Adding…" : isInstantBooking ? "Book instant" : "Book your setup"}
+          </span>
+          {!booking ? <ChevronRightIcon className="size-4 shrink-0" aria-hidden /> : null}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -389,9 +450,10 @@ function ProductBreadcrumb({ title, categoryId }) {
   );
 }
 
-function ProductGallery({ images, title, onShare }) {
+function ProductGallery({ images, title, onShare, onSimilar, showSimilar }) {
   const navigate = useNavigate();
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const selected = images[selectedIndex] ?? images[0] ?? null;
   const src = imageSrc(selected);
 
@@ -407,25 +469,63 @@ function ProductGallery({ images, title, onShare }) {
     setSelectedIndex((index) => (index + delta + images.length) % images.length);
   }
 
+  const thumbButtons =
+    images.length > 1
+      ? images.map((item, index) => {
+          const thumb = thumbSrc(item);
+          return (
+            <button
+              key={item.uploadId || item.url || index}
+              type="button"
+              onClick={() => setSelectedIndex(index)}
+              aria-label={`Show image ${index + 1}`}
+              aria-pressed={index === selectedIndex}
+              className={cn(
+                "size-[4.5rem] shrink-0 overflow-hidden rounded-2xl bg-muted ring-2 ring-transparent transition-shadow",
+                index === selectedIndex && "ring-primary shadow-sm",
+              )}
+            >
+              {thumb ? (
+                <img src={thumb} alt="" className="size-full object-contain object-center bg-muted/80" />
+              ) : (
+                <DecoryImageFallback />
+              )}
+            </button>
+          );
+        })
+      : null;
+
   return (
-    <div className="flex w-full min-w-0 flex-col gap-3">
+    <div className="flex w-full min-w-0 flex-col gap-3 md:flex-row md:items-start md:gap-3">
+      {thumbButtons ? (
+        <div className="hidden shrink-0 flex-col gap-2.5 md:flex">{thumbButtons}</div>
+      ) : null}
+
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
       <div
         className={cn(
-          "relative flex w-full min-w-0 items-center justify-center overflow-hidden bg-muted",
-          "max-md:rounded-none max-md:border-0 max-md:shadow-none",
-          "md:rounded-2xl md:border md:border-border/80 md:shadow-sm",
+          "relative w-full min-w-0 overflow-hidden bg-muted",
+          "max-md:rounded-none max-md:shadow-none max-md:ring-0",
+          "md:rounded-2xl md:border md:border-border/80 md:shadow-sm md:ring-1 md:ring-border/60",
         )}
       >
         {src ? (
-          <img
-            src={src}
-            alt={title}
-            className="block h-auto w-full max-w-full object-contain"
-            decoding="async"
-            fetchPriority="high"
-          />
+          <button
+            type="button"
+            className="block w-full cursor-zoom-in border-0 bg-transparent p-0"
+            onClick={() => setLightboxOpen(true)}
+            aria-label="Open full screen gallery"
+          >
+            <img
+              src={src}
+              alt={title}
+              className="block h-auto w-full max-w-full object-contain object-center max-md:rounded-none md:rounded-2xl"
+              decoding="async"
+              fetchPriority="high"
+            />
+          </button>
         ) : (
-          <DecoryImageFallback className="min-h-48 w-full md:min-h-[360px]" />
+          <DecoryImageFallback className="min-h-[200px] w-full" />
         )}
         <div
           className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between p-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:hidden"
@@ -433,7 +533,7 @@ function ProductGallery({ images, title, onShare }) {
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="pointer-events-auto flex size-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md ring-1 ring-black/5"
+            className="pointer-events-auto flex size-10 items-center justify-center rounded-full bg-white/95 text-foreground shadow-md ring-1 ring-black/5 dark:bg-background/95"
             aria-label="Go back"
           >
             <ChevronLeftIcon className="size-5" aria-hidden />
@@ -451,55 +551,44 @@ function ProductGallery({ images, title, onShare }) {
         </div>
         {images.length > 1 ? (
           <>
-            <Button
+            <button
               type="button"
-              variant="secondary"
-              size="icon-sm"
-              className="absolute top-1/2 left-3 -translate-y-1/2"
-              onClick={() => step(-1)}
+              className="absolute top-1/2 left-2 z-20 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-foreground shadow-md ring-1 ring-black/10 hover:bg-white md:left-3 dark:bg-background/95"
+              onClick={(event) => {
+                event.stopPropagation();
+                step(-1);
+              }}
               aria-label="Previous image"
             >
-              <ChevronLeftIcon />
-            </Button>
-            <Button
+              <ChevronLeftIcon className="size-5" aria-hidden />
+            </button>
+            <button
               type="button"
-              variant="secondary"
-              size="icon-sm"
-              className="absolute top-1/2 right-3 -translate-y-1/2"
-              onClick={() => step(1)}
+              className="absolute top-1/2 right-2 z-20 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-foreground shadow-md ring-1 ring-black/10 hover:bg-white md:right-3 dark:bg-background/95"
+              onClick={(event) => {
+                event.stopPropagation();
+                step(1);
+              }}
               aria-label="Next image"
             >
-              <ChevronRightIcon />
-            </Button>
+              <ChevronRightIcon className="size-5" aria-hidden />
+            </button>
           </>
         ) : null}
+        {showSimilar && onSimilar ? (
+          <div className="pointer-events-none absolute inset-x-0 bottom-3 z-20 flex justify-end px-3 md:bottom-4 md:px-4">
+            <ProductPdpSimilarGalleryButton onClick={onSimilar} />
+          </div>
+        ) : null}
       </div>
-      {images.length > 1 ? (
-        <div className={cn(SCROLL_X, "hidden sm:flex")}>
-          {images.map((item, index) => {
-            const thumb = thumbSrc(item);
-            return (
-              <button
-                key={item.uploadId || item.url || index}
-                type="button"
-                onClick={() => setSelectedIndex(index)}
-                aria-label={`Show image ${index + 1}`}
-                aria-pressed={index === selectedIndex}
-                className={cn(
-                  "size-16 shrink-0 overflow-hidden rounded-2xl bg-muted ring-2 ring-transparent",
-                  index === selectedIndex && "ring-primary",
-                )}
-              >
-                {thumb ? (
-                  <img src={thumb} alt="" className="size-full object-cover" />
-                ) : (
-                  <DecoryImageFallback />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
+      <ProductGalleryLightbox
+        open={lightboxOpen}
+        onOpenChange={setLightboxOpen}
+        images={images}
+        title={title}
+        initialIndex={selectedIndex}
+      />
+      </div>
     </div>
   );
 }
@@ -726,8 +815,9 @@ export function ProductPdp({ product, onChangeLocation }) {
   );
   const isInstantBooking = fulfillment === "instant" && canInstant;
   const [booking, setBooking] = useState(false);
-  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [addonQtyById, setAddonQtyById] = useState({});
   const [shareOpen, setShareOpen] = useState(false);
+  const [similarOpen, setSimilarOpen] = useState(false);
   const navigate = useNavigate();
   const addItem = useCartStore((s) => s.addItem);
   const setCartOpen = useCartStore((s) => s.setOpen);
@@ -753,14 +843,22 @@ export function ProductPdp({ product, onChangeLocation }) {
     />
   );
 
-  async function completeBooking(addonSelections) {
+  function setAddonQty(addonId, next) {
+    setAddonQtyById((prev) => {
+      if (next <= 0) {
+        const { [addonId]: _removed, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [addonId]: next };
+    });
+  }
+
+  async function completeBooking() {
     if (!product?.id) return;
     setBooking(true);
     try {
-      const addons =
-        addonSelections?.length
-          ? addonSelections
-          : undefined;
+      const selections = buildAddonSelections(productAddons, addonQtyById);
+      const addons = selections.length ? selections : undefined;
       await addItem(
         {
           productId: product.id,
@@ -774,7 +872,6 @@ export function ProductPdp({ product, onChangeLocation }) {
         { openDrawer: false },
       );
       toast.add({ title: "Added to bag", type: "success" });
-      setCustomizeOpen(false);
       proceedToCheckout({
         user,
         setLoginOpen,
@@ -801,26 +898,20 @@ export function ProductPdp({ product, onChangeLocation }) {
       toast.add({ title: "Choose date and time, then tap Done", type: "info" });
       return;
     }
-    if (hasAddons) {
-      setCustomizeOpen(true);
-      return;
-    }
-    void completeBooking([]);
+    void completeBooking();
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-0 max-md:pb-[calc(4.75rem+env(safe-area-inset-bottom))]">
-      <div
-        className="sticky top-0 z-30 border-b border-border/70 bg-background/95 px-3 py-2 backdrop-blur-sm md:hidden"
-      >
-        <LocationPicker variant="mobileToolbar" />
-      </div>
+    <div className="flex min-w-0 flex-col gap-0 max-md:pb-[calc(5.75rem+env(safe-area-inset-bottom))]">
+      <ProductPdpMobileHeader />
       <div className="grid min-w-0 gap-8 overflow-x-hidden lg:grid-cols-2 lg:items-start lg:gap-10">
         <div className="flex min-w-0 flex-col gap-6 lg:sticky lg:top-20 lg:z-[1] lg:self-start">
           <ProductGallery
             images={images}
             title={title}
             onShare={() => setShareOpen(true)}
+            showSimilar={Boolean(product?.categoryId)}
+            onSimilar={() => setSimilarOpen(true)}
           />
           {isLgUp ? reviewsPreview : null}
         </div>
@@ -841,11 +932,6 @@ export function ProductPdp({ product, onChangeLocation }) {
               onClick={() => setShareOpen(true)}
             />
           </div>
-          {copy ? (
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-              {copy}
-            </p>
-          ) : null}
         </div>
 
         <ProductPrice
@@ -887,16 +973,18 @@ export function ProductPdp({ product, onChangeLocation }) {
           onBookNow={onBookNow}
         />
 
-        <ProductCustomizeOrderDialog
-          open={customizeOpen}
-          onOpenChange={setCustomizeOpen}
-          addons={productAddons}
-          submitting={booking}
-          onSkip={() => void completeBooking([])}
-          onProceed={(addonIds) => void completeBooking(addonIds)}
-        />
-
         <ProductPdpOffers productId={product?.id} categoryId={product?.categoryId} />
+
+        {hasAddons ? (
+          <ProductPdpAddonsSection
+            addons={productAddons}
+            qtyById={addonQtyById}
+            onSetQty={setAddonQty}
+            disabled={booking}
+          />
+        ) : null}
+
+        <ProductPdpAboutPackage description={copy} />
 
         <ProductPdpDetailsTabs
           includes={product?.includes}
@@ -911,7 +999,7 @@ export function ProductPdp({ product, onChangeLocation }) {
       </div>
 
       <div className="px-4 md:px-0">
-        <ProductRelatedRail product={product} />
+        <ProductPdpSubcategoryRails product={product} />
         <ProductOtherCategoriesRail product={product} />
       </div>
 
@@ -919,7 +1007,8 @@ export function ProductPdp({ product, onChangeLocation }) {
         className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 px-3 pt-2.5 shadow-[0_-4px_24px_-8px] shadow-foreground/10 backdrop-blur-md md:hidden"
         style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}
       >
-        <ProductPdpBookingActions
+        <ProductPdpMobileBookingBar
+          pricePaise={product?.pricePaise}
           booking={booking}
           isInstantBooking={isInstantBooking}
           onWhatsApp={onWhatsApp}
@@ -933,27 +1022,31 @@ export function ProductPdp({ product, onChangeLocation }) {
         title={title}
         productId={product?.id}
       />
+      <ProductPdpSimilarPackages
+        product={product}
+        open={similarOpen}
+        onOpenChange={setSimilarOpen}
+      />
     </div>
   );
 }
 
 export function ProductPdpSkeleton() {
   return (
-    <div
-      className="grid min-w-0 gap-8 overflow-x-hidden lg:grid-cols-2 lg:items-start lg:gap-10"
-      aria-busy="true"
-      aria-live="polite"
-    >
+    <div className="flex min-w-0 flex-col gap-0" aria-busy="true" aria-live="polite">
+      <ProductPdpMobileHeader />
+      <div
+        className="grid min-w-0 gap-8 overflow-x-hidden lg:grid-cols-2 lg:items-start lg:gap-10"
+      >
       <span className="sr-only">Loading product</span>
       <div className="min-w-0 lg:sticky lg:top-20">
-        <div className="flex min-w-0 flex-col gap-3">
-          <Skeleton className="min-h-[min(100vw,360px)] w-full rounded-none md:min-h-[360px] md:rounded-2xl" />
-          <div className="flex gap-2">
-            <Skeleton className="size-16 shrink-0 rounded-2xl" />
-            <Skeleton className="size-16 shrink-0 rounded-2xl" />
-            <Skeleton className="size-16 shrink-0 rounded-2xl" />
-            <Skeleton className="size-16 shrink-0 rounded-2xl" />
+        <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-start">
+          <div className="hidden shrink-0 flex-col gap-2.5 md:flex">
+            <Skeleton className="size-[4.5rem] rounded-2xl" />
+            <Skeleton className="size-[4.5rem] rounded-2xl" />
+            <Skeleton className="size-[4.5rem] rounded-2xl" />
           </div>
+          <Skeleton className="aspect-[4/3] min-h-[200px] w-full flex-1 rounded-none md:rounded-2xl" />
         </div>
       </div>
 
@@ -1002,6 +1095,7 @@ export function ProductPdpSkeleton() {
           <Skeleton className="h-12 w-full rounded-2xl" />
           <Skeleton className="h-12 w-full rounded-2xl" />
         </div>
+      </div>
       </div>
     </div>
   );

@@ -5,12 +5,17 @@ import { ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 
 function Accordion({
   className,
+  collapsible: _collapsible,
+  type,
+  multiple: multipleProp,
   ...props
 }) {
+  const multiple = multipleProp ?? type === "multiple";
   return (
     <AccordionPrimitive.Root
       data-slot="accordion"
       className={cn("flex w-full flex-col overflow-hidden rounded-2xl border", className)}
+      multiple={multiple}
       {...props} />
   );
 }

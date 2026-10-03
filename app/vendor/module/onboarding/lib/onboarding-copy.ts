@@ -22,6 +22,4 @@ export const ONBOARDING_SLIDES = [
   },
 ] as const;
 
-export const MOCK_CITIES = ['Delhi', 'Mumbai', 'Bangalore', 'Hyderabad', 'Pune', 'Chennai'] as const;
-
 export const DEMO_OTP = '123456';

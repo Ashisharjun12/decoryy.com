@@ -83,3 +83,11 @@ export function patchInstantMapsPolicy(payload) {
 export function getMessageServiceCatalog() {
   return api.get("/admin/settings/message-service/catalog").then(unwrap)
 }
+
+export function getDemoAuth() {
+  return api.get("/admin/settings/demo-auth").then(unwrap)
+}
+
+export function patchDemoAuth(payload) {
+  return api.patch("/admin/settings/demo-auth", payload).then(unwrap)
+}

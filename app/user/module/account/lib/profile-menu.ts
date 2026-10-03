@@ -6,7 +6,6 @@ import {
   MapPin,
   Package,
   RotateCcw,
-  Settings,
   UserRound,
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
@@ -30,7 +29,7 @@ export type ProfileActionMenuItem = {
 
 export type ProfileNotificationToggleItem = {
   type: 'notification-toggle';
-  id: 'notifications';
+  id: 'push-notifications';
   label: string;
   icon: LucideIcon;
 };
@@ -54,7 +53,7 @@ export const PROFILE_MENU_SECTIONS: ProfileMenuSection[] = [
       {
         type: 'route',
         id: 'account',
-        label: 'Account',
+        label: 'Personal info',
         href: '/(app)/profile/account',
         icon: UserRound,
       },
@@ -93,23 +92,16 @@ export const PROFILE_MENU_SECTIONS: ProfileMenuSection[] = [
     items: [
       {
         type: 'notification-toggle',
-        id: 'notifications',
+        id: 'push-notifications',
         label: 'Push notifications',
         icon: Bell,
       },
       {
         type: 'route',
-        id: 'notification-inbox',
-        label: 'Notification inbox',
+        id: 'notifications-inbox',
+        label: 'Notifications',
         href: '/(app)/notifications?from=profile',
         icon: Inbox,
-      },
-      {
-        type: 'route',
-        id: 'settings',
-        label: 'Settings',
-        href: '/(app)/profile/settings',
-        icon: Settings,
       },
     ],
   },

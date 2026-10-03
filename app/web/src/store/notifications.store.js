@@ -83,14 +83,20 @@ export const useNotificationsStore = create((set, get) => ({
   },
 
   markAllRead: async () => {
-    const { count } = await markAllUserNotificationsRead()
     const now = new Date().toISOString()
+    const previous = get().notifications
     set((state) => ({
       notifications: state.notifications.map((item) =>
         item.readAt ? item : { ...item, readAt: now },
       ),
     }))
-    return count
+    try {
+      const { count } = await markAllUserNotificationsRead()
+      return count ?? 0
+    } catch (err) {
+      set({ notifications: previous })
+      throw err
+    }
   },
 }))
 

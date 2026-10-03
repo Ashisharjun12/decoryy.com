@@ -34,6 +34,12 @@ export function SearchProductRow({ product, onSelect }) {
           <span className="text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
             {formatPaise(product.pricePaise)}
           </span>
+          {product.compareAtPaise != null &&
+          product.compareAtPaise > (product.pricePaise ?? 0) ? (
+            <span className="text-xs tabular-nums text-muted-foreground line-through">
+              {formatPaise(product.compareAtPaise)}
+            </span>
+          ) : null}
           {percentOff > 0 ? (
             <span
               className={cn(

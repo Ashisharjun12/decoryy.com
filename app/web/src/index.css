@@ -203,9 +203,16 @@
     }
   body {
     @apply bg-background text-foreground;
+    width: 100%;
+    overflow-x: hidden;
     }
   html {
     @apply font-sans;
+    width: 100%;
+    overflow-x: hidden;
+    touch-action: manipulation;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
     }
   button:not(:disabled),
   [type="button"]:not(:disabled),

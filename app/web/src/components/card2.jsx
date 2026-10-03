@@ -65,7 +65,7 @@ function GoogleMark({ className }) {
   );
 }
 
-export function LoginCard() {
+export function LoginCard({ embedded = false }) {
   const { brand } = useSiteShell();
   const companyName = brand.companyName || "Decoryy";
   const overlayRef = useRef(null);
@@ -264,8 +264,18 @@ export function LoginCard() {
   const phonePreview = formatPhonePreview(phone);
 
   return (
-    <Card className="w-full shadow-none ring-0">
-      <CardHeader className="flex flex-col items-center text-center">
+    <Card
+      className={cn(
+        "w-full shadow-none ring-0",
+        embedded ? "gap-0 border-0 bg-transparent" : undefined,
+      )}
+    >
+      <CardHeader
+        className={cn(
+          "flex w-full flex-col items-center text-center",
+          embedded ? "px-5 pt-6 pb-2 pr-12" : undefined,
+        )}
+      >
         <div className="mb-1 flex items-center gap-2">
           <DecoryLogo
             className="size-9"
@@ -277,8 +287,8 @@ export function LoginCard() {
             {companyName}
           </span>
         </div>
-        <CardTitle>
-          {phoneStep === "phone" ? "Login to your account" : "Verify your phone"}
+        <CardTitle className="text-lg sm:text-xl">
+          {phoneStep === "phone" ? "Login to your account!" : "Verify your phone"}
         </CardTitle>
         <CardDescription>
           {phoneStep === "phone"
@@ -286,7 +296,7 @@ export function LoginCard() {
             : `Enter the 6-digit code sent to ${phonePreview}`}
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className={embedded ? "w-full px-5 pb-8" : undefined}>
         {phoneStep === "phone" ? (
           <>
             <div className="relative h-12 w-full">
@@ -319,7 +329,7 @@ export function LoginCard() {
                 <span className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                <span className="bg-card px-3">or</span>
+                <span className={cn("px-3", embedded ? "bg-popover" : "bg-card")}>or</span>
               </div>
             </div>
             <form className="flex flex-col gap-3" onSubmit={onPhoneSubmit}>

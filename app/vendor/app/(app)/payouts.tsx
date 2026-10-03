@@ -18,7 +18,7 @@ import { useWalletSummary, useWalletWithdraw, walletKeys } from '@/module/payout
 import { useScreenRefresh } from '@/hooks/use-screen-refresh';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
-import type { PayoutSummary } from '@/module/payouts/lib/mock-payouts';
+import type { PayoutSummary } from '@/module/payouts/lib/payout.types';
 import { router } from 'expo-router';
 import { ArrowLeft, Bell } from 'lucide-react-native';
 import { View } from 'react-native';

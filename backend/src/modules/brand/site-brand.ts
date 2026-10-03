@@ -1,3 +1,9 @@
+import {
+    mergeStoredFaqs,
+    mergeStoredPoints,
+} from "@/modules/catalog/products/product-copy.js";
+import type { ProductFaq } from "@/modules/catalog/products/product.schema.js";
+
 export const SITE_BRAND_KEY = "site_brand";
 
 export type SiteBrand = {
@@ -10,6 +16,10 @@ export type SiteBrand = {
     whatsappUrl: string | null;
     productTrustGalleryEnabled: boolean;
     productTrustGalleryUploadId: string | null;
+    defaultIncludes: string[];
+    defaultDeliverySetup: string[];
+    defaultCareInstructions: string[];
+    defaultFaqs: ProductFaq[];
 };
 
 export const DEFAULT_SITE_BRAND: SiteBrand = {
@@ -23,6 +33,10 @@ export const DEFAULT_SITE_BRAND: SiteBrand = {
     whatsappUrl: null,
     productTrustGalleryEnabled: false,
     productTrustGalleryUploadId: null,
+    defaultIncludes: [],
+    defaultDeliverySetup: [],
+    defaultCareInstructions: [],
+    defaultFaqs: [],
 };
 
 export function mergeSiteBrand(value: unknown): SiteBrand {
@@ -60,5 +74,9 @@ export function mergeSiteBrand(value: unknown): SiteBrand {
         whatsappUrl: nullableStr("whatsappUrl"),
         productTrustGalleryEnabled: raw.productTrustGalleryEnabled === true,
         productTrustGalleryUploadId: uuidOrNull("productTrustGalleryUploadId"),
+        defaultIncludes: mergeStoredPoints(raw.defaultIncludes),
+        defaultDeliverySetup: mergeStoredPoints(raw.defaultDeliverySetup),
+        defaultCareInstructions: mergeStoredPoints(raw.defaultCareInstructions),
+        defaultFaqs: mergeStoredFaqs(raw.defaultFaqs),
     };
 }

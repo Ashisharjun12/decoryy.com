@@ -1,20 +1,26 @@
-import { useCallback, useEffect, useState } from "react";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-} from "@/components/ui/carousel";
+import { useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { PdpProductRailHeader } from "@/module/catalog/components/PdpProductRailHeader";
+import { getCategoryListingHref } from "@/module/catalog/lib/product-category-rails";
 import {
   HomeProductCardRail,
   HomeProductCardRailSkeleton,
 } from "@/module/home/components/HomeProductCard";
-import { HomeScrollControls } from "@/module/home/components/HomeScrollControls";
-import { HomeSectionHeading } from "@/module/home/components/HomeSectionHeading";
-import {
-  PRODUCT_RAIL_ITEM_CLASS,
-  PRODUCT_RAIL_MIN_ITEMS_FOR_CONTROLS,
-} from "@/module/home/lib/product-rail-layout";
+import { PRODUCT_RAIL_PDP_MOBILE_CARD_SLOT } from "@/module/home/lib/product-rail-layout";
+import { useCatalogStore } from "@/store/catalog.store";
+
+const SCROLL_ROW =
+  "flex gap-2.5 overflow-x-auto overscroll-x-contain pb-1 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+
+const CARD_SLOT = cn("shrink-0 snap-start", PRODUCT_RAIL_PDP_MOBILE_CARD_SLOT);
+
+function resolveRailViewAllHref(section, categories) {
+  const first = section.items?.find((product) => product?.categoryId);
+  if (first?.categoryId) {
+    return getCategoryListingHref(first.categoryId, categories);
+  }
+  return "/decorations";
+}
 
 export function HomeProductRail({
   section,
@@ -24,88 +30,45 @@ export function HomeProductRail({
   showTitle = true,
   showSubtitle = true,
 }) {
+  const categories = useCatalogStore((s) => s.categories);
   const railTitle = titleOverride ?? section.name;
-  const itemCount = section.items?.length ?? 0;
-  const showScrollControls =
-    !loading && itemCount >= PRODUCT_RAIL_MIN_ITEMS_FOR_CONTROLS;
-  const [api, setApi] = useState(null);
-  const [canPrev, setCanPrev] = useState(false);
-  const [canNext, setCanNext] = useState(false);
+  const viewAllHref = useMemo(
+    () => resolveRailViewAllHref(section, categories),
+    [section, categories],
+  );
 
-  const onSelect = useCallback((carouselApi) => {
-    if (!carouselApi) return;
-    setCanPrev(carouselApi.canScrollPrev());
-    setCanNext(carouselApi.canScrollNext());
-  }, []);
-
-  useEffect(() => {
-    if (!api) return undefined;
-    onSelect(api);
-    api.on("reInit", onSelect);
-    api.on("select", onSelect);
-    return () => {
-      api.off("select", onSelect);
-    };
-  }, [api, onSelect]);
+  const showHeader = showTitle || (showSubtitle && subtitle);
 
   return (
     <section aria-label={railTitle}>
-      <div
-        className={cn(
-          "mb-3 gap-x-2 gap-y-1",
-          showScrollControls
-            ? "grid grid-cols-[minmax(0,1fr)_auto] items-start"
-            : "flex flex-col",
-        )}
-      >
-        {showTitle || (showSubtitle && subtitle) ? (
-          <HomeSectionHeading
-            title={showTitle ? railTitle : " "}
-            subtitle={showSubtitle ? subtitle : null}
-            compact
-            hideSubtitle={false}
-          />
-        ) : (
-          <span />
-        )}
-        {showScrollControls ? (
-          <HomeScrollControls
-            className="shrink-0 pt-0.5"
-            canPrev={canPrev}
-            canNext={canNext}
-            onPrev={() => api?.scrollPrev()}
-            onNext={() => api?.scrollNext()}
-          />
-        ) : null}
-      </div>
+      {showHeader ? (
+        <PdpProductRailHeader
+          title={showTitle ? railTitle : " "}
+          subtitle={showSubtitle ? subtitle : undefined}
+          viewAllHref={loading ? undefined : viewAllHref}
+        />
+      ) : null}
 
       {loading ? (
-        <div className="grid grid-cols-2 items-stretch gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+        <div className={cn(SCROLL_ROW, "-mx-4 px-4 md:mx-0 md:px-0")}>
           {Array.from({ length: 4 }).map((_, index) => (
-            <HomeProductCardRailSkeleton key={index} />
+            <div key={index} className={CARD_SLOT}>
+              <HomeProductCardRailSkeleton />
+            </div>
           ))}
         </div>
       ) : (
-        <Carousel
-          setApi={setApi}
-          opts={{ align: "start", dragFree: true }}
-          className="w-full"
-        >
-          <CarouselContent className="-ml-2.5">
-            {section.items.map((product) => (
-              <CarouselItem
-                key={product.id}
-                className={cn(PRODUCT_RAIL_ITEM_CLASS, "h-auto pl-2.5")}
-              >
-                <HomeProductCardRail
-                  product={product}
-                  badgeLabel={section.badgeLabel ?? section.name}
-                  badgeColor={section.badgeColor}
-                />
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-        </Carousel>
+        <div className={cn(SCROLL_ROW, "-mx-4 px-4 md:mx-0 md:px-0")}>
+          {section.items.map((product) => (
+            <div key={product.id} className={CARD_SLOT}>
+              <HomeProductCardRail
+                product={product}
+                badgeLabel={section.badgeLabel ?? section.name}
+                badgeColor={section.badgeColor}
+              />
+            </div>
+          ))}
+        </div>
       )}
     </section>
   );

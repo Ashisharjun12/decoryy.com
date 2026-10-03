@@ -5,7 +5,6 @@ import {
   MapPinIcon,
   PackageIcon,
   RotateCcwIcon,
-  SettingsIcon,
   UserRoundIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,7 +23,6 @@ const PRIMARY_NAV = [
 
 const SECONDARY_NAV = [
   { label: "Notifications", to: "/account/notifications", icon: BellIcon, end: false },
-  { label: "Settings", to: "/account/settings", icon: SettingsIcon, end: false },
   { label: "Help", to: "/account/help", icon: LifeBuoyIcon, end: false },
 ];
 

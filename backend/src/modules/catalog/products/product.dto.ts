@@ -10,8 +10,8 @@ function defaultPriceOk(value: { pricePaise?: number | null; compareAtPaise?: nu
     return value.compareAtPaise >= value.pricePaise;
 }
 
-const copyPointsDto = z.array(z.string()).max(20).optional();
-const copyFaqsDto = z
+export const productCopyPointsDto = z.array(z.string()).max(20).optional();
+export const productCopyFaqsDto = z
     .array(
         z.object({
             question: z.string(),
@@ -20,6 +20,9 @@ const copyFaqsDto = z
     )
     .max(20)
     .optional();
+
+const copyPointsDto = productCopyPointsDto;
+const copyFaqsDto = productCopyFaqsDto;
 
 export const createProductDto = z
     .object({

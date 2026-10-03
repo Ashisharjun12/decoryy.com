@@ -5,12 +5,14 @@ import { asyncHandler } from "@/shared/middlewares/asyncHandler.js";
 import type { IConversationService } from "@/modules/chat/services/conversation.service.js";
 import type { IChatAttachmentService } from "@/modules/chat/attachments/chat-attachment.service.js";
 import type { IMessageService } from "@/modules/chat/services/message.service.js";
+import type { IBookingChatService } from "@/modules/chat/services/booking-chat.service.js";
 
 export class UserChatController {
     constructor(
         private readonly conversations: IConversationService,
         private readonly messages: IMessageService,
         private readonly attachments: IChatAttachmentService,
+        private readonly bookingChat: IBookingChatService,
     ) {}
 
     listConversations = asyncHandler(async (req, res) => {
@@ -38,7 +40,16 @@ export class UserChatController {
         const userId = req.actor?.id;
         if (!userId) throw ApiError.unauthorized();
         const orderId = paramOrderId(req);
-        const data = await this.conversations.getBookingByOrderId(userId, "user", orderId);
+        let data;
+        try {
+            data = await this.conversations.getBookingByOrderId(userId, "user", orderId);
+        } catch (err) {
+            if (!(err instanceof ApiError && err.statusCode === 404)) {
+                throw err;
+            }
+            await this.bookingChat.openBookingConversationForOrder(orderId);
+            data = await this.conversations.getBookingByOrderId(userId, "user", orderId);
+        }
         res.status(200).json(new ApiResponse(200, data, "ok"));
     });
 

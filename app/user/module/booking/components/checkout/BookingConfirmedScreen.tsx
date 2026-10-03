@@ -20,6 +20,7 @@ export function BookingConfirmedScreen() {
   const setSuppressEmptyCartExit = useCheckoutStore((s) => s.setSuppressEmptyCartExit);
   const setPendingOrderId = useCheckoutStore((s) => s.setPendingOrderId);
   const setPaymentIncomplete = useCheckoutStore((s) => s.setPaymentIncomplete);
+  const setPaymentUserCancelled = useCheckoutStore((s) => s.setPaymentUserCancelled);
   const confirmedOrderId = useCheckoutStore((s) => s.confirmedOrderId);
   const setConfirmedOrderId = useCheckoutStore((s) => s.setConfirmedOrderId);
   const { orderId: orderIdParam } = useLocalSearchParams<{ orderId?: string | string[] }>();
@@ -55,6 +56,7 @@ export function BookingConfirmedScreen() {
     if (!orderId) return;
     setPendingOrderId(orderId);
     setPaymentIncomplete(true);
+    setPaymentUserCancelled(false);
     router.replace('/(app)/checkout/payment' as Href);
   }
 

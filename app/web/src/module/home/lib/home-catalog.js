@@ -83,6 +83,7 @@ export function normalizeProduct(raw) {
     id: raw.id,
     name: raw.name,
     slug: raw.slug,
+    categoryId: raw.categoryId ?? null,
     pricePaise,
     compareAtPaise,
     rating:
@@ -160,7 +161,7 @@ export function normalizeApiSections(response) {
         slug: section.slug,
         name: section.name,
         badgeColor: section.badgeColor,
-        badgeLabel: section.name,
+        badgeLabel: section.badgeLabel ?? section.name,
         sortIndex: section.sortIndex,
         items: section.items,
       }),

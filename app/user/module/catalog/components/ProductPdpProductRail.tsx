@@ -1,10 +1,10 @@
-import { Text } from '@/components/ui/text';
-import { HomeProductCard } from '@/module/home/components/HomeProductCard';
+import { ProductRailHeader } from '@/module/catalog/components/ProductRailHeader';
+import { CatalogProductCard } from '@/module/catalog/components/CatalogProductCard';
 import type { HomeCatalogProduct } from '@/module/home/lib/home-catalog';
 import { cn } from '@/lib/utils';
+import { type Href } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 
-/** Match `HomeProductCard` rail width on home feed */
 const PDP_RAIL_CARD_WIDTH = 168;
 
 type ProductPdpProductRailProps = {
@@ -12,6 +12,8 @@ type ProductPdpProductRailProps = {
   subtitle: string;
   items: HomeCatalogProduct[];
   loading?: boolean;
+  viewAllHref?: Href | null;
+  viewAllLabel?: string;
   /** Tighter top spacing when this rail follows another PDP product rail */
   stackedBelowRail?: boolean;
   className?: string;
@@ -28,13 +30,15 @@ export function ProductPdpProductRail({
   subtitle,
   items,
   loading,
+  viewAllHref,
+  viewAllLabel,
   stackedBelowRail,
   className,
 }: ProductPdpProductRailProps) {
   if (loading) {
     return (
       <View className={cn(sectionSpacingClass(stackedBelowRail), className)}>
-        <Text className="text-foreground text-lg font-semibold">{title}</Text>
+        <ProductRailHeader title={title} subtitle={subtitle} />
         <View
           className="h-[248px] rounded-2xl bg-muted"
           style={{ width: PDP_RAIL_CARD_WIDTH }}
@@ -47,17 +51,19 @@ export function ProductPdpProductRail({
 
   return (
     <View className={cn(sectionSpacingClass(stackedBelowRail), className)}>
-      <View className="gap-0.5">
-        <Text className="text-foreground text-lg font-semibold">{title}</Text>
-        <Text className="text-muted-foreground text-sm">{subtitle}</Text>
-      </View>
+      <ProductRailHeader
+        title={title}
+        subtitle={subtitle}
+        viewAllHref={viewAllHref}
+        viewAllLabel={viewAllLabel}
+      />
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerClassName="gap-3 pr-1">
         {items.map((product) => (
           <View key={product.id} style={{ width: PDP_RAIL_CARD_WIDTH }}>
-            <HomeProductCard product={product} compact />
+            <CatalogProductCard product={product} layout="rail" className="w-full" />
           </View>
         ))}
       </ScrollView>
