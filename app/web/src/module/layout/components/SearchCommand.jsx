@@ -178,6 +178,7 @@ export function SearchCommand({ variant = "bar", className, fullScreen = false }
       title="Search"
       description="Search decorations and occasions"
       showCloseButton={effectiveFullScreen}
+      initialFocus={isMdDown ? false : undefined}
       className={cn(
         effectiveFullScreen
           ? "inset-0 top-0 left-0 h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 rounded-none border-0 ring-0"

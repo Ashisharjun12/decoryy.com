@@ -5,14 +5,14 @@ import { categoryPath } from "@/lib/catalog-path";
 import { listTopLevelCategories, resolveCategoryIcon } from "@/lib/category-icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { DecoryImageFallback } from "@/components/decory-image-fallback";
 import { categoryImageUrl } from "@/module/home/lib/home-catalog";
 import { useCatalogStore } from "@/store/catalog.store";
@@ -122,12 +122,18 @@ export function MobileCategorySheet() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetContent
+        side="bottom"
         showCloseButton
-        className="flex max-h-[min(88dvh,34rem)] w-[calc(100%-1.5rem)] max-w-md flex-col gap-0 overflow-hidden p-0 sm:max-w-lg"
+        initialFocus={false}
+        className="flex h-[min(88dvh,36rem)] max-h-[min(88dvh,36rem)] flex-col gap-0 overflow-hidden rounded-t-3xl border-t p-0"
       >
-        <DialogHeader className="shrink-0 gap-1 border-b border-border/60 px-4 py-3 pr-12 text-left">
+        <div className="flex shrink-0 justify-center pt-2.5 pb-0.5" aria-hidden>
+          <span className="h-1 w-10 rounded-full bg-border" />
+        </div>
+
+        <SheetHeader className="shrink-0 gap-1 border-b border-border/60 px-4 py-3 pr-12 text-left">
           <div className="flex items-center gap-2">
             {currentParent ? (
               <Button
@@ -141,16 +147,16 @@ export function MobileCategorySheet() {
                 <ChevronLeftIcon className="size-4" />
               </Button>
             ) : null}
-            <DialogTitle className="font-heading text-lg font-semibold">{title}</DialogTitle>
+            <SheetTitle className="font-heading text-lg font-semibold">{title}</SheetTitle>
           </div>
-          <DialogDescription className="text-xs">
+          <SheetDescription className="text-xs">
             {currentParent
               ? `${levelCategories.length} subcategories`
               : levelCategories.length > SEARCH_THRESHOLD
                 ? `${levelCategories.length} categories — scroll or search`
                 : "Browse by occasion & theme"}
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
 
         {showSearch ? (
           <div className="shrink-0 border-b border-border/40 px-4 py-2.5">
@@ -204,7 +210,7 @@ export function MobileCategorySheet() {
             View all decorations
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

@@ -38,6 +38,8 @@ function CommandDialog({
   children,
   className,
   showCloseButton = false,
+  initialFocus,
+  finalFocus,
   ...props
 }) {
   return (
@@ -51,7 +53,9 @@ function CommandDialog({
           "top-1/3 translate-y-0 overflow-hidden rounded-3xl! p-0 ring-border/40",
           className,
         )}
-        showCloseButton={showCloseButton}>
+        showCloseButton={showCloseButton}
+        initialFocus={initialFocus}
+        finalFocus={finalFocus}>
         {children}
       </DialogContent>
     </Dialog>

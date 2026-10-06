@@ -6,21 +6,43 @@ import { cn } from "@/lib/utils";
 import { HomeCategoryTile } from "@/module/home/components/HomeCategoryTile";
 
 export const CATEGORY_TILE_COLS = 5;
-/** View-all threshold (mobile shows 3 per row; more categories scroll). */
-export const HOME_CATEGORY_PREVIEW_COUNT = 3;
-export const HOME_CATEGORY_DESKTOP_VISIBLE = 5;
+/** Mobile home grid: 3 columns × 2 rows per horizontal page. */
+export const HOME_MOBILE_CATEGORY_COLS = 3;
+export const HOME_MOBILE_CATEGORY_ROWS = 2;
+export const HOME_MOBILE_CATEGORY_PAGE_SIZE =
+  HOME_MOBILE_CATEGORY_COLS * HOME_MOBILE_CATEGORY_ROWS;
+/** View-all threshold on non-scroll layouts. */
+export const HOME_CATEGORY_PREVIEW_COUNT = HOME_MOBILE_CATEGORY_PAGE_SIZE;
+export const HOME_CATEGORY_DESKTOP_VISIBLE = HOME_MOBILE_CATEGORY_PAGE_SIZE;
 export const CATEGORY_TILE_INITIAL_COUNT = CATEGORY_TILE_COLS * 2;
 export const CATEGORY_TILE_EXPAND_STEP = 20;
 
-/** Home row: 3 tiles on mobile, 5 on md+ (gap-2.5 → n−1 gaps at 0.625rem). */
+/** Home row on lg+: 6 tiles per viewport (gap-2.5 → five gaps at 0.625rem). */
 export const homeCategoryTileWidthClass = cn(
   "min-w-0 shrink-0 snap-start",
-  "flex-[0_0_calc((100%-1.25rem)/3)] max-w-[calc((100%-1.25rem)/3)]",
-  "md:flex-[0_0_calc((100%-2.5rem)/5)] md:max-w-[calc((100%-2.5rem)/5)]",
+  "lg:flex-[0_0_calc((100%-3.125rem)/6)] lg:max-w-[calc((100%-3.125rem)/6)]",
 );
 
 export const categoryRowClassHome =
   "flex w-full min-w-0 gap-2.5 overflow-x-auto overscroll-x-contain pb-2.5 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] sm:snap-none [&::-webkit-scrollbar]:hidden";
+
+const homeMobilePagedRowClass =
+  "flex w-full min-w-0 gap-3 overflow-x-auto overscroll-x-contain pb-2.5 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] lg:hidden [&::-webkit-scrollbar]:hidden";
+
+const homeMobilePageClass =
+  "grid w-full min-w-full shrink-0 snap-start grid-cols-3 gap-x-2.5 gap-y-6";
+
+const homeMobileTileClass =
+  "min-w-0 w-full [&>span:last-child]:min-h-[2.75em]";
+
+function chunkCategories(categories, pageSize) {
+  if (!categories.length) return [];
+  const pages = [];
+  for (let i = 0; i < categories.length; i += pageSize) {
+    pages.push(categories.slice(i, i + pageSize));
+  }
+  return pages;
+}
 
 /** Category PLP top rail: 5 tiles per viewport (gap-1.5 → four gaps = 1rem). */
 export const categoryPlpTopRailTileClass = cn(
@@ -53,8 +75,36 @@ export function CategoryTileGridSkeleton({
 }) {
   const skeletonImageClass =
     "aspect-square w-full rounded-2xl bg-muted/30";
-  const isHomeLayout = layout === "home" || layout === "plp-top";
   const wrapClass = wrapClassForLayout(layout);
+
+  if (layout === "home") {
+    const mobileCount = Math.min(count, HOME_MOBILE_CATEGORY_PAGE_SIZE);
+    return (
+      <>
+        <div className={homeMobilePagedRowClass}>
+          <div className={homeMobilePageClass}>
+            {Array.from({ length: mobileCount }).map((_, index) => (
+              <div key={index} className="flex min-w-0 flex-col items-center gap-2">
+                <Skeleton className={skeletonImageClass} />
+                <Skeleton className="h-3 w-16 rounded-md" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className={cn(rowClassForLayout(layout), "hidden lg:flex")}>
+          {Array.from({ length: count }).map((_, index) => (
+            <div
+              key={index}
+              className={cn("flex min-w-0 flex-col items-center gap-2", wrapClass)}
+            >
+              <Skeleton className={skeletonImageClass} />
+              <Skeleton className="h-3 w-16 rounded-md" />
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  }
 
   return (
     <div className={rowClassForLayout(layout)}>
@@ -113,10 +163,46 @@ export function CategoryTileGrid({
   const hasMore = showExpandButton && categories.length > visibleCount;
   const rowClass = rowClassForLayout(layout);
   const tileWrapClass = wrapClassForLayout(layout);
+  const homeMobilePages =
+    layout === "home"
+      ? chunkCategories(visible, HOME_MOBILE_CATEGORY_PAGE_SIZE)
+      : [];
+
+  const scrollViewAllLink =
+    isScrollRowLayout && scrollViewAll?.to ? (
+      <Link
+        to={scrollViewAll.to}
+        className={cn(
+          "flex min-h-[5.5rem] w-[4.5rem] shrink-0 snap-end flex-col items-center justify-center gap-1 self-center py-2 pl-1 text-center sm:min-h-[6rem] sm:w-[5rem]",
+          "text-xs font-semibold text-foreground/80 transition-colors hover:text-foreground sm:text-sm",
+        )}
+      >
+        <span className="leading-tight">{scrollViewAll.label ?? "View all"}</span>
+        <span className="text-base leading-none" aria-hidden>→</span>
+      </Link>
+    ) : null;
 
   return (
     <div className="flex flex-col gap-4">
-      <div className={rowClass}>
+      {layout === "home" ? (
+        <div className={homeMobilePagedRowClass}>
+          {homeMobilePages.map((page, pageIndex) => (
+            <div key={pageIndex} className={homeMobilePageClass}>
+              {page.map((category) => (
+                <HomeCategoryTile
+                  key={category.id}
+                  category={category}
+                  parent={parent}
+                  navigation={navigation}
+                  onDrill={onDrill}
+                  className={homeMobileTileClass}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      ) : null}
+      <div className={cn(rowClass, layout === "home" && "hidden lg:flex")}>
         {visible.map((category) => (
           <HomeCategoryTile
             key={category.id}
@@ -127,18 +213,7 @@ export function CategoryTileGrid({
             className={tileWrapClass}
           />
         ))}
-        {isScrollRowLayout && scrollViewAll?.to ? (
-          <Link
-            to={scrollViewAll.to}
-            className={cn(
-              "flex min-h-[5.5rem] w-[4.5rem] shrink-0 snap-end flex-col items-center justify-center gap-1 self-center py-2 pl-1 text-center sm:min-h-[6rem] sm:w-[5rem]",
-              "text-xs font-semibold text-foreground/80 transition-colors hover:text-foreground sm:text-sm",
-            )}
-          >
-            <span className="leading-tight">{scrollViewAll.label ?? "View all"}</span>
-            <span className="text-base leading-none" aria-hidden>→</span>
-          </Link>
-        ) : null}
+        {scrollViewAllLink}
       </div>
       {hasMore ? (
         <div className="flex justify-center pt-1">

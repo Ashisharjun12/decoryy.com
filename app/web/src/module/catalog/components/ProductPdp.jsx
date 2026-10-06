@@ -16,12 +16,16 @@ import {
 } from "lucide-react";
 import { categoryPath } from "@/lib/catalog-path";
 import { formatPaise } from "@/lib/money";
+import { sectionBadgeAppearance } from "@/lib/section-badge-color";
 import { cn } from "@/lib/utils";
+import {
+  resolveCardBadges,
+  useProductMerchBadge,
+} from "@/module/home/hooks/use-product-merch-badge";
 import { useCatalogStore } from "@/store/catalog.store";
 import { toast } from "@/components/ui/toast";
 import { getApiError } from "@/api/api";
 import { useCartStore } from "@/store/cart.store";
-import { ProductPdpMobileHeader } from "@/module/catalog/components/ProductPdpMobileHeader";
 import { ProductGalleryLightbox } from "@/module/catalog/components/ProductGalleryLightbox";
 import { isBackendCityId, useLocationStore } from "@/store/location.store";
 import { Button } from "@/components/ui/button";
@@ -386,6 +390,42 @@ function ProductOnSiteSetupBadge({ label = "On-site setup in 1-1.5 hrs" }) {
   );
 }
 
+function ProductPdpSectionBadgePill({ label, color }) {
+  if (!label?.trim()) return null;
+  const { className, style } = sectionBadgeAppearance(color);
+  return (
+    <span
+      className={cn(
+        "inline-flex max-w-full shrink-0 items-center truncate rounded-md px-2.5 py-0.5 text-[11px] font-bold leading-tight shadow-sm sm:text-xs",
+        className,
+      )}
+      style={style}
+    >
+      {label}
+    </span>
+  );
+}
+
+function ProductPdpTitleBadges({ productId, instant }) {
+  const fromStore = useProductMerchBadge(productId);
+  const { badgeLabel, badgeColor } = resolveCardBadges({ fromStore });
+  const showInstant = Boolean(instant?.enabled && instant?.showBadge);
+  const instantLabel = (instant?.badgeLabel || "Instant").trim() || "Instant";
+
+  if (!badgeLabel && !showInstant) return null;
+
+  return (
+    <div className="flex min-w-0 flex-wrap items-center gap-2">
+      {badgeLabel ? (
+        <ProductPdpSectionBadgePill label={badgeLabel} color={badgeColor} />
+      ) : null}
+      {showInstant ? (
+        <ProductPdpSectionBadgePill label={instantLabel} color="orange" />
+      ) : null}
+    </div>
+  );
+}
+
 function ProductLocationCard({ cityLabel, onChangeLocation }) {
   return (
     <div
@@ -504,9 +544,9 @@ function ProductGallery({ images, title, onShare, onSimilar, showSimilar }) {
       <div className="flex min-w-0 flex-1 flex-col gap-3">
       <div
         className={cn(
-          "relative w-full min-w-0 overflow-hidden bg-muted",
+          "relative w-full min-w-0 overflow-hidden bg-background",
           "max-md:rounded-none max-md:shadow-none max-md:ring-0",
-          "md:rounded-2xl md:border md:border-border/80 md:shadow-sm md:ring-1 md:ring-border/60",
+          "md:rounded-2xl md:border md:border-border/80 md:bg-muted md:shadow-sm md:ring-1 md:ring-border/60",
         )}
       >
         {src ? (
@@ -903,8 +943,7 @@ export function ProductPdp({ product, onChangeLocation }) {
 
   return (
     <div className="flex min-w-0 flex-col gap-0 max-md:pb-[calc(5.75rem+env(safe-area-inset-bottom))]">
-      <ProductPdpMobileHeader />
-      <div className="grid min-w-0 gap-8 overflow-x-hidden lg:grid-cols-2 lg:items-start lg:gap-10">
+      <div className="grid min-w-0 gap-8 overflow-x-hidden max-md:gap-4 lg:grid-cols-2 lg:items-start lg:gap-10">
         <div className="flex min-w-0 flex-col gap-6 lg:sticky lg:top-20 lg:z-[1] lg:self-start">
           <ProductGallery
             images={images}
@@ -920,6 +959,7 @@ export function ProductPdp({ product, onChangeLocation }) {
         <ProductBreadcrumb title={title} categoryId={product?.categoryId} />
 
         <div className="flex min-w-0 flex-col gap-2">
+          <ProductPdpTitleBadges productId={product?.id} instant={product?.instant} />
           <div className="flex min-w-0 items-start justify-between gap-3">
             <h1
               className="line-clamp-2 min-w-0 flex-1 font-heading text-2xl font-semibold tracking-tight md:text-[1.75rem] md:leading-snug"
@@ -1034,9 +1074,8 @@ export function ProductPdp({ product, onChangeLocation }) {
 export function ProductPdpSkeleton() {
   return (
     <div className="flex min-w-0 flex-col gap-0" aria-busy="true" aria-live="polite">
-      <ProductPdpMobileHeader />
       <div
-        className="grid min-w-0 gap-8 overflow-x-hidden lg:grid-cols-2 lg:items-start lg:gap-10"
+        className="grid min-w-0 gap-8 overflow-x-hidden max-md:gap-4 lg:grid-cols-2 lg:items-start lg:gap-10"
       >
       <span className="sr-only">Loading product</span>
       <div className="min-w-0 lg:sticky lg:top-20">
